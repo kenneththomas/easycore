@@ -1,5 +1,9 @@
 # releasenotes
 
+## 0.8
+- floating video player
+- visual improvements to video details page
+
 ## 0.7
 -  index style improvements
 
