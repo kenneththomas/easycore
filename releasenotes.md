@@ -3,6 +3,8 @@
 ## 0.8
 - floating video player
 - visual improvements to video details page
+- improved tagging on video details page
+- vertical video display improvements
 
 ## 0.7
 -  index style improvements

@@ -6,7 +6,6 @@
     <title>{{ video.nickname or video.original_filepath }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="{{ url_for('static', filename='js/video_detail.js') }}"></script>
 </head>
 <body>
     <div class="container">
@@ -18,10 +17,12 @@
         <main>
             <section class="video-player">
                 <h2>Video Player</h2>
-                <video width="100%" controls>
-                    <source src="{{ url_for('stream_video', video_id=video.id) }}" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
+                <div class="video-container">
+                    <video id="main-video" controls>
+                        <source src="{{ url_for('stream_video', video_id=video.id) }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
             </section>
 
             <section class="video-info">
@@ -35,17 +36,9 @@
 
                 <div class="tags-section">
                     <h2>Tags</h2>
-                    <div id="tags-display-{{ video.id }}" class="tags-container">
-                        {% for tag in video.tags.split(',') %}
-                            {% if tag.strip() %}
-                                <span class="tag">{{ tag.strip() }}</span>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                    <form onsubmit="event.preventDefault(); editTags('{{ video.id }}')" class="tags-form">
-                        <input type="text" id="tags-{{ video.id }}" value="{{ video.tags }}" placeholder="Enter new tags">
-                        <button type="submit" class="btn">Update Tags</button>
-                    </form>
+                    <div id="tag-input-container" class="tags-container" data-tags="{{ video.tags }}" data-video-id="{{ video.id }}"></div>
+                    <input type="text" id="tag-input" placeholder="Type to add tags">
+                    <div id="tag-suggestions"></div>
                 </div>
 
                 <div class="file-info">
@@ -56,5 +49,6 @@
             </section>
         </main>
     </div>
+    <script src="{{ url_for('static', filename='js/video_detail.js') }}"></script>
 </body>
 </html>
