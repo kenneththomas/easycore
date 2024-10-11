@@ -4,6 +4,9 @@ import os
 from sqlalchemy import desc, func
 import re
 from werkzeug.utils import secure_filename
+import ffmpeg
+from PIL import Image
+import io
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
@@ -18,13 +21,14 @@ class Video(db.Model):
     nickname = db.Column(db.String(100))
     description = db.Column(db.Text)
     tags = db.Column(db.String(255))
+    thumbnail_path = db.Column(db.String(255))  # New field for thumbnail
 
 @app.route('/')
 def index():
     page = request.args.get('page', 1, type=int)
     per_page = 10
     videos = Video.query.order_by(desc(Video.id)).paginate(page=page, per_page=per_page, error_out=False)
-    return render_template('index.html', videos=videos.items, page=page, total_pages=videos.pages)
+    return render_template('index.html', videos=videos.items, page=page, total_pages=videos.pages, tag=None)
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_video():
@@ -57,11 +61,35 @@ def add_video():
             os.makedirs(upload_folder, exist_ok=True)
             file.save(stored_filepath)
             
+            # Generate thumbnail
+            thumbnail_filename = f"thumbnail_{os.path.splitext(new_filename)[0]}.jpg"
+            thumbnails_dir = os.path.join(app.static_folder, 'thumbnails')
+            os.makedirs(thumbnails_dir, exist_ok=True)
+            thumbnail_path = os.path.join(thumbnails_dir, thumbnail_filename)
+            
+            # Get video duration
+            probe = ffmpeg.probe(stored_filepath)
+            duration = float(probe['streams'][0]['duration'])
+            
+            # Extract middle frame
+            (
+                ffmpeg
+                .input(stored_filepath, ss=duration/2)
+                .filter('scale', 320, -1)
+                .output(thumbnail_path, vframes=1)
+                .overwrite_output()
+                .run(capture_stdout=True, capture_stderr=True)
+            )
+            
+            # Set the thumbnail_path to be relative to the static folder
+            relative_thumbnail_path = os.path.join('thumbnails', thumbnail_filename).replace('\\', '/')
+            
             new_video = Video(original_filepath=original_filepath, 
                               stored_filepath=stored_filepath,
                               nickname=nickname, 
                               description=description, 
-                              tags=tags)
+                              tags=tags,
+                              thumbnail_path=relative_thumbnail_path)
             db.session.add(new_video)
             db.session.commit()
             
@@ -197,6 +225,12 @@ def get_tag_suggestions():
     matching_tags = [tag[0] for tag in all_tags if query in tag[0].lower()]
     matching_tags.sort(key=lambda x: x.lower().index(query))  # Sort by relevance
     return jsonify(matching_tags[:10])  # Return top 10 matches
+
+@app.route('/thumbnail/<int:video_id>')
+def serve_thumbnail(video_id):
+    video = Video.query.get_or_404(video_id)
+    thumbnail_path = os.path.join(app.static_folder, video.thumbnail_path)
+    return send_file(thumbnail_path, mimetype='image/jpeg')
 
 if __name__ == '__main__':
     with app.app_context():

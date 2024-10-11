@@ -1,5 +1,9 @@
 # releasenotes
 
+## 0.6
+- thumbnail generation
+- script to generate thumbnails for videos that didnt have one already
+
 ## 0.5
 - stealth upload
 - rename file to nickname on add
