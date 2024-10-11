@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ video.nickname or video.original_filepath }}</title>
+    <style>
+        .tag {
+            display: inline-block;
+            background-color: #f0f0f0;
+            padding: 2px 5px;
+            margin: 2px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .tag:hover {
+            background-color: #e0e0e0;
+        }
+        #description-display {
+            white-space: pre-wrap;
+        }
+    </style>
+    <script>
+        function editTags(videoId) {
+            const newTags = document.getElementById(`tags-${videoId}`).value;
+            fetch(`/edit_tags/${videoId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `tags=${encodeURIComponent(newTags)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayTags(videoId, data.new_tags);
+                    document.getElementById(`tags-${videoId}`).value = data.new_tags;
+                    alert('Tags updated successfully!');
+                } else {
+                    alert('Error updating tags: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred. Please try again.');
+            });
+        }
+
+        function filterByTag(tag) {
+            window.location.href = `/filter?tag=${encodeURIComponent(tag)}`;
+        }
+
+        function displayTags(videoId, tags) {
+            const tagsContainer = document.getElementById(`tags-display-${videoId}`);
+            tagsContainer.innerHTML = '';
+            tags.split(',').forEach(tag => {
+                if (tag.trim()) {
+                    const tagElement = document.createElement('span');
+                    tagElement.className = 'tag';
+                    tagElement.textContent = tag.trim();
+                    tagElement.onclick = () => filterByTag(tag.trim());
+                    tagsContainer.appendChild(tagElement);
+                }
+            });
+        }
+
+        function editDescription(videoId) {
+            const newDescription = document.getElementById('description-edit').value;
+            fetch(`/edit_description/${videoId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `description=${encodeURIComponent(newDescription)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('description-display').textContent = data.new_description;
+                    toggleDescriptionEdit();
+                    alert('Description updated successfully!');
+                } else {
+                    alert('Error updating description: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred. Please try again.');
+            });
+        }
+
+        function toggleDescriptionEdit() {
+            const displayElem = document.getElementById('description-display');
+            const editElem = document.getElementById('description-edit');
+            const editBtn = document.getElementById('edit-description-btn');
+            const saveBtn = document.getElementById('save-description-btn');
+
+            if (displayElem.style.display !== 'none') {
+                displayElem.style.display = 'none';
+                editElem.style.display = 'block';
+                editBtn.style.display = 'none';
+                saveBtn.style.display = 'inline-block';
+                editElem.value = displayElem.textContent;
+            } else {
+                displayElem.style.display = 'block';
+                editElem.style.display = 'none';
+                editBtn.style.display = 'inline-block';
+                saveBtn.style.display = 'none';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const tagsContainer = document.getElementById('tags-display-{{ video.id }}');
+            displayTags('{{ video.id }}', tagsContainer.dataset.tags);
+        });
+    </script>
+</head>
+<body>
+    <h1>{{ video.nickname or video.original_filepath }}</h1>
+    <p><a href="{{ url_for('index') }}">Back to Video List</a></p>
+    
+    {% if video.description %}
+        <h2>Description</h2>
+        <p id="description-display">{{ video.description }}</p>
+        <button id="edit-description-btn" onclick="toggleDescriptionEdit()">Edit Description</button>
+        <button id="save-description-btn" style="display: none;" onclick="editDescription('{{ video.id }}')">Save Description</button>
+        <input id="description-edit" style="display: none;" type="text" value="{{ video.description }}" placeholder="Enter new description">
+    {% endif %}
+    
+    <h2>File Information</h2>
+    <p>Original File: {{ video.original_filepath }}</p>
+    <p>Stored File: {{ video.stored_filepath }}</p>
+    
+    <h2>Tags</h2>
+    <p><span id="tags-display-{{ video.id }}" data-tags="{{ video.tags }}"></span></p>
+    <form onsubmit="event.preventDefault(); editTags('{{ video.id }}')">
+        <input type="text" id="tags-{{ video.id }}" value="{{ video.tags }}" placeholder="Enter new tags">
+        <button type="submit">Update Tags</button>
+    </form>
+    
+    <h2>Actions</h2>
+    <a href="{{ url_for('play_video', video_id=video.id) }}">Play Video</a>
+</body>
+</html>

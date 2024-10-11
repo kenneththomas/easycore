@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Video</title>
+</head>
+<body>
+    <h1>Add New Video</h1>
+    <form action="{{ url_for('add_video') }}" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" accept="video/*" required>
+        <input type="text" name="nickname" placeholder="Enter nickname (optional)">
+        <textarea name="description" placeholder="Enter description (optional)"></textarea>
+        <input type="text" name="tags" placeholder="Enter tags (comma-separated)" required>
+        <input type="submit" value="Add Video">
+    </form>
+    <a href="{{ url_for('index') }}">Back to Index</a>
+    <script>
+        document.querySelector('form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var form = new FormData(this);
+            fetch(this.action, {
+                method: 'POST',
+                body: form
+            }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = '{{ url_for("index") }}';
+                } else {
+                    alert('Error adding video: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred. Please try again.');
+            });
+        });
+    </script>
+</body>
+</html>
