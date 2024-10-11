@@ -76,3 +76,22 @@ input[type="submit"]:hover {
     margin-top: 10px;
     transition: width 0.3s ease;
 }
+
+.tag-button {
+    display: inline-block;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 5px 10px;
+    margin: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.tag-button:hover {
+    background-color: #e0e0e0;
+}
+
+#existing-tags {
+    margin-top: 20px;
+}

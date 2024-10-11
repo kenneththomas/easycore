@@ -108,11 +108,11 @@
 
         <div class="pagination">
             {% if page > 1 %}
-                <a href="{{ url_for('index', page=page-1) }}" class="button">&laquo; Previous</a>
+                <a href="{{ url_for('filter_videos', tag=tag, page=page-1) if tag else url_for('index', page=page-1) }}" class="button">&laquo; Previous</a>
             {% endif %}
             <span>Page {{ page }} of {{ total_pages }}</span>
             {% if page < total_pages %}
-                <a href="{{ url_for('index', page=page+1) }}" class="button">Next &raquo;</a>
+                <a href="{{ url_for('filter_videos', tag=tag, page=page+1) if tag else url_for('index', page=page+1) }}" class="button">Next &raquo;</a>
             {% endif %}
         </div>
     </div>

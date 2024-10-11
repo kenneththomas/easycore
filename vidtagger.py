@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import os
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
@@ -53,7 +53,13 @@ def add_video():
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
     
-    return render_template('add.html')
+    # Get existing tags for GET request
+    tags = db.session.query(
+        func.trim(func.lower(func.substr(Video.tags, 1, func.instr(Video.tags + ',', ',') - 1))).cast(db.String).label('tag'),
+        func.count('*').label('count')
+    ).group_by('tag').order_by(desc('count')).all()
+    
+    return render_template('add.html', existing_tags=tags)
 
 @app.route('/play/<int:video_id>')
 def play_video(video_id):
@@ -135,7 +141,16 @@ def edit_description(video_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@app.route('/get_tags')
+def get_tags():
+    tags = db.session.query(
+        func.trim(func.lower(func.substr(Video.tags, 1, func.instr(Video.tags + ',', ',') - 1))).cast(db.String).label('tag'),
+        func.count('*').label('count')
+    ).group_by('tag').order_by(desc('count')).all()
+    
+    return jsonify([{'tag': tag, 'count': count} for tag, count in tags])
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    app.run("0.0.0.0", 5015, debug=True)
