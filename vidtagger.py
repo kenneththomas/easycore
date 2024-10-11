@@ -3,10 +3,12 @@ from flask_sqlalchemy import SQLAlchemy
 import os
 from sqlalchemy import desc, func
 import re
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
+app.config['STEALTH_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'stealth_uploads')
 db = SQLAlchemy(app)
 
 class Video(db.Model):
@@ -31,17 +33,30 @@ def add_video():
         nickname = request.form.get('nickname')
         description = request.form.get('description')
         tags = request.form.get('tags')
+        stealth = request.form.get('stealth') == 'on'
         
         if not file:
             return jsonify({"error": "No file provided"}), 400
         
         original_filepath = file.filename
-        filename = os.path.basename(original_filepath)
-        stored_filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        original_extension = os.path.splitext(original_filepath)[1]
+        
+        if nickname:
+            new_filename = secure_filename(nickname + original_extension)
+        else:
+            new_filename = secure_filename(original_filepath)
+        
+        if stealth:
+            stored_filepath = os.path.join(app.config['STEALTH_UPLOAD_FOLDER'], new_filename)
+            upload_folder = app.config['STEALTH_UPLOAD_FOLDER']
+        else:
+            stored_filepath = os.path.join(app.config['UPLOAD_FOLDER'], new_filename)
+            upload_folder = app.config['UPLOAD_FOLDER']
         
         try:
-            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            os.makedirs(upload_folder, exist_ok=True)
             file.save(stored_filepath)
+            
             new_video = Video(original_filepath=original_filepath, 
                               stored_filepath=stored_filepath,
                               nickname=nickname, 
@@ -49,7 +64,8 @@ def add_video():
                               tags=tags)
             db.session.add(new_video)
             db.session.commit()
-            return jsonify({"success": True}), 200
+            
+            return jsonify({"success": True, "stealth": stealth}), 200
         except Exception as e:
             db.session.rollback()
             return jsonify({"error": str(e)}), 500

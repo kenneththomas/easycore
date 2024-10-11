@@ -21,6 +21,11 @@
         <label for="tags">Tags (comma-separated):</label>
         <input type="text" name="tags" id="tags" placeholder="Enter tags, separated by commas" required>
         
+        <label for="stealth">
+            <input type="checkbox" name="stealth" id="stealth">
+            Stealth Upload (will not be added to database)
+        </label>
+        
         <div id="existing-tags">
             <h3>Existing Tags:</h3>
             {% for tag in existing_tags %}
@@ -48,7 +53,11 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    window.location.href = '{{ url_for("index") }}';
+                    if (data.stealth) {
+                        alert('Video uploaded in stealth mode.');
+                    } else {
+                        window.location.href = '{{ url_for("index") }}';
+                    }
                 } else {
                     alert('Error adding video: ' + data.error);
                 }

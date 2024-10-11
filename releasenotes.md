@@ -1,5 +1,9 @@
 # releasenotes
 
+## 0.5
+- stealth upload
+- rename file to nickname on add
+
 ## 0.4
 - stream video mode
 

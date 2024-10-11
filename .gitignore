@@ -3,6 +3,7 @@ instance/
 
 # Uploads directory
 uploads/
+stealth_uploads/
 
 # Database file
 *.db
