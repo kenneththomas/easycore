@@ -1,5 +1,8 @@
 # releasenotes
 
+## 0.7
+-  index style improvements
+
 ## 0.6
 - thumbnail generation
 - script to generate thumbnails for videos that didnt have one already
