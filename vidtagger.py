@@ -22,6 +22,7 @@ class Video(db.Model):
     description = db.Column(db.Text)
     tags = db.Column(db.String(255))
     thumbnail_path = db.Column(db.String(255))  # New field for thumbnail
+    view_count = db.Column(db.Integer, default=0)  # New field for view count
 
 @app.route('/')
 def index():
@@ -89,7 +90,8 @@ def add_video():
                               nickname=nickname, 
                               description=description, 
                               tags=tags,
-                              thumbnail_path=relative_thumbnail_path)
+                              thumbnail_path=relative_thumbnail_path,
+                              view_count=0)  # Initialize view_count to 0
             db.session.add(new_video)
             db.session.commit()
             
@@ -191,6 +193,11 @@ def edit_tags(video_id):
 @app.route('/video/<int:video_id>')
 def video_detail(video_id):
     video = Video.query.get_or_404(video_id)
+    if video.view_count is None:
+        video.view_count = 1
+    else:
+        video.view_count += 1
+    db.session.commit()
     return render_template('video_detail.html', video=video)
 
 @app.route('/edit_description/<int:video_id>', methods=['POST'])
@@ -231,6 +238,16 @@ def serve_thumbnail(video_id):
     video = Video.query.get_or_404(video_id)
     thumbnail_path = os.path.join(app.static_folder, video.thumbnail_path)
     return send_file(thumbnail_path, mimetype='image/jpeg')
+
+@app.route('/increment_view/<int:video_id>', methods=['POST'])
+def increment_view(video_id):
+    video = Video.query.get_or_404(video_id)
+    if video.view_count is None:
+        video.view_count = 1
+    else:
+        video.view_count += 1
+    db.session.commit()
+    return jsonify({"success": True, "new_view_count": video.view_count})
 
 if __name__ == '__main__':
     with app.app_context():

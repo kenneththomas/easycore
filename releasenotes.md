@@ -1,5 +1,8 @@
 # releasenotes
 
+## 0.9
+- view counts
+
 ## 0.8
 - floating video player
 - visual improvements to video details page

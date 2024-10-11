@@ -26,6 +26,8 @@
             </section>
 
             <section class="video-info">
+                <h2>{{ video.nickname or video.original_filepath }}</h2>
+                <p>Views: <span class="view-count">{{ video.view_count }}</span></p>
                 <div class="description-section">
                     <h2>Description</h2>
                     <p id="description-display">{{ video.description or 'No description available.' }}</p>

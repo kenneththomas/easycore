@@ -139,6 +139,7 @@ textarea {
 
 .file-info p {
     margin: 5px 0;
+    font-size: 1em;  /* Ensure other paragraphs maintain their size */
 }
 
 @media (max-width: 768px) {
@@ -213,4 +214,10 @@ textarea {
     .vertical-video .video-container {
         max-width: 100%;
     }
+}
+
+/* Add this new class at the end of the file */
+.view-count {
+    font-size: 0.9em;
+    color: #666;
 }

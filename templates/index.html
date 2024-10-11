@@ -36,6 +36,7 @@
                                 <p>{{ video.description }}</p>
                             {% endif %}
                             <p>Tags: <span id="tags-display-{{ video.id }}" data-tags="{{ video.tags }}"></span></p>
+                            <p class="view-count">Views: <span id="view-count-{{ video.id }}">{{ video.view_count }}</span></p>
                             <button onclick="playVideo({{ video.id }})" class="button">Play</button>
                             <button onclick="deleteVideo({{ video.id }})" class="button delete-button">Delete</button>
                         </div>
@@ -136,6 +137,15 @@
             videoPlayer.src = `/stream/${videoId}`;
             videoPlayerContainer.style.display = 'block';
             videoPlayer.play();
+            
+            // Increment view count
+            fetch(`/increment_view/${videoId}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById(`view-count-${videoId}`).textContent = data.new_view_count;
+                    }
+                });
         }
 
         function closeVideoPlayer() {

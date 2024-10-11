@@ -149,3 +149,13 @@ h1, h2 {
     cursor: pointer;
     color: #333;
 }
+
+.video-details p {
+    margin: 5px 0;
+    font-size: 1em;  /* Ensure other paragraphs maintain their size */
+}
+
+.view-count {
+    font-size: 0.6em;
+    color: #666;
+}
