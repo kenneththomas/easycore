@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Tagger</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
         .tag {
             display: inline-block;
@@ -109,10 +110,6 @@
             {% endif %}
             <!--p>Stored File: {{ video.stored_filepath }}</p-->
             <p>Tags: <span id="tags-display-{{ video.id }}" data-tags="{{ video.tags }}"></span></p>
-            <form onsubmit="event.preventDefault(); editTags({{ video.id }})">
-                <input type="text" id="tags-{{ video.id }}" value="{{ video.tags }}" placeholder="Enter new tags">
-                <button type="submit">Update Tags</button>
-            </form>
             <a href="{{ url_for('play_video', video_id=video.id) }}">Play</a>
             <button onclick="deleteVideo({{ video.id }})">Delete</button>
         </li>

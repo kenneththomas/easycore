@@ -3,26 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Video</title>
+    <title>Add Video - Video Tagger</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <h1>Add New Video</h1>
     <form action="{{ url_for('add_video') }}" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" accept="video/*" required>
-        <input type="text" name="nickname" placeholder="Enter nickname (optional)">
-        <textarea name="description" placeholder="Enter description (optional)"></textarea>
-        <input type="text" name="tags" placeholder="Enter tags (comma-separated)" required>
+        <label for="file">Select Video File:</label>
+        <input type="file" name="file" id="file" accept="video/*" required>
+        
+        <label for="nickname">Nickname (optional):</label>
+        <input type="text" name="nickname" id="nickname" placeholder="Enter a nickname for the video">
+        
+        <label for="description">Description (optional):</label>
+        <textarea name="description" id="description" placeholder="Enter a description for the video"></textarea>
+        
+        <label for="tags">Tags (comma-separated):</label>
+        <input type="text" name="tags" id="tags" placeholder="Enter tags, separated by commas" required>
+        
         <input type="submit" value="Add Video">
     </form>
-    <a href="{{ url_for('index') }}">Back to Index</a>
+    <div id="progress-bar"></div>
+    <a href="{{ url_for('index') }}" class="back-link">Back to Video List</a>
+    
     <script>
         document.querySelector('form').addEventListener('submit', function(e) {
             e.preventDefault();
             var form = new FormData(this);
+            var progressBar = document.getElementById('progress-bar');
+            
             fetch(this.action, {
                 method: 'POST',
                 body: form
-            }).then(response => response.json())
+            })
+            .then(response => response.json())
             .then(data => {
                 if (data.success) {
                     window.location.href = '{{ url_for("index") }}';
@@ -34,6 +48,14 @@
                 console.error('Error:', error);
                 alert('An unexpected error occurred. Please try again.');
             });
+
+            // Simulated progress bar (since we can't get real-time progress)
+            let progress = 0;
+            let interval = setInterval(() => {
+                progress += 10;
+                progressBar.style.width = progress + '%';
+                if (progress >= 90) clearInterval(interval);
+            }, 500);
         });
     </script>
 </body>
