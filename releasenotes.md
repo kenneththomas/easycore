@@ -1,5 +1,8 @@
 # releasenotes
 
+## 0.4
+- stream video mode
+
 ## 0.3
 - easier tag addition system
 - run on port 5015

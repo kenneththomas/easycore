@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, Response, make_response
 from flask_sqlalchemy import SQLAlchemy
 import os
 from sqlalchemy import desc, func
+import re
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
@@ -66,14 +67,45 @@ def play_video(video_id):
     video = Video.query.get_or_404(video_id)
     
     if os.path.isfile(video.stored_filepath):
-        # Open the video with the default video player
-        # subprocess.Popen(['xdg-open', video.stored_filepath])  # For Linux
-        # subprocess.Popen(['open', video.stored_filepath])  # For macOS
+        # Open the video with the default video player on the server machine
         os.startfile(video.stored_filepath)  # For Windows
+        return redirect(url_for('index'))
     else:
         return "Video file not found.", 404
+
+@app.route('/stream/<int:video_id>')
+def stream_video(video_id):
+    video = Video.query.get_or_404(video_id)
     
-    return redirect(url_for('index'))
+    range_header = request.headers.get('Range', None)
+    file_size = os.path.getsize(video.stored_filepath)
+
+    if range_header:
+        byte1, byte2 = 0, None
+        match = re.search(r'(\d+)-(\d*)', range_header)
+        groups = match.groups()
+
+        if groups[0]:
+            byte1 = int(groups[0])
+        if groups[1]:
+            byte2 = int(groups[1])
+
+        if byte2 is None:
+            byte2 = file_size - 1
+        length = byte2 - byte1 + 1
+
+        with open(video.stored_filepath, 'rb') as f:
+            f.seek(byte1)
+            data = f.read(length)
+
+        resp = make_response(data)
+        resp.headers.set('Content-Type', 'video/mp4')
+        resp.headers.set('Content-Range', f'bytes {byte1}-{byte2}/{file_size}')
+        resp.headers.set('Accept-Ranges', 'bytes')
+        resp.headers.set('Content-Length', str(length))
+        return resp, 206
+    else:
+        return send_file(video.stored_filepath, mimetype='video/mp4')
 
 @app.route('/filter')
 def filter_videos():
