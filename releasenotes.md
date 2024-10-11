@@ -1,6 +1,7 @@
 # releasenotes
 
 ## 0.2
+- pagination on the main page
 - remove edit tags form from main page
 - style improvements on the add video page
 

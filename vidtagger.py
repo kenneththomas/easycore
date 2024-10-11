@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import os
+from sqlalchemy import desc
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
@@ -17,8 +18,10 @@ class Video(db.Model):
 
 @app.route('/')
 def index():
-    videos = Video.query.all()
-    return render_template('index.html', videos=videos)
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+    videos = Video.query.order_by(desc(Video.id)).paginate(page=page, per_page=per_page, error_out=False)
+    return render_template('index.html', videos=videos.items, page=page, total_pages=videos.pages)
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_video():
@@ -69,11 +72,21 @@ def play_video(video_id):
 @app.route('/filter')
 def filter_videos():
     tag = request.args.get('tag')
+    page = request.args.get('page', 1, type=int)
+    per_page = 10
+
     if tag:
-        videos = Video.query.filter(Video.tags.contains(tag)).all()
+        videos = Video.query.filter(Video.tags.contains(tag)).order_by(desc(Video.id))
     else:
-        videos = Video.query.all()
-    return render_template('index.html', videos=videos)
+        videos = Video.query.order_by(desc(Video.id))
+
+    paginated_videos = videos.paginate(page=page, per_page=per_page, error_out=False)
+    
+    return render_template('index.html', 
+                           videos=paginated_videos.items, 
+                           page=page, 
+                           total_pages=paginated_videos.pages,
+                           tag=tag)
 
 @app.route('/delete/<int:video_id>', methods=['POST'])
 def delete_video(video_id):
