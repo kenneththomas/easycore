@@ -78,17 +78,6 @@ def add_video():
     
     return render_template('add.html', existing_tags=tags)
 
-@app.route('/play/<int:video_id>')
-def play_video(video_id):
-    video = Video.query.get_or_404(video_id)
-    
-    if os.path.isfile(video.stored_filepath):
-        # Open the video with the default video player on the server machine
-        os.startfile(video.stored_filepath)  # For Windows
-        return redirect(url_for('index'))
-    else:
-        return "Video file not found.", 404
-
 @app.route('/stream/<int:video_id>')
 def stream_video(video_id):
     video = Video.query.get_or_404(video_id)

@@ -6,6 +6,24 @@
     <title>Video Tagger</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    <style>
+        .content-wrapper {
+            display: flex;
+            justify-content: space-between;
+        }
+        .video-list-container {
+            width: 60%;
+        }
+        .video-player-container {
+            width: 35%;
+            position: sticky;
+            top: 20px;
+        }
+        #videoPlayer {
+            width: 100%;
+            max-width: 100%;
+        }
+    </style>
     <script>
         function deleteVideo(videoId) {
             if (confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
@@ -70,6 +88,12 @@
             });
         }
 
+        function playVideo(videoId) {
+            const videoPlayer = document.getElementById('videoPlayer');
+            videoPlayer.src = `/stream/${videoId}`;
+            videoPlayer.play();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('[id^="tags-display-"]').forEach(container => {
                 const videoId = container.id.split('-')[2];
@@ -89,31 +113,42 @@
             <input type="submit" value="Filter" class="button">
         </form>
         
-        <h2>Recent Videos</h2>
-        <ul class="video-list">
-        {% for video in videos %}
-            <li class="video-item">
-                <div class="video-title">
-                    <a href="{{ url_for('video_detail', video_id=video.id) }}">{{ video.nickname or video.original_filepath }}</a>
-                </div>
-                {% if video.description %}
-                    <p>{{ video.description }}</p>
-                {% endif %}
-                <p>Tags: <span id="tags-display-{{ video.id }}" data-tags="{{ video.tags }}"></span></p>
-                <a href="{{ url_for('play_video', video_id=video.id) }}" class="button">Play</a>
-                <button onclick="deleteVideo({{ video.id }})" class="button delete-button">Delete</button>
-            </li>
-        {% endfor %}
-        </ul>
+        <div class="content-wrapper">
+            <div class="video-list-container">
+                <h2>Recent Videos</h2>
+                <ul class="video-list">
+                {% for video in videos %}
+                    <li class="video-item">
+                        <div class="video-title">
+                            <a href="{{ url_for('video_detail', video_id=video.id) }}">{{ video.nickname or video.original_filepath }}</a>
+                        </div>
+                        {% if video.description %}
+                            <p>{{ video.description }}</p>
+                        {% endif %}
+                        <p>Tags: <span id="tags-display-{{ video.id }}" data-tags="{{ video.tags }}"></span></p>
+                        <button onclick="playVideo({{ video.id }})" class="button">Play</button>
+                        <button onclick="deleteVideo({{ video.id }})" class="button delete-button">Delete</button>
+                    </li>
+                {% endfor %}
+                </ul>
 
-        <div class="pagination">
-            {% if page > 1 %}
-                <a href="{{ url_for('filter_videos', tag=tag, page=page-1) if tag else url_for('index', page=page-1) }}" class="button">&laquo; Previous</a>
-            {% endif %}
-            <span>Page {{ page }} of {{ total_pages }}</span>
-            {% if page < total_pages %}
-                <a href="{{ url_for('filter_videos', tag=tag, page=page+1) if tag else url_for('index', page=page+1) }}" class="button">Next &raquo;</a>
-            {% endif %}
+                <div class="pagination">
+                    {% if page > 1 %}
+                        <a href="{{ url_for('filter_videos', tag=tag, page=page-1) if tag else url_for('index', page=page-1) }}" class="button">&laquo; Previous</a>
+                    {% endif %}
+                    <span>Page {{ page }} of {{ total_pages }}</span>
+                    {% if page < total_pages %}
+                        <a href="{{ url_for('filter_videos', tag=tag, page=page+1) if tag else url_for('index', page=page+1) }}" class="button">Next &raquo;</a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="video-player-container">
+                <h2>Video Player</h2>
+                <video id="videoPlayer" controls>
+                    Your browser does not support the video tag.
+                </video>
+            </div>
         </div>
     </div>
 </body>
