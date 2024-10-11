@@ -5,6 +5,7 @@
 - rename file to nickname on add
 - move video modal to the top of the video detail page
 - comment out the play video on server buttons cuz the stream is prob just better
+- improve tag entry ui with suggestions and single tag entry
 
 ## 0.4
 - stream video mode

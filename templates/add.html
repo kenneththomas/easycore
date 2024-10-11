@@ -5,6 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Video - Video Tagger</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        #tag-input-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .tag-pill {
+            background-color: #e0e0e0;
+            padding: 5px 10px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+        }
+        .tag-pill button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        #tag-suggestions {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ccc;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+        }
+        #tag-suggestions div {
+            padding: 5px;
+            cursor: pointer;
+        }
+        #tag-suggestions div:hover {
+            background-color: #f0f0f0;
+        }
+    </style>
 </head>
 <body>
     <h1>Add New Video</h1>
@@ -18,8 +54,11 @@
         <label for="description">Description (optional):</label>
         <textarea name="description" id="description" placeholder="Enter a description for the video"></textarea>
         
-        <label for="tags">Tags (comma-separated):</label>
-        <input type="text" name="tags" id="tags" placeholder="Enter tags, separated by commas" required>
+        <label for="tag-input">Tags:</label>
+        <div id="tag-input-container"></div>
+        <input type="text" id="tag-input" placeholder="Type to add tags">
+        <div id="tag-suggestions"></div>
+        <input type="hidden" name="tags" id="tags">
         
         <label for="stealth">
             <input type="checkbox" name="stealth" id="stealth">
@@ -41,39 +80,70 @@
     <a href="{{ url_for('index') }}" class="back-link">Back to Video List</a>
     
     <script>
-        document.querySelector('form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            var form = new FormData(this);
-            var progressBar = document.getElementById('progress-bar');
-            
-            fetch(this.action, {
-                method: 'POST',
-                body: form
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (data.stealth) {
-                        alert('Video uploaded in stealth mode.');
-                    } else {
-                        window.location.href = '{{ url_for("index") }}';
-                    }
-                } else {
-                    alert('Error adding video: ' + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An unexpected error occurred. Please try again.');
-            });
+        const tagInput = document.getElementById('tag-input');
+        const tagContainer = document.getElementById('tag-input-container');
+        const tagSuggestions = document.getElementById('tag-suggestions');
+        const hiddenTagInput = document.getElementById('tags');
+        let tags = [];
 
-            // Simulated progress bar (since we can't get real-time progress)
-            let progress = 0;
-            let interval = setInterval(() => {
-                progress += 10;
-                progressBar.style.width = progress + '%';
-                if (progress >= 90) clearInterval(interval);
-            }, 500);
+        function updateTags() {
+            tagContainer.innerHTML = '';
+            tags.slice(0, 10).forEach(tag => {
+                const tagPill = document.createElement('span');
+                tagPill.className = 'tag-pill';
+                tagPill.innerHTML = `${tag}<button type="button" onclick="removeTag('${tag}')">&times;</button>`;
+                tagContainer.appendChild(tagPill);
+            });
+            hiddenTagInput.value = tags.join(',');
+        }
+
+        function addTag(tag) {
+            if (tag && !tags.includes(tag) && tags.length < 10) {
+                tags.push(tag);
+                updateTags();
+                tagInput.value = '';
+            }
+        }
+
+        function removeTag(tag) {
+            tags = tags.filter(t => t !== tag);
+            updateTags();
+        }
+
+        tagInput.addEventListener('input', function() {
+            const input = this.value.toLowerCase();
+            if (input) {
+                fetch(`/get_tag_suggestions?q=${input}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        tagSuggestions.innerHTML = '';
+                        data.forEach(tag => {
+                            const div = document.createElement('div');
+                            div.textContent = tag;
+                            div.onclick = function() {
+                                addTag(tag);
+                                tagSuggestions.style.display = 'none';
+                            };
+                            tagSuggestions.appendChild(div);
+                        });
+                        tagSuggestions.style.display = 'block';
+                    });
+            } else {
+                tagSuggestions.style.display = 'none';
+            }
+        });
+
+        tagInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addTag(this.value.trim());
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (e.target !== tagInput && e.target !== tagSuggestions) {
+                tagSuggestions.style.display = 'none';
+            }
         });
 
         // Add functionality for tag buttons
@@ -90,6 +160,37 @@
                     tagInput.value += newTag;
                 }
             });
+        });
+
+        document.querySelector('form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var form = new FormData(this);
+            var progressBar = document.getElementById('progress-bar');
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: form
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = `/video/${data.video_id}`;
+                } else {
+                    alert('Error adding video: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred. Please try again.');
+            });
+
+            // Simulated progress bar (since we can't get real-time progress)
+            let progress = 0;
+            let interval = setInterval(() => {
+                progress += 10;
+                progressBar.style.width = progress + '%';
+                if (progress >= 90) clearInterval(interval);
+            }, 500);
         });
     </script>
 </body>

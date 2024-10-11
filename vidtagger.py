@@ -65,7 +65,7 @@ def add_video():
             db.session.add(new_video)
             db.session.commit()
             
-            return jsonify({"success": True, "stealth": stealth}), 200
+            return jsonify({"success": True, "video_id": new_video.id}), 200
         except Exception as e:
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
@@ -197,6 +197,17 @@ def get_tags():
     ).group_by('tag').order_by(desc('count')).all()
     
     return jsonify([{'tag': tag, 'count': count} for tag, count in tags])
+
+@app.route('/get_tag_suggestions')
+def get_tag_suggestions():
+    query = request.args.get('q', '').lower()
+    all_tags = db.session.query(
+        func.trim(func.lower(func.substr(Video.tags, 1, func.instr(Video.tags + ',', ',') - 1))).label('tag')
+    ).distinct().all()
+    
+    matching_tags = [tag[0] for tag in all_tags if query in tag[0].lower()]
+    matching_tags.sort(key=lambda x: x.lower().index(query))  # Sort by relevance
+    return jsonify(matching_tags[:10])  # Return top 10 matches
 
 if __name__ == '__main__':
     with app.app_context():
