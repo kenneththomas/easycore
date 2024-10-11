@@ -119,6 +119,12 @@
 <body>
     <h1>{{ video.nickname or video.original_filepath }}</h1>
     <p><a href="{{ url_for('index') }}">Back to Video List</a></p>
+
+    <h2>Stream Video</h2>
+    <video width="640" height="360" controls>
+        <source src="{{ url_for('stream_video', video_id=video.id) }}" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
     
     {% if video.description %}
         <h2>Description</h2>
@@ -140,12 +146,7 @@
     </form>
     
     <h2>Actions</h2>
-    <a href="{{ url_for('play_video', video_id=video.id) }}">Play Video on Server</a>
+    <!-- <a href="{{ url_for('play_video', video_id=video.id) }}">Play Video on Server</a> -->
     
-    <h2>Stream Video</h2>
-    <video width="640" height="360" controls>
-        <source src="{{ url_for('stream_video', video_id=video.id) }}" type="video/mp4">
-        Your browser does not support the video tag.
-    </video>
 </body>
 </html>
