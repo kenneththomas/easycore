@@ -1,5 +1,8 @@
 # releasenotes
 
+## 0.10
+- bulk upload
+
 ## 0.9
 - view counts
 

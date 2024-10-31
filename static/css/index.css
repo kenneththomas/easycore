@@ -34,7 +34,7 @@ body {
 #videoPlayer {
     width: 100%;
     height: auto;
-    max-height: 225px;
+    max-height: 500px;
     display: block;
 }
 h1, h2 {

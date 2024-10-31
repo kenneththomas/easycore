@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Upload Videos - Video Tagger</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        #progress-container {
+            width: 100%;
+            background-color: #f0f0f0;
+            margin-top: 20px;
+            display: none;
+        }
+        #progress-bar {
+            width: 0%;
+            height: 30px;
+            background-color: #4CAF50;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bulk Upload Videos</h1>
+    <form id="upload-form" enctype="multipart/form-data">
+        <label for="files">Select Video Files:</label>
+        <input type="file" name="files" id="files" accept="video/*" multiple required>
+        
+        <input type="submit" value="Upload Videos">
+    </form>
+    <div id="progress-container">
+        <div id="progress-bar">0%</div>
+    </div>
+    <div id="result"></div>
+    <a href="{{ url_for('index') }}" class="back-link">Back to Video List</a>
+    
+    <script>
+        const form = document.getElementById('upload-form');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const resultDiv = document.getElementById('result');
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            resultDiv.textContent = '';
+
+            fetch('{{ url_for("bulk_upload") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    resultDiv.textContent = `Successfully uploaded ${data.uploaded} video(s).`;
+                    if (data.errors.length > 0) {
+                        resultDiv.textContent += ` Errors: ${data.errors.join(', ')}`;
+                    }
+                } else {
+                    resultDiv.textContent = 'Error uploading videos: ' + data.error;
+                }
+                progressBar.style.width = '100%';
+                progressBar.textContent = '100%';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultDiv.textContent = 'An unexpected error occurred. Please try again.';
+            });
+
+            // Simulated progress bar (since we can't get real-time progress)
+            let progress = 0;
+            let interval = setInterval(() => {
+                progress += 5;
+                progressBar.style.width = progress + '%';
+                progressBar.textContent = progress + '%';
+                if (progress >= 90) clearInterval(interval);
+            }, 500);
+        });
+    </script>
+</body>
+</html>

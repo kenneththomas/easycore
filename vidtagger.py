@@ -7,6 +7,7 @@ from werkzeug.utils import secure_filename
 import ffmpeg
 from PIL import Image
 import io
+from werkzeug.datastructures import FileStorage
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
@@ -248,6 +249,69 @@ def increment_view(video_id):
         video.view_count += 1
     db.session.commit()
     return jsonify({"success": True, "new_view_count": video.view_count})
+
+@app.route('/bulk_upload', methods=['GET', 'POST'])
+def bulk_upload():
+    if request.method == 'POST':
+        uploaded_files = request.files.getlist('files')
+        
+        if not uploaded_files:
+            return jsonify({"error": "No files provided"}), 400
+        
+        successful_uploads = 0
+        errors = []
+
+        for file in uploaded_files:
+            if isinstance(file, FileStorage) and file.filename != '':
+                original_filepath = file.filename
+                new_filename = secure_filename(original_filepath)
+                stored_filepath = os.path.join(app.config['STEALTH_UPLOAD_FOLDER'], new_filename)
+                
+                try:
+                    os.makedirs(app.config['STEALTH_UPLOAD_FOLDER'], exist_ok=True)
+                    file.save(stored_filepath)
+                    
+                    # Generate thumbnail
+                    thumbnail_filename = f"thumbnail_{os.path.splitext(new_filename)[0]}.jpg"
+                    thumbnails_dir = os.path.join(app.static_folder, 'thumbnails')
+                    os.makedirs(thumbnails_dir, exist_ok=True)
+                    thumbnail_path = os.path.join(thumbnails_dir, thumbnail_filename)
+                    
+                    # Get video duration
+                    probe = ffmpeg.probe(stored_filepath)
+                    duration = float(probe['streams'][0]['duration'])
+                    
+                    # Extract middle frame
+                    (
+                        ffmpeg
+                        .input(stored_filepath, ss=duration/2)
+                        .filter('scale', 320, -1)
+                        .output(thumbnail_path, vframes=1)
+                        .overwrite_output()
+                        .run(capture_stdout=True, capture_stderr=True)
+                    )
+                    
+                    # Set the thumbnail_path to be relative to the static folder
+                    relative_thumbnail_path = os.path.join('thumbnails', thumbnail_filename).replace('\\', '/')
+                    
+                    new_video = Video(original_filepath=original_filepath, 
+                                      stored_filepath=stored_filepath,
+                                      thumbnail_path=relative_thumbnail_path,
+                                      view_count=0)
+                    db.session.add(new_video)
+                    successful_uploads += 1
+                except Exception as e:
+                    errors.append(f"Error uploading {original_filepath}: {str(e)}")
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "uploaded": successful_uploads,
+            "errors": errors
+        }), 200
+
+    return render_template('bulk_upload.html')
 
 if __name__ == '__main__':
     with app.app_context():

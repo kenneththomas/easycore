@@ -12,6 +12,7 @@
     <div class="container">
         <h1>Video Tagger</h1>
         <a href="{{ url_for('add_video') }}" class="button">Add New Video</a>
+        <a href="{{ url_for('bulk_upload') }}">Bulk Upload Videos</a>
         
         <h2>Filter by Tag</h2>
         <form action="{{ url_for('filter_videos') }}" method="get">
