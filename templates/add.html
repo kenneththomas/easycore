@@ -93,48 +93,68 @@
             padding-top: 20px;
             border-top: 1px solid #ddd;
         }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
     </style>
 </head>
 <body>
-    <h1>Add New Video</h1>
-    <div id="drop-zone" class="hidden">
-        <div class="drop-zone-text">Drop video file here</div>
-    </div>
-    <form action="{{ url_for('add_video') }}" method="post" enctype="multipart/form-data">
-        <label for="file">Select Video File:</label>
-        <input type="file" name="file" id="file" accept="video/*" required>
-        
-        <label for="nickname">Nickname (optional):</label>
-        <input type="text" name="nickname" id="nickname" placeholder="Enter a nickname for the video">
-        
-        <label for="description">Description (optional):</label>
-        <textarea name="description" id="description" placeholder="Enter a description for the video"></textarea>
-        
-        <label for="tag-input">Tags:</label>
-        <div id="tag-input-container"></div>
-        <input type="text" id="tag-input" placeholder="Type to add tags">
-        <div id="tag-suggestions"></div>
-        <input type="hidden" name="tags" id="tags">
-        
-        <label for="stealth">
-            <input type="checkbox" name="stealth" id="stealth">
-            Stealth Upload (will not be added to database)
-        </label>
-        
-        <div id="existing-tags">
-            <h3>Existing Tags:</h3>
-            {% for tag in existing_tags %}
-                <button type="button" class="tag-button" data-tag="{{ tag.tag }}">
-                    {{ tag.tag }} ({{ tag.count }})
-                </button>
-            {% endfor %}
+    <div class="container">
+        <h1>Add New Video</h1>
+        <div id="drop-zone" class="hidden">
+            <div class="drop-zone-text">Drop video file here</div>
         </div>
-        
-        <input type="submit" value="Add Video" class="submit-button">
-    </form>
-    <div id="progress-bar"></div>
-    <a href="{{ url_for('index') }}" class="back-link">Back to Video List</a>
-    
+        <form action="{{ url_for('add_video') }}" method="post" enctype="multipart/form-data">
+            <label for="file">Select Video File:</label>
+            <input type="file" name="file" id="file" accept="video/*" required>
+            
+            <label for="nickname">Nickname (optional):</label>
+            <input type="text" name="nickname" id="nickname" placeholder="Enter a nickname for the video">
+            
+            <label for="description">Description (optional):</label>
+            <textarea name="description" id="description" placeholder="Enter a description for the video"></textarea>
+            
+            <label for="tag-input">Tags:</label>
+            <div id="tag-input-container"></div>
+            <input type="text" id="tag-input" placeholder="Type to add tags">
+            <div id="tag-suggestions"></div>
+            <input type="hidden" name="tags" id="tags">
+            
+            <label for="stealth">
+                <input type="checkbox" name="stealth" id="stealth">
+                Stealth Upload (will not be added to database)
+            </label>
+            
+            <div id="existing-tags">
+                <h3>Existing Tags:</h3>
+                {% for tag in existing_tags %}
+                    <button type="button" class="tag-button" data-tag="{{ tag.tag }}">
+                        {{ tag.tag }} ({{ tag.count }})
+                    </button>
+                {% endfor %}
+            </div>
+            
+            <input type="submit" value="Add Video" class="submit-button">
+        </form>
+        <div id="progress-bar"></div>
+        <a href="{{ url_for('index') }}" class="back-link">Back to Video List</a>
+    </div>
     <script>
         const tagInput = document.getElementById('tag-input');
         const tagContainer = document.getElementById('tag-input-container');
