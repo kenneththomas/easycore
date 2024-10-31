@@ -40,10 +40,42 @@
         #tag-suggestions div:hover {
             background-color: #f0f0f0;
         }
+        #drop-zone {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .drop-zone-text {
+            color: white;
+            font-size: 24px;
+            padding: 20px;
+            border: 2px dashed white;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        #drop-zone.active {
+            display: flex;
+            opacity: 1;
+        }
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
     <h1>Add New Video</h1>
+    <div id="drop-zone" class="hidden">
+        <div class="drop-zone-text">Drop video file here</div>
+    </div>
     <form action="{{ url_for('add_video') }}" method="post" enctype="multipart/form-data">
         <label for="file">Select Video File:</label>
         <input type="file" name="file" id="file" accept="video/*" required>
@@ -191,6 +223,50 @@
                 progressBar.style.width = progress + '%';
                 if (progress >= 90) clearInterval(interval);
             }, 500);
+        });
+
+        // Add this new code for drag and drop
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file');
+        let dragCounter = 0;
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Handle drag enter
+        document.body.addEventListener('dragenter', (e) => {
+            dragCounter++;
+            if (e.dataTransfer.types.includes('Files')) {
+                dropZone.classList.add('active');
+            }
+        });
+
+        // Handle drag leave
+        document.body.addEventListener('dragleave', (e) => {
+            dragCounter--;
+            if (dragCounter === 0) {
+                dropZone.classList.remove('active');
+            }
+        });
+
+        // Handle drop
+        document.body.addEventListener('drop', (e) => {
+            dragCounter = 0;
+            dropZone.classList.remove('active');
+            
+            const dt = e.dataTransfer;
+            const files = dt.files;
+
+            if (files.length > 0 && files[0].type.startsWith('video/')) {
+                fileInput.files = files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
         });
     </script>
 </body>

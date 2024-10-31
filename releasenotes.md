@@ -2,7 +2,7 @@
 
 ## 0.11
 - button to cleanup bulk uploads that dont exist anymore
-
+- drag and drop to upload functionality
 
 ## 0.10
 - bulk upload
