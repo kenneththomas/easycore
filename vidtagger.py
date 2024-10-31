@@ -313,6 +313,38 @@ def bulk_upload():
 
     return render_template('bulk_upload.html')
 
+@app.route('/cleanup_stealth', methods=['POST'])
+def cleanup_stealth():
+    try:
+        # Get all videos in stealth folder
+        stealth_videos = Video.query.filter(
+            Video.stored_filepath.like(f"{app.config['STEALTH_UPLOAD_FOLDER']}%")
+        ).all()
+        
+        deleted_count = 0
+        for video in stealth_videos:
+            # Check if file exists
+            if not os.path.exists(video.stored_filepath):
+                # Delete thumbnail if it exists
+                if video.thumbnail_path:
+                    thumbnail_path = os.path.join(app.static_folder, video.thumbnail_path)
+                    if os.path.exists(thumbnail_path):
+                        os.remove(thumbnail_path)
+                
+                # Delete database entry
+                db.session.delete(video)
+                deleted_count += 1
+        
+        db.session.commit()
+        return jsonify({
+            "success": True,
+            "deleted_count": deleted_count,
+            "message": f"Cleaned up {deleted_count} missing video entries"
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

@@ -1,5 +1,9 @@
 # releasenotes
 
+## 0.11
+- button to cleanup bulk uploads that dont exist anymore
+
+
 ## 0.10
 - bulk upload
 

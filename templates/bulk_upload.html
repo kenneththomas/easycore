@@ -20,6 +20,18 @@
             line-height: 30px;
             color: white;
         }
+        .danger-button {
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        .danger-button:hover {
+            background-color: #c82333;
+        }
     </style>
 </head>
 <body>
@@ -30,6 +42,7 @@
         
         <input type="submit" value="Upload Videos">
     </form>
+    <button id="cleanup-btn" class="danger-button">Clean Up Missing Stealth Videos</button>
     <div id="progress-container">
         <div id="progress-bar">0%</div>
     </div>
@@ -81,6 +94,26 @@
                 progressBar.textContent = progress + '%';
                 if (progress >= 90) clearInterval(interval);
             }, 500);
+        });
+
+        document.getElementById('cleanup-btn').addEventListener('click', function() {
+            if (confirm('This will remove database entries for missing stealth upload videos. Continue?')) {
+                fetch('{{ url_for("cleanup_stealth") }}', {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An unexpected error occurred. Please try again.');
+                });
+            }
         });
     </script>
 </body>
