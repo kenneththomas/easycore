@@ -115,6 +115,16 @@
     </style>
 </head>
 <body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="{{ url_for('index') }}" class="nav-logo">Video Tagger</a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('add_video') }}">Add Video</a>
+                <a href="{{ url_for('bulk_upload') }}">Bulk Upload</a>
+            </div>
+        </div>
+    </nav>
     <div class="container">
         <h1>Add New Video</h1>
         <div id="drop-zone" class="hidden">

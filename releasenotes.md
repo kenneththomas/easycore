@@ -4,7 +4,7 @@
 - button to cleanup bulk uploads that dont exist anymore
 - drag and drop to upload functionality
 - add video button is bigger
--
+- add navbar
 
 ## 0.10
 - bulk upload

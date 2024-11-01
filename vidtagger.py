@@ -230,7 +230,8 @@ def get_tag_suggestions():
         func.trim(func.lower(func.substr(Video.tags, 1, func.instr(Video.tags + ',', ',') - 1))).label('tag')
     ).distinct().all()
     
-    matching_tags = [tag[0] for tag in all_tags if query in tag[0].lower()]
+    # Filter out None values and then check for matches
+    matching_tags = [tag[0] for tag in all_tags if tag[0] is not None and query in tag[0].lower()]
     matching_tags.sort(key=lambda x: x.lower().index(query))  # Sort by relevance
     return jsonify(matching_tags[:10])  # Return top 10 matches
 
