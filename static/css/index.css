@@ -5,14 +5,6 @@ body {
     padding: 20px;
     background-color: #f8f9fa;
 }
-.container {
-    max-width: 1200px;
-    margin: 0 auto 20px;
-    background-color: #fff;
-    padding: 30px;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-}
 .content-wrapper {
     display: flex;
     flex-direction: column;
@@ -54,6 +46,7 @@ h1, h2 {
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     transition: box-shadow 0.3s ease;
+    position: relative;
 }
 .video-item:hover {
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
@@ -116,10 +109,23 @@ h1, h2 {
     transform: translateY(-2px);
 }
 .delete-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border-radius: 50%;
     background-color: #e74c3c;
+    color: white;
+    font-size: 16px;
+    line-height: 24px;
+    text-align: center;
+    min-width: unset;
 }
 .delete-button:hover {
     background-color: #c0392b;
+    transform: none;
 }
 .pagination {
     margin-top: 20px;

@@ -2,6 +2,10 @@
 
 # 0.12
 - show related videos on video detail page
+- likes
+- comments
+- liking comments
+- make delete button smaller
 
 ## 0.11
 - button to cleanup bulk uploads that dont exist anymore

@@ -173,3 +173,75 @@ function likeVideo(videoId) {
     })
     .catch(error => console.error('Error:', error));
 }
+
+async function submitComment(videoId) {
+    const author = document.getElementById('comment-author').value.trim();
+    const content = document.getElementById('comment-content').value.trim();
+    
+    if (!author || !content) {
+        alert('Please enter both your name and a comment');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/add_comment/${videoId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `author=${encodeURIComponent(author)}&content=${encodeURIComponent(content)}`
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Create new comment element
+            const commentsList = document.querySelector('.comments-list');
+            const newComment = document.createElement('div');
+            newComment.className = 'comment';
+            newComment.innerHTML = `
+                <div class="comment-header">
+                    <strong class="comment-author">${data.comment.author}</strong>
+                    <span class="comment-timestamp">${data.comment.timestamp}</span>
+                </div>
+                <div class="comment-content">${data.comment.content}</div>
+                <div class="comment-footer">
+                    <button class="like-comment-btn" onclick="likeComment(${data.comment.id})">
+                        👍 <span class="comment-like-count" data-comment-id="${data.comment.id}">0</span>
+                    </button>
+                </div>
+            `;
+            
+            // Add to top of comments list
+            commentsList.insertBefore(newComment, commentsList.firstChild);
+            
+            // Clear form
+            document.getElementById('comment-author').value = '';
+            document.getElementById('comment-content').value = '';
+        } else {
+            alert('Error posting comment');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error posting comment');
+    }
+}
+
+async function likeComment(commentId) {
+    try {
+        const response = await fetch(`/like_comment/${commentId}`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update the like count display
+            const likeCountElement = document.querySelector(`.comment-like-count[data-comment-id="${commentId}"]`);
+            if (likeCountElement) {
+                likeCountElement.textContent = data.new_like_count;
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}

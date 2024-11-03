@@ -20,23 +20,37 @@
         </div>
     </nav>
 
-    <div class="container">
+    <div class="container" style="margin-top: 20px;">
         <h1>Video Tagger</h1>
         <a href="{{ url_for('add_video') }}" class="button">Add New Video</a>
         <a href="{{ url_for('bulk_upload') }}">Bulk Upload Videos</a>
         
-        <h2>Filter by Tag</h2>
-        <form action="{{ url_for('filter_videos') }}" method="get">
-            <input type="text" name="tag" placeholder="Enter tag">
-            <input type="submit" value="Filter" class="button">
-        </form>
-        
+        <div class="filter-sort-container">
+            <form action="{{ url_for('filter_videos') }}" method="get" class="filter-form">
+                <input type="text" name="tag" placeholder="Enter tag" value="{{ tag if tag }}">
+                <input type="submit" value="Filter" class="button">
+            </form>
+
+            <form action="{{ url_for('filter_videos' if tag else 'index') }}" method="get" class="sort-form">
+                {% if tag %}
+                <input type="hidden" name="tag" value="{{ tag }}">
+                {% endif %}
+                <select name="sort" onchange="this.form.submit()">
+                    <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest First</option>
+                    <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest First</option>
+                    <option value="most_viewed" {% if sort_by == 'most_viewed' %}selected{% endif %}>Most Viewed</option>
+                    <option value="most_liked" {% if sort_by == 'most_liked' %}selected{% endif %}>Most Liked</option>
+                </select>
+            </form>
+        </div>
+
         <div class="content-wrapper">
             <div class="video-list-container">
                 <h2>Recent Videos</h2>
                 <ul class="video-list">
                 {% for video in videos %}
                     <li class="video-item">
+                        <button onclick="deleteVideo({{ video.id }})" class="button delete-button">&times;</button>
                         <div class="video-thumbnail">
                             <img src="{{ url_for('static', filename=video.thumbnail_path) }}" alt="Video thumbnail">
                         </div>
@@ -48,9 +62,11 @@
                                 <p>{{ video.description }}</p>
                             {% endif %}
                             <p>Tags: <span id="tags-display-{{ video.id }}" data-tags="{{ video.tags }}"></span></p>
-                            <p class="view-count">Views: <span id="view-count-{{ video.id }}">{{ video.view_count }}</span></p>
+                            <p class="stats">
+                                <span class="view-count">👁️ <span id="view-count-{{ video.id }}">{{ video.view_count }}</span></span>
+                                <span class="like-count">❤️ <span id="like-count-{{ video.id }}">{{ video.likes }}</span></span>
+                            </p>
                             <button onclick="playVideo({{ video.id }})" class="button">Play</button>
-                            <button onclick="deleteVideo({{ video.id }})" class="button delete-button">Delete</button>
                         </div>
                     </li>
                 {% endfor %}

@@ -76,6 +76,34 @@
                 </div>
             </section>
 
+            <section class="comments-section">
+                <h2>Comments</h2>
+
+                <div class="comments-list">
+                    {% for comment in comments %}
+                        <div class="comment">
+                            <div class="comment-header">
+                                <strong class="comment-author">{{ comment.author }}</strong>
+                                <span class="comment-timestamp">{{ comment.timestamp.strftime("%m/%d/%Y %I:%M %p") }}</span>
+                            </div>
+                            <div class="comment-content">{{ comment.content }}</div>
+                            <div class="comment-footer">
+                                <button class="like-comment-btn" onclick="likeComment({{ comment.id }})">
+                                    👍 <span class="comment-like-count">{{ comment.likes or 0 }}</span>
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="comment-form">
+                    <input type="text" id="comment-author" placeholder="Your name" maxlength="100">
+                    <textarea id="comment-content" placeholder="Write a comment..."></textarea>
+                    <button class="btn" onclick="submitComment('{{ video.id }}')">Post Comment</button>
+                </div>
+                
+            </section>
+
             <section class="related-videos">
                 <h2>Related Videos</h2>
                 <div class="related-videos-grid">

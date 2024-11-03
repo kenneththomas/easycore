@@ -8,6 +8,7 @@ import ffmpeg
 from PIL import Image
 import io
 from werkzeug.datastructures import FileStorage
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
@@ -26,12 +27,40 @@ class Video(db.Model):
     view_count = db.Column(db.Integer, default=0)  # New field for view count
     likes = db.Column(db.Integer, default=0)  # Add this line
 
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    video_id = db.Column(db.Integer, db.ForeignKey('video.id'), nullable=False)
+    author = db.Column(db.String(100), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    likes = db.Column(db.Integer, default=0)  # Add this line
+
 @app.route('/')
 def index():
     page = request.args.get('page', 1, type=int)
+    sort_by = request.args.get('sort', 'newest')  # Default sort by newest
     per_page = 10
-    videos = Video.query.order_by(desc(Video.id)).paginate(page=page, per_page=per_page, error_out=False)
-    return render_template('index.html', videos=videos.items, page=page, total_pages=videos.pages, tag=None)
+
+    # Create base query
+    query = Video.query
+
+    # Apply sorting
+    if sort_by == 'newest':
+        query = query.order_by(desc(Video.id))
+    elif sort_by == 'oldest':
+        query = query.order_by(Video.id)
+    elif sort_by == 'most_viewed':
+        query = query.order_by(desc(Video.view_count))
+    elif sort_by == 'most_liked':
+        query = query.order_by(desc(Video.likes))
+
+    videos = query.paginate(page=page, per_page=per_page, error_out=False)
+    return render_template('index.html', 
+                         videos=videos.items, 
+                         page=page, 
+                         total_pages=videos.pages, 
+                         tag=None,
+                         sort_by=sort_by)
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_video():
@@ -148,20 +177,34 @@ def stream_video(video_id):
 def filter_videos():
     tag = request.args.get('tag')
     page = request.args.get('page', 1, type=int)
+    sort_by = request.args.get('sort', 'newest')  # Default sort by newest
     per_page = 10
 
-    if tag:
-        videos = Video.query.filter(Video.tags.contains(tag)).order_by(desc(Video.id))
-    else:
-        videos = Video.query.order_by(desc(Video.id))
+    # Create base query
+    query = Video.query
 
-    paginated_videos = videos.paginate(page=page, per_page=per_page, error_out=False)
+    # Apply tag filter
+    if tag:
+        query = query.filter(Video.tags.contains(tag))
+
+    # Apply sorting
+    if sort_by == 'newest':
+        query = query.order_by(desc(Video.id))
+    elif sort_by == 'oldest':
+        query = query.order_by(Video.id)
+    elif sort_by == 'most_viewed':
+        query = query.order_by(desc(Video.view_count))
+    elif sort_by == 'most_liked':
+        query = query.order_by(desc(Video.likes))
+
+    paginated_videos = query.paginate(page=page, per_page=per_page, error_out=False)
     
     return render_template('index.html', 
-                           videos=paginated_videos.items, 
-                           page=page, 
-                           total_pages=paginated_videos.pages,
-                           tag=tag)
+                         videos=paginated_videos.items, 
+                         page=page, 
+                         total_pages=paginated_videos.pages,
+                         tag=tag,
+                         sort_by=sort_by)
 
 @app.route('/delete/<int:video_id>', methods=['POST'])
 def delete_video(video_id):
@@ -225,8 +268,9 @@ def video_detail(video_id):
         video.view_count += 1
     
     related_videos = get_related_videos(video)
+    comments = Comment.query.filter_by(video_id=video_id).order_by(Comment.timestamp.desc()).all()
     db.session.commit()
-    return render_template('video_detail.html', video=video, related_videos=related_videos)
+    return render_template('video_detail.html', video=video, related_videos=related_videos, comments=comments)
 
 @app.route('/edit_description/<int:video_id>', methods=['POST'])
 def edit_description(video_id):
@@ -382,6 +426,49 @@ def like_video(video_id):
         video.likes += 1
     db.session.commit()
     return jsonify({"success": True, "new_like_count": video.likes})
+
+@app.route('/add_comment/<int:video_id>', methods=['POST'])
+def add_comment(video_id):
+    video = Video.query.get_or_404(video_id)
+    author = request.form.get('author', '').strip()
+    content = request.form.get('content', '').strip()
+    
+    if not author or not content:
+        return jsonify({"error": "Name and comment are required"}), 400
+    
+    try:
+        comment = Comment(
+            video_id=video_id,
+            author=author,
+            content=content,
+            likes=0
+        )
+        db.session.add(comment)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "comment": {
+                "id": comment.id,
+                "author": comment.author,
+                "content": comment.content,
+                "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
+                "likes": comment.likes
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/like_comment/<int:comment_id>', methods=['POST'])
+def like_comment(comment_id):
+    comment = Comment.query.get_or_404(comment_id)
+    if comment.likes is None:
+        comment.likes = 1
+    else:
+        comment.likes += 1
+    db.session.commit()
+    return jsonify({"success": True, "new_like_count": comment.likes})
 
 if __name__ == '__main__':
     with app.app_context():
