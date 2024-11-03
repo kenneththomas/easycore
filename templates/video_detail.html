@@ -48,7 +48,15 @@
 
                 <div class="tags-section">
                     <h2>Tags</h2>
-                    <div id="tag-input-container" class="tags-container" data-tags="{{ video.tags }}" data-video-id="{{ video.id }}"></div>
+                    <div id="tag-input-container" class="tags-container" data-tags="{{ video.tags }}" data-video-id="{{ video.id }}">
+                        {% if video.tags %}
+                            {% for tag in video.tags.split(',') %}
+                                {% if tag.strip() %}
+                                    <span class="tag" onclick="window.location.href='{{ url_for('filter_videos', tag=tag.strip()) }}'">{{ tag.strip() }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    </div>
                     <input type="text" id="tag-input" placeholder="Type to add tags">
                     <div id="tag-suggestions"></div>
                 </div>
@@ -57,6 +65,34 @@
                     <h2>File Information</h2>
                     <p><strong>Original File:</strong> {{ video.original_filepath }}</p>
                     <p><strong>Stored File:</strong> {{ video.stored_filepath }}</p>
+                </div>
+            </section>
+
+            <section class="related-videos">
+                <h2>Related Videos</h2>
+                <div class="related-videos-grid">
+                    {% for related_video in related_videos %}
+                        <div class="related-video-card">
+                            <a href="{{ url_for('video_detail', video_id=related_video.id) }}">
+                                <div class="thumbnail-container">
+                                    <img src="{{ url_for('static', filename=related_video.thumbnail_path) }}" alt="Thumbnail">
+                                </div>
+                                <div class="related-video-info">
+                                    <h3>{{ related_video.nickname or related_video.original_filepath }}</h3>
+                                    <div class="view-count">{{ related_video.view_count or 0 }} views</div>
+                                    {% if related_video.tags %}
+                                        <div class="related-video-tags">
+                                            {% for tag in related_video.tags.split(',')[:3] %}
+                                                {% if tag.strip() %}
+                                                    <span class="tag small">{{ tag.strip() }}</span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </a>
+                        </div>
+                    {% endfor %}
                 </div>
             </section>
         </main>

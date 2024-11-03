@@ -139,3 +139,19 @@ function editDescription(videoId) {
 }
 
 document.addEventListener('DOMContentLoaded', initializeTags);
+
+// Update the displayTags function to make tags clickable
+function displayTags(container, tags) {
+    container.innerHTML = '';
+    if (tags) {
+        tags.split(',').forEach(tag => {
+            if (tag.trim()) {
+                const tagLink = document.createElement('a');
+                tagLink.href = `/filter?tag=${encodeURIComponent(tag.trim())}`;
+                tagLink.className = 'tag';
+                tagLink.textContent = tag.trim();
+                container.appendChild(tagLink);
+            }
+        });
+    }
+}

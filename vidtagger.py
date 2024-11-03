@@ -191,6 +191,30 @@ def edit_tags(video_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+def get_related_videos(current_video, limit=5):
+    if not current_video.tags:
+        return []
+    
+    current_tags = set(tag.strip().lower() for tag in current_video.tags.split(',') if tag.strip())
+    
+    # Get all videos except the current one
+    other_videos = Video.query.filter(Video.id != current_video.id).all()
+    
+    # Calculate similarity scores
+    video_scores = []
+    for video in other_videos:
+        if video.tags:
+            video_tags = set(tag.strip().lower() for tag in video.tags.split(',') if tag.strip())
+            common_tags = len(current_tags.intersection(video_tags))
+            if common_tags > 0:
+                video_scores.append((video, common_tags))
+    
+    # Sort by number of common tags (descending)
+    video_scores.sort(key=lambda x: x[1], reverse=True)
+    
+    # Return the top N videos
+    return [video for video, score in video_scores[:limit]]
+
 @app.route('/video/<int:video_id>')
 def video_detail(video_id):
     video = Video.query.get_or_404(video_id)
@@ -198,8 +222,10 @@ def video_detail(video_id):
         video.view_count = 1
     else:
         video.view_count += 1
+    
+    related_videos = get_related_videos(video)
     db.session.commit()
-    return render_template('video_detail.html', video=video)
+    return render_template('video_detail.html', video=video, related_videos=related_videos)
 
 @app.route('/edit_description/<int:video_id>', methods=['POST'])
 def edit_description(video_id):
