@@ -1,5 +1,8 @@
 # releasenotes
 
+# 0.12
+- show related videos on video detail page
+
 ## 0.11
 - button to cleanup bulk uploads that dont exist anymore
 - drag and drop to upload functionality

@@ -155,3 +155,21 @@ function displayTags(container, tags) {
         });
     }
 }
+
+function likeVideo(videoId) {
+    fetch(`/like/${videoId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelector('.like-count').textContent = `${data.new_like_count} likes`;
+            const likeBtn = document.getElementById('like-btn');
+            likeBtn.classList.add('liked');
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}

@@ -24,6 +24,7 @@ class Video(db.Model):
     tags = db.Column(db.String(255))
     thumbnail_path = db.Column(db.String(255))  # New field for thumbnail
     view_count = db.Column(db.Integer, default=0)  # New field for view count
+    likes = db.Column(db.Integer, default=0)  # Add this line
 
 @app.route('/')
 def index():
@@ -371,6 +372,16 @@ def cleanup_stealth():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+@app.route('/like/<int:video_id>', methods=['POST'])
+def like_video(video_id):
+    video = Video.query.get_or_404(video_id)
+    if video.likes is None:
+        video.likes = 1
+    else:
+        video.likes += 1
+    db.session.commit()
+    return jsonify({"success": True, "new_like_count": video.likes})
 
 if __name__ == '__main__':
     with app.app_context():

@@ -37,7 +37,15 @@
 
             <section class="video-info">
                 <h2>{{ video.nickname or video.original_filepath }}</h2>
-                <p>Views: <span class="view-count">{{ video.view_count }}</span></p>
+                <div class="video-stats">
+                    <p>Views: <span class="view-count">{{ video.view_count }}</span></p>
+                    <div class="like-container">
+                        <button id="like-btn" class="btn" onclick="likeVideo('{{ video.id }}')">
+                            👍 Like
+                        </button>
+                        <span class="like-count">{{ video.likes or 0 }} likes</span>
+                    </div>
+                </div>
                 <div class="description-section">
                     <h2>Description</h2>
                     <p id="description-display">{{ video.description or 'No description available.' }}</p>

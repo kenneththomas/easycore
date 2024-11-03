@@ -307,3 +307,41 @@ textarea {
     gap: 1rem;
     margin-top: 1rem;
 }
+
+.video-stats {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    margin: 1rem 0;
+}
+
+.like-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#like-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 20px;
+    background-color: #3498db;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#like-btn:hover {
+    background-color: #2980b9;
+}
+
+#like-btn.liked {
+    background-color: #2980b9;
+}
+
+.like-count {
+    color: #666;
+}
