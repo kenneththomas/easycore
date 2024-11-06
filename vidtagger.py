@@ -99,14 +99,27 @@ def add_video():
             os.makedirs(thumbnails_dir, exist_ok=True)
             thumbnail_path = os.path.join(thumbnails_dir, thumbnail_filename)
             
-            # Get video duration
+            # Get video duration more robustly
             probe = ffmpeg.probe(stored_filepath)
-            duration = float(probe['streams'][0]['duration'])
+            duration = None
+            # Try different methods to get duration
+            for stream in probe['streams']:
+                if 'duration' in stream:
+                    duration = float(stream['duration'])
+                    break
+            
+            # If duration not found in streams, try format
+            if duration is None and 'format' in probe and 'duration' in probe['format']:
+                duration = float(probe['format']['duration'])
+            
+            # If still no duration, use a default timestamp
+            if duration is None:
+                duration = 0
             
             # Extract middle frame
             (
                 ffmpeg
-                .input(stored_filepath, ss=duration/2)
+                .input(stored_filepath, ss=duration/2 if duration > 0 else 0)
                 .filter('scale', 320, -1)
                 .output(thumbnail_path, vframes=1)
                 .overwrite_output()
@@ -143,6 +156,10 @@ def add_video():
 def stream_video(video_id):
     video = Video.query.get_or_404(video_id)
     
+    # Determine mime type based on file extension
+    file_extension = os.path.splitext(video.stored_filepath)[1].lower()
+    mime_type = 'video/webm' if file_extension == '.webm' else 'video/mp4'
+    
     range_header = request.headers.get('Range', None)
     file_size = os.path.getsize(video.stored_filepath)
 
@@ -165,13 +182,13 @@ def stream_video(video_id):
             data = f.read(length)
 
         resp = make_response(data)
-        resp.headers.set('Content-Type', 'video/mp4')
+        resp.headers.set('Content-Type', mime_type)  # Use dynamic mime type
         resp.headers.set('Content-Range', f'bytes {byte1}-{byte2}/{file_size}')
         resp.headers.set('Accept-Ranges', 'bytes')
         resp.headers.set('Content-Length', str(length))
         return resp, 206
     else:
-        return send_file(video.stored_filepath, mimetype='video/mp4')
+        return send_file(video.stored_filepath, mimetype=mime_type)  # Use dynamic mime type
 
 @app.route('/filter')
 def filter_videos():
@@ -349,14 +366,27 @@ def bulk_upload():
                     os.makedirs(thumbnails_dir, exist_ok=True)
                     thumbnail_path = os.path.join(thumbnails_dir, thumbnail_filename)
                     
-                    # Get video duration
+                    # Get video duration more robustly
                     probe = ffmpeg.probe(stored_filepath)
-                    duration = float(probe['streams'][0]['duration'])
+                    duration = None
+                    # Try different methods to get duration
+                    for stream in probe['streams']:
+                        if 'duration' in stream:
+                            duration = float(stream['duration'])
+                            break
+                    
+                    # If duration not found in streams, try format
+                    if duration is None and 'format' in probe and 'duration' in probe['format']:
+                        duration = float(probe['format']['duration'])
+                    
+                    # If still no duration, use a default timestamp
+                    if duration is None:
+                        duration = 0
                     
                     # Extract middle frame
                     (
                         ffmpeg
-                        .input(stored_filepath, ss=duration/2)
+                        .input(stored_filepath, ss=duration/2 if duration > 0 else 0)
                         .filter('scale', 320, -1)
                         .output(thumbnail_path, vframes=1)
                         .overwrite_output()
