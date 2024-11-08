@@ -9,6 +9,7 @@ from PIL import Image
 import io
 from werkzeug.datastructures import FileStorage
 from datetime import datetime
+import uuid
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
@@ -34,6 +35,23 @@ class Comment(db.Model):
     content = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     likes = db.Column(db.Integer, default=0)  # Add this line
+
+def convert_webm_to_mp4(input_path):
+    """Convert WebM file to MP4 and return the new filepath"""
+    output_path = os.path.splitext(input_path)[0] + '.mp4'
+    try:
+        (
+            ffmpeg
+            .input(input_path)
+            .output(output_path, acodec='aac', vcodec='h264', **{'b:v': '2M'})
+            .overwrite_output()
+            .run(capture_stdout=True, capture_stderr=True)
+        )
+        os.remove(input_path)  # Remove original WebM file
+        return output_path
+    except ffmpeg.Error as e:
+        print(f"Error converting WebM to MP4: {e.stderr.decode()}")
+        raise
 
 @app.route('/')
 def index():
@@ -92,6 +110,11 @@ def add_video():
         try:
             os.makedirs(upload_folder, exist_ok=True)
             file.save(stored_filepath)
+            
+            # Convert WebM to MP4 if necessary
+            if original_extension == '.webm':
+                stored_filepath = convert_webm_to_mp4(stored_filepath)
+                new_filename = os.path.basename(stored_filepath)
             
             # Generate thumbnail
             thumbnail_filename = f"thumbnail_{os.path.splitext(new_filename)[0]}.jpg"
@@ -352,14 +375,23 @@ def bulk_upload():
 
         for file in uploaded_files:
             if isinstance(file, FileStorage) and file.filename != '':
-                original_filepath = file.filename
-                new_filename = secure_filename(original_filepath)
-                stored_filepath = os.path.join(app.config['STEALTH_UPLOAD_FOLDER'], new_filename)
-                
+                original_extension = os.path.splitext(file.filename)[1].lower()
+                if original_extension not in ['.mp4', '.webm']:
+                    errors.append(f"Skipped {file.filename}: Only MP4 and WebM files are allowed")
+                    continue
+
                 try:
+                    new_filename = secure_filename(str(uuid.uuid4()) + original_extension)
+                    stored_filepath = os.path.join(app.config['STEALTH_UPLOAD_FOLDER'], new_filename)
+                    
                     os.makedirs(app.config['STEALTH_UPLOAD_FOLDER'], exist_ok=True)
                     file.save(stored_filepath)
-                    
+
+                    # Convert WebM to MP4 if necessary
+                    if original_extension == '.webm':
+                        stored_filepath = convert_webm_to_mp4(stored_filepath)
+                        new_filename = os.path.basename(stored_filepath)
+
                     # Generate thumbnail
                     thumbnail_filename = f"thumbnail_{os.path.splitext(new_filename)[0]}.jpg"
                     thumbnails_dir = os.path.join(app.static_folder, 'thumbnails')
@@ -396,14 +428,14 @@ def bulk_upload():
                     # Set the thumbnail_path to be relative to the static folder
                     relative_thumbnail_path = os.path.join('thumbnails', thumbnail_filename).replace('\\', '/')
                     
-                    new_video = Video(original_filepath=original_filepath, 
+                    new_video = Video(original_filepath=file.filename, 
                                       stored_filepath=stored_filepath,
                                       thumbnail_path=relative_thumbnail_path,
                                       view_count=0)
                     db.session.add(new_video)
                     successful_uploads += 1
                 except Exception as e:
-                    errors.append(f"Error uploading {original_filepath}: {str(e)}")
+                    errors.append(f"Error uploading {file.filename}: {str(e)}")
         
         db.session.commit()
         
