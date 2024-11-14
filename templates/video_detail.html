@@ -36,7 +36,12 @@
             </section>
 
             <section class="video-info">
-                <h2>{{ video.nickname or video.original_filepath }}</h2>
+                <h2>
+                    <span id="title-display">{{ video.nickname or video.original_filepath }}</span>
+                    <input type="text" id="title-edit" value="{{ video.nickname }}" style="display: none;">
+                </h2>
+                <button id="edit-title-btn" class="btn" onclick="toggleTitleEdit()">Edit Title</button>
+                <button id="save-title-btn" class="btn" style="display: none;" onclick="editTitle('{{ video.id }}')">Save Title</button>
                 <div class="video-stats">
                     <p>Views: <span class="view-count">{{ video.view_count }}</span></p>
                     <div class="like-container">

@@ -532,6 +532,22 @@ def like_comment(comment_id):
     db.session.commit()
     return jsonify({"success": True, "new_like_count": comment.likes})
 
+@app.route('/edit_title/<int:video_id>', methods=['POST'])
+def edit_title(video_id):
+    video = Video.query.get_or_404(video_id)
+    new_title = request.json.get('title', '').strip()
+
+    if not new_title:
+        return jsonify({"error": "Title cannot be empty"}), 400
+
+    try:
+        video.nickname = new_title
+        db.session.commit()
+        return jsonify({"success": True, "new_title": new_title}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

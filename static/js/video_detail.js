@@ -245,3 +245,43 @@ async function likeComment(commentId) {
         console.error('Error:', error);
     }
 }
+
+function toggleTitleEdit() {
+    const titleDisplay = document.getElementById('title-display');
+    const titleEdit = document.getElementById('title-edit');
+    const editButton = document.getElementById('edit-title-btn');
+    const saveButton = document.getElementById('save-title-btn');
+
+    if (titleEdit.style.display === 'none') {
+        titleDisplay.style.display = 'none';
+        titleEdit.style.display = 'inline';
+        editButton.style.display = 'none';
+        saveButton.style.display = 'inline';
+    } else {
+        titleDisplay.style.display = 'inline';
+        titleEdit.style.display = 'none';
+        editButton.style.display = 'inline';
+        saveButton.style.display = 'none';
+    }
+}
+
+function editTitle(videoId) {
+    const newTitle = document.getElementById('title-edit').value;
+
+    fetch(`/edit_title/${videoId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title: newTitle })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('title-display').textContent = newTitle;
+            toggleTitleEdit();
+        } else {
+            alert('Error updating title: ' + data.error);
+        }
+    });
+}
