@@ -278,7 +278,7 @@ def edit_tags(video_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-def get_related_videos(current_video, limit=5):
+def get_related_videos(current_video, limit=8):
     if not current_video.tags:
         return []
     
