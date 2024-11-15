@@ -89,6 +89,9 @@ def add_video():
         tags = request.form.get('tags')
         stealth = request.form.get('stealth') == 'on'
         
+        if not nickname and tags:
+            nickname = ' '.join(tag.strip() for tag in tags.split(','))
+        
         if not file:
             return jsonify({"error": "No file provided"}), 400
         
