@@ -285,3 +285,27 @@ function editTitle(videoId) {
         }
     });
 }
+
+function moveToRegular(videoId) {
+    if (!confirm('Are you sure you want to move this video to regular uploads?')) {
+        return;
+    }
+    
+    fetch(`/move_to_regular/${videoId}`, {
+        method: 'POST',
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Video moved successfully!');
+            // Reload the page to reflect changes
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while moving the video');
+    });
+}

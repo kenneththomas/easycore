@@ -551,6 +551,35 @@ def edit_title(video_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@app.route('/move_to_regular/<int:video_id>', methods=['POST'])
+def move_to_regular(video_id):
+    video = Video.query.get_or_404(video_id)
+    
+    # Check if video is in stealth folder
+    if not video.stored_filepath.startswith(app.config['STEALTH_UPLOAD_FOLDER']):
+        return jsonify({"error": "Video is not in stealth uploads"}), 400
+        
+    try:
+        # Create new filepath in regular uploads
+        filename = os.path.basename(video.stored_filepath)
+        new_filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
+        # Move the file
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        os.rename(video.stored_filepath, new_filepath)
+        
+        # Update database
+        video.stored_filepath = new_filepath
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "Video moved to regular uploads"
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
