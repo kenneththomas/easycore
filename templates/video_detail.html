@@ -79,6 +79,14 @@
                     <p><strong>Original File:</strong> {{ video.original_filepath }}</p>
                     <p><strong>Stored File:</strong> {{ video.stored_filepath }}</p>
                 </div>
+
+                <div class="stealth-controls">
+                    {% if video.stored_filepath.startswith(config['STEALTH_UPLOAD_FOLDER']) %}
+                        <button id="move-to-regular-btn" class="btn" onclick="moveToRegular('{{ video.id }}')">
+                            Move to Regular Upload
+                        </button>
+                    {% endif %}
+                </div>
             </section>
 
             <section class="comments-section">
