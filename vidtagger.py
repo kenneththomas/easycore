@@ -10,6 +10,8 @@ import io
 from werkzeug.datastructures import FileStorage
 from datetime import datetime
 import uuid
+import random
+import string
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
@@ -52,6 +54,21 @@ def convert_webm_to_mp4(input_path):
     except ffmpeg.Error as e:
         print(f"Error converting WebM to MP4: {e.stderr.decode()}")
         raise
+
+def generate_unique_filename(original_filename, upload_folder):
+    """Generate a unique filename by adding timestamp and random string if needed"""
+    name, ext = os.path.splitext(original_filename)
+    filename = secure_filename(name + ext)
+    filepath = os.path.join(upload_folder, filename)
+    
+    # If file already exists, add timestamp and random string
+    if os.path.exists(filepath):
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        random_string = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
+        filename = secure_filename(f"{name}_{timestamp}_{random_string}{ext}")
+        filepath = os.path.join(upload_folder, filename)
+    
+    return filename, filepath
 
 @app.route('/')
 def index():
@@ -99,16 +116,12 @@ def add_video():
         original_extension = os.path.splitext(original_filepath)[1]
         
         if nickname:
-            new_filename = secure_filename(nickname + original_extension)
+            base_filename = secure_filename(nickname + original_extension)
         else:
-            new_filename = secure_filename(original_filepath)
+            base_filename = secure_filename(original_filepath)
         
-        if stealth:
-            stored_filepath = os.path.join(app.config['STEALTH_UPLOAD_FOLDER'], new_filename)
-            upload_folder = app.config['STEALTH_UPLOAD_FOLDER']
-        else:
-            stored_filepath = os.path.join(app.config['UPLOAD_FOLDER'], new_filename)
-            upload_folder = app.config['UPLOAD_FOLDER']
+        upload_folder = app.config['STEALTH_UPLOAD_FOLDER'] if stealth else app.config['UPLOAD_FOLDER']
+        new_filename, stored_filepath = generate_unique_filename(base_filename, upload_folder)
         
         try:
             os.makedirs(upload_folder, exist_ok=True)
@@ -397,12 +410,14 @@ def bulk_upload():
                     continue
 
                 try:
-                    new_filename = secure_filename(str(uuid.uuid4()) + original_extension)
-                    stored_filepath = os.path.join(app.config['STEALTH_UPLOAD_FOLDER'], new_filename)
+                    new_filename, stored_filepath = generate_unique_filename(
+                        file.filename, 
+                        app.config['STEALTH_UPLOAD_FOLDER']
+                    )
                     
                     os.makedirs(app.config['STEALTH_UPLOAD_FOLDER'], exist_ok=True)
                     file.save(stored_filepath)
-
+                    
                     # Convert WebM to MP4 if necessary
                     if original_extension == '.webm':
                         stored_filepath = convert_webm_to_mp4(stored_filepath)
