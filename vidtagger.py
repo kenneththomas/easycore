@@ -170,13 +170,26 @@ def add_video():
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
     
-    # Get existing tags for GET request
-    tags = db.session.query(
-        func.trim(func.lower(func.substr(Video.tags, 1, func.instr(Video.tags + ',', ',') - 1))).cast(db.String).label('tag'),
-        func.count('*').label('count')
-    ).group_by('tag').order_by(desc('count')).all()
+    # Replace the existing tags query with a query for recent tags
+    recent_tags = db.session.query(
+        Video.tags, Video.id
+    ).order_by(
+        desc(Video.id)  # Order by most recent videos first
+    ).limit(20).all()  # Get tags from last 20 videos
     
-    return render_template('add.html', existing_tags=tags)
+    # Process the tags to get unique recent tags
+    processed_tags = []
+    seen_tags = set()
+    
+    for video_tags, _ in recent_tags:
+        if video_tags:  # Check if tags exist
+            tags_list = [tag.strip() for tag in video_tags.split(',')]
+            for tag in tags_list:
+                if tag and tag.lower() not in seen_tags:  # Avoid duplicates
+                    seen_tags.add(tag.lower())
+                    processed_tags.append(tag)
+    
+    return render_template('add.html', recent_tags=processed_tags[:20])
 
 @app.route('/stream/<int:video_id>')
 def stream_video(video_id):

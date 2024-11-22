@@ -152,10 +152,10 @@
             </label>
             
             <div id="existing-tags">
-                <h3>Existing Tags:</h3>
-                {% for tag in existing_tags %}
-                    <button type="button" class="tag-button" data-tag="{{ tag.tag }}">
-                        {{ tag.tag }} ({{ tag.count }})
+                <h3>Recently Used Tags:</h3>
+                {% for tag in recent_tags %}
+                    <button type="button" class="tag-button" data-tag="{{ tag }}">
+                        {{ tag }}
                     </button>
                 {% endfor %}
             </div>
@@ -235,16 +235,8 @@
         // Add functionality for tag buttons
         document.querySelectorAll('.tag-button').forEach(button => {
             button.addEventListener('click', function() {
-                const tagInput = document.getElementById('tags');
                 const newTag = this.getAttribute('data-tag');
-                const currentTags = tagInput.value.split(',').map(tag => tag.trim());
-                
-                if (!currentTags.includes(newTag)) {
-                    if (tagInput.value) {
-                        tagInput.value += ', ';
-                    }
-                    tagInput.value += newTag;
-                }
+                addTag(newTag);
             });
         });
 
