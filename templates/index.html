@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Tagger</title>
+    <title>breeztube</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
@@ -11,7 +11,7 @@
 <body>
     <nav class="navbar">
         <div class="nav-content">
-            <a href="{{ url_for('index') }}" class="nav-logo">Video Tagger</a>
+            <a href="{{ url_for('index') }}" class="nav-logo">breeztube</a>
             <div class="nav-links">
                 <a href="{{ url_for('index') }}">Home</a>
                 <a href="{{ url_for('add_video') }}">Add Video</a>
@@ -21,7 +21,7 @@
     </nav>
 
     <div class="container" style="margin-top: 20px;">
-        <h1>Video Tagger</h1>
+        <h1>breeztube</h1>
         <a href="{{ url_for('add_video') }}" class="button">Add New Video</a>
         <a href="{{ url_for('bulk_upload') }}">Bulk Upload Videos</a>
         
