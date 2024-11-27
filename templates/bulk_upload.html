@@ -5,49 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bulk Upload Videos - Video Tagger</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        #progress-container {
-            width: 100%;
-            background-color: #f0f0f0;
-            margin-top: 20px;
-            display: none;
-        }
-        #progress-bar {
-            width: 0%;
-            height: 30px;
-            background-color: #4CAF50;
-            text-align: center;
-            line-height: 30px;
-            color: white;
-        }
-        .danger-button {
-            background-color: #dc3545;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 10px 0;
-        }
-        .danger-button:hover {
-            background-color: #c82333;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bulk_upload.css') }}">
 </head>
 <body>
-    <h1>Bulk Upload Videos</h1>
-    <form id="upload-form" enctype="multipart/form-data">
-        <label for="files">Select Video Files:</label>
-        <input type="file" name="files" id="files" accept="video/*" multiple required>
-        
-        <input type="submit" value="Upload Videos">
-    </form>
-    <button id="cleanup-btn" class="danger-button">Clean Up Missing Stealth Videos</button>
-    <div id="progress-container">
-        <div id="progress-bar">0%</div>
+    <div class="container">
+        <h1>Bulk Upload Videos</h1>
+        <form id="upload-form" enctype="multipart/form-data">
+            <label for="files">Select Video Files:</label>
+            <input type="file" name="files" id="files" accept="video/*" multiple required>
+            <input type="submit" value="Upload Videos" class="upload-button">
+        </form>
+        <button id="cleanup-btn" class="danger-button">Clean Up Missing Stealth Videos</button>
+        <div id="progress-container">
+            <div id="progress-bar">0%</div>
+        </div>
+        <div id="result"></div>
+        <a href="{{ url_for('index') }}" class="back-link">Back to Video List</a>
     </div>
-    <div id="result"></div>
-    <a href="{{ url_for('index') }}" class="back-link">Back to Video List</a>
     
     <script>
         const form = document.getElementById('upload-form');
