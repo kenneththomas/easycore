@@ -7,6 +7,101 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    <style>
+        /* Mobile-specific styles */
+        @media screen and (max-width: 768px) {
+            .nav-content {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                padding: 5px 10px;
+                font-size: 0.9em;
+            }
+
+            .nav-links {
+                margin-top: 0;
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.8em;
+            }
+
+            .nav-logo {
+                font-size: 1em;
+            }
+
+            .filter-sort-container {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .filter-form, .sort-form {
+                width: 100%;
+            }
+
+            .video-list {
+                padding: 0;
+            }
+
+            .video-item {
+                flex-direction: column;
+                padding: 10px;
+                align-items: center;
+                text-align: center;
+            }
+
+            .video-thumbnail {
+                width: 160px;
+                height: 90px;
+                margin: 0 auto 10px auto;
+                overflow: hidden;
+            }
+
+            .video-thumbnail img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+            .video-details {
+                width: 100%;
+                padding: 0 5px;
+            }
+
+            .delete-button {
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                z-index: 1;
+            }
+
+            .pagination {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 10px;
+            }
+
+            /* Video player adjustments for mobile */
+            .video-player-container {
+                width: 100%;
+                height: auto;
+                max-height: 100vh;
+            }
+
+            #videoPlayer {
+                width: 100%;
+                height: auto;
+            }
+        }
+
+        /* Preserve existing desktop styles */
+        @media screen and (min-width: 769px) {
+            .video-item {
+                position: relative;
+            }
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar">
@@ -74,11 +169,11 @@
 
                 <div class="pagination">
                     {% if page > 1 %}
-                        <a href="{{ url_for('filter_videos', tag=tag, page=page-1) if tag else url_for('index', page=page-1) }}" class="button">&laquo; Previous</a>
+                        <a href="{{ url_for('filter_videos' if tag else 'index', tag=tag, page=page-1, sort=sort_by) }}" class="button">&laquo; Previous</a>
                     {% endif %}
                     <span>Page {{ page }} of {{ total_pages }}</span>
                     {% if page < total_pages %}
-                        <a href="{{ url_for('filter_videos', tag=tag, page=page+1) if tag else url_for('index', page=page+1) }}" class="button">Next &raquo;</a>
+                        <a href="{{ url_for('filter_videos' if tag else 'index', tag=tag, page=page+1, sort=sort_by) }}" class="button">Next &raquo;</a>
                     {% endif %}
                 </div>
             </div>
@@ -96,6 +191,29 @@
         </video>
     </div>
     <script>
+        let lastClickTime = 0;
+
+        // Add event listener for clicks on the document
+        document.addEventListener('click', function(e) {
+            const currentTime = new Date().getTime();
+            const videoPlayerContainer = document.getElementById('videoPlayerContainer');
+            const videoPlayer = document.getElementById('videoPlayer');
+            
+            // Check if video player is open and click is outside the player
+            if (videoPlayerContainer.style.display === 'block' && 
+                !videoPlayerContainer.contains(e.target) && 
+                !e.target.classList.contains('button')) {  // Ignore clicks on buttons
+                
+                // If second click within 500ms, close the player
+                if (currentTime - lastClickTime < 500) {
+                    closeVideoPlayer();
+                    lastClickTime = 0;  // Reset time
+                    return;
+                }
+                lastClickTime = currentTime;
+            }
+        });
+
         function deleteVideo(videoId) {
             if (confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
                 fetch(`/delete/${videoId}`, {
