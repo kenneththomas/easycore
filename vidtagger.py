@@ -665,15 +665,6 @@ def create_playlist():
 @app.route('/add_to_playlist/<int:playlist_id>/<int:video_id>', methods=['POST'])
 def add_to_playlist(playlist_id, video_id):
     try:
-        # Check if video is already in playlist
-        existing = PlaylistVideo.query.filter_by(
-            playlist_id=playlist_id, 
-            video_id=video_id
-        ).first()
-        
-        if existing:
-            return jsonify({"error": "Video is already in this playlist"}), 400
-            
         # Get the last position in the playlist
         last_position = db.session.query(func.max(PlaylistVideo.position))\
             .filter_by(playlist_id=playlist_id).scalar() or 0
@@ -688,7 +679,6 @@ def add_to_playlist(playlist_id, video_id):
         return jsonify({"success": True}), 200
     except Exception as e:
         db.session.rollback()
-        print(f"Error adding to playlist: {str(e)}")  # Debug log
         return jsonify({"error": str(e)}), 500
 
 @app.route('/get_playlist/<int:playlist_id>')
@@ -707,21 +697,109 @@ def get_playlist(playlist_id):
             "description": playlist.description,
             "videos": [{
                 "id": video.id,
-                "title": video.nickname or video.original_filepath,
+                "title": video.nickname or os.path.basename(video.original_filepath),
                 "thumbnail": video.thumbnail_path,
-                "position": pv.position
+                "position": pv.position,
+                "description": video.description,
+                "tags": video.tags,
+                "view_count": video.view_count,
+                "likes": video.likes
             } for video, pv in videos]
         }
     })
 
 @app.route('/get_playlists')
-def get_playlists():
-    playlists = Playlist.query.all()
-    return jsonify([{
-        "id": p.id,
-        "name": p.name,
-        "description": p.description
-    } for p in playlists])
+def playlists():
+    playlists = Playlist.query.order_by(desc(Playlist.created_at)).all()
+    
+    # Get video count and first thumbnail for each playlist
+    playlist_info = []
+    for playlist in playlists:
+        # Convert Playlist object to dict with only the needed attributes
+        playlist_dict = {
+            'id': playlist.id,
+            'name': playlist.name,
+            'description': playlist.description,
+            'created_at': playlist.created_at
+        }
+        
+        video_count = PlaylistVideo.query.filter_by(playlist_id=playlist.id).count()
+        
+        # Get first video's thumbnail
+        first_video = db.session.query(Video)\
+            .join(PlaylistVideo)\
+            .filter(PlaylistVideo.playlist_id == playlist.id)\
+            .order_by(PlaylistVideo.position)\
+            .first()
+            
+        thumbnail = first_video.thumbnail_path if first_video else None
+        
+        playlist_info.append({
+            'playlist': playlist_dict,
+            'video_count': video_count,
+            'thumbnail': thumbnail
+        })
+    
+    return render_template('playlists.html', playlists=playlist_info)
+
+@app.route('/playlist/<int:playlist_id>')
+def playlist_detail(playlist_id):
+    playlist = Playlist.query.get_or_404(playlist_id)
+    
+    # Get all videos in the playlist with their order
+    playlist_videos = db.session.query(Video)\
+        .join(PlaylistVideo)\
+        .filter(PlaylistVideo.playlist_id == playlist_id)\
+        .order_by(PlaylistVideo.position)\
+        .all()
+    
+    # Create a JSON-serializable version of the playlist videos
+    serialized_videos = [{
+        'id': video.id,
+        'nickname': video.nickname,
+        'original_filepath': video.original_filepath,
+        'thumbnail_path': video.thumbnail_path,
+        'view_count': video.view_count or 0,
+        'likes': video.likes or 0,
+        'tags': video.tags
+    } for video in playlist_videos]
+    
+    return render_template('playlist_detail.html', 
+                         playlist=playlist, 
+                         playlist_videos=playlist_videos,
+                         serialized_videos=serialized_videos)
+
+@app.route('/remove_from_playlist/<int:playlist_id>/<int:video_id>', methods=['POST'])
+def remove_from_playlist(playlist_id, video_id):
+    try:
+        playlist_video = PlaylistVideo.query.filter_by(
+            playlist_id=playlist_id,
+            video_id=video_id
+        ).first()
+        
+        if playlist_video:
+            # Get the position of the removed video
+            removed_position = playlist_video.position
+            
+            # Delete the playlist video entry
+            db.session.delete(playlist_video)
+            
+            # Update positions of remaining videos
+            PlaylistVideo.query.filter(
+                PlaylistVideo.playlist_id == playlist_id,
+                PlaylistVideo.position > removed_position
+            ).update(
+                {PlaylistVideo.position: PlaylistVideo.position - 1}
+            )
+            
+            db.session.commit()
+            return jsonify({"success": True}), 200
+        else:
+            return jsonify({"error": "Video not found in playlist"}), 404
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     with app.app_context():

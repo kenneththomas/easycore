@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ playlist.name }} - Video Tagger</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="{{ url_for('index') }}" class="nav-logo">Video Tagger</a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('add_video') }}">Add Video</a>
+                <a href="{{ url_for('bulk_upload') }}">Bulk Upload</a>
+                <a href="{{ url_for('playlists') }}">Playlists</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="playlist-header">
+            <h1>{{ playlist.name }}</h1>
+            <div class="playlist-meta">
+                <p class="playlist-description">{{ playlist.description or 'No description' }}</p>
+                <p class="playlist-info">{{ playlist_videos|length }} videos • Created {{ playlist.created_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+            <div class="playlist-controls">
+                <button id="toggleAutoplay" class="btn">
+                    Autoplay: <span id="autoplayStatus">Off</span>
+                </button>
+                <button id="playAll" class="btn primary">Play All</button>
+            </div>
+        </header>
+
+        <main class="playlist-view">
+            <section class="video-player-section">
+                <div class="video-container">
+                    <video id="videoPlayer" controls>
+                        <source src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </section>
+
+            <section class="playlist-videos">
+                {% for video in playlist_videos %}
+                <div class="playlist-video-item" data-video-id="{{ video.id }}">
+                    <div class="video-number">{{ loop.index }}</div>
+                    <div class="thumbnail">
+                        <img src="{{ url_for('static', filename=video.thumbnail_path) }}" alt="Thumbnail">
+                        <button class="play-button" onclick="playVideo({{ video.id }})">▶</button>
+                    </div>
+                    <div class="video-info">
+                        <h3>{{ video.nickname or video.original_filepath }}</h3>
+                        <div class="video-meta">
+                            <span class="views">{{ video.view_count or 0 }} views</span>
+                            <span class="likes">{{ video.likes or 0 }} likes</span>
+                        </div>
+                        {% if video.tags %}
+                        <div class="tags">
+                            {% for tag in video.tags.split(',')[:3] %}
+                                {% if tag.strip() %}
+                                    <span class="tag">{{ tag.strip() }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <button class="remove-btn" onclick="removeFromPlaylist({{ video.id }})">×</button>
+                </div>
+                {% endfor %}
+            </section>
+        </main>
+    </div>
+
+    <script>
+        let autoplayEnabled = false;
+        let currentVideoIndex = -1;
+        const playlistVideos = {{ serialized_videos|tojson|safe }};
+
+        function toggleAutoplay() {
+            autoplayEnabled = !autoplayEnabled;
+            document.getElementById('autoplayStatus').textContent = autoplayEnabled ? 'On' : 'Off';
+        }
+
+        function playVideo(videoId) {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const playerSection = document.querySelector('.video-player-section');
+            
+            // Update current index
+            currentVideoIndex = playlistVideos.findIndex(v => v.id === videoId);
+            
+            // Show player and start video
+            playerSection.classList.add('active');
+            videoPlayer.src = `/stream/${videoId}`;
+            videoPlayer.play();
+            
+            // Highlight current video in playlist
+            document.querySelectorAll('.playlist-video-item').forEach(item => {
+                item.classList.remove('playing');
+            });
+            document.querySelector(`.playlist-video-item[data-video-id="${videoId}"]`).classList.add('playing');
+            
+            // Scroll to player
+            playerSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function playNext() {
+            if (currentVideoIndex < playlistVideos.length - 1) {
+                playVideo(playlistVideos[currentVideoIndex + 1].id);
+            }
+        }
+
+        function removeFromPlaylist(videoId) {
+            if (!confirm('Remove this video from the playlist?')) return;
+            
+            fetch(`/remove_from_playlist/{{ playlist.id }}/${videoId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        }
+
+        // Event Listeners
+        document.getElementById('toggleAutoplay').addEventListener('click', toggleAutoplay);
+        
+        // Update the playAll click handler
+        document.getElementById('playAll').addEventListener('click', () => {
+            if (playlistVideos && playlistVideos.length > 0) {
+                playVideo(playlistVideos[0].id);
+                if (!autoplayEnabled) {
+                    // Automatically enable autoplay when using Play All
+                    autoplayEnabled = true;
+                    document.getElementById('autoplayStatus').textContent = 'On';
+                }
+            }
+        });
+
+        // Add ended event listener to video player
+        document.getElementById('videoPlayer').addEventListener('ended', () => {
+            if (autoplayEnabled) {
+                playNext();
+            }
+        });
+    </script>
+
+    <style>
+        .playlist-header {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .playlist-meta {
+            margin: 1rem 0;
+            color: #666;
+        }
+
+        .playlist-controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .video-player-section {
+            margin-bottom: 2rem;
+            width: 100%;
+            background: #000;
+            display: none; /* Hidden by default */
+        }
+
+        .video-container {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            position: relative;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+        }
+
+        #videoPlayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+
+        .playlist-video-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .playlist-video-item.playing {
+            background-color: #e3f2fd;
+            border-color: #2196f3;
+        }
+
+        .video-number {
+            min-width: 2rem;
+            text-align: center;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .thumbnail {
+            position: relative;
+            width: 160px;
+            height: 90px;
+            margin: 0 1rem;
+        }
+
+        .thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .thumbnail:hover .play-button {
+            opacity: 1;
+        }
+
+        .video-info {
+            flex-grow: 1;
+        }
+
+        .video-info h3 {
+            margin: 0 0 0.5rem 0;
+        }
+
+        .video-meta {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .video-meta span:not(:last-child)::after {
+            content: "•";
+            margin: 0 0.5rem;
+        }
+
+        .tags {
+            margin-top: 0.5rem;
+        }
+
+        .tag {
+            background: #e0e0e0;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-right: 0.5rem;
+        }
+
+        .remove-btn {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            margin-left: 1rem;
+        }
+
+        .remove-btn:hover {
+            color: #f44336;
+        }
+
+        .btn.primary {
+            background-color: #2196f3;
+            color: white;
+        }
+
+        .btn.primary:hover {
+            background-color: #1976d2;
+        }
+
+        .video-player-section.active {
+            display: block;
+        }
+    </style>
+</body>
+</html> 
