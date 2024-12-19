@@ -45,6 +45,7 @@
                         <select id="playlistSelect">
                             <option value="">Select Playlist</option>
                         </select>
+                        <button id="addToPlaylistBtn" class="btn" onclick="addToCurrentPlaylist()">Add to Playlist</button>
                         <button id="createPlaylistBtn" class="btn">Create New Playlist</button>
                     </div>
                 </div>
@@ -202,8 +203,15 @@
         fetch(`/get_playlist/${playlistId}`)
             .then(response => response.json())
             .then(data => {
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    return;
+                }
                 currentPlaylist = data.playlist;
                 displayPlaylistVideos();
+            })
+            .catch(error => {
+                console.error('Error loading playlist:', error);
             });
     }
 
@@ -299,6 +307,33 @@
 
     // Load playlists when page loads
     loadPlaylists();
+
+    function addToCurrentPlaylist() {
+        const playlistId = document.getElementById('playlistSelect').value;
+        if (!playlistId) {
+            alert('Please select a playlist first');
+            return;
+        }
+
+        const videoId = window.location.pathname.split('/').pop();
+        
+        fetch(`/add_to_playlist/${playlistId}/${videoId}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Video added to playlist successfully!');
+                loadPlaylistVideos(playlistId);  // Refresh the playlist display
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error adding video to playlist. Please try again.');
+        });
+    }
     </script>
     <style>
     .playlist-controls {
@@ -319,6 +354,7 @@
         display: flex;
         gap: 10px;
         align-items: center;
+        flex-wrap: wrap;  /* Allow wrapping on smaller screens */
     }
 
     .playlist-videos {
@@ -373,6 +409,15 @@
         justify-content: flex-end;
         gap: 10px;
         margin-top: 15px;
+    }
+
+    #addToPlaylistBtn {
+        background-color: #4CAF50;  /* Green background */
+        color: white;
+    }
+
+    #addToPlaylistBtn:hover {
+        background-color: #45a049;
     }
     </style>
 </body>

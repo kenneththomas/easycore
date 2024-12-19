@@ -665,6 +665,15 @@ def create_playlist():
 @app.route('/add_to_playlist/<int:playlist_id>/<int:video_id>', methods=['POST'])
 def add_to_playlist(playlist_id, video_id):
     try:
+        # Check if video is already in playlist
+        existing = PlaylistVideo.query.filter_by(
+            playlist_id=playlist_id, 
+            video_id=video_id
+        ).first()
+        
+        if existing:
+            return jsonify({"error": "Video is already in this playlist"}), 400
+            
         # Get the last position in the playlist
         last_position = db.session.query(func.max(PlaylistVideo.position))\
             .filter_by(playlist_id=playlist_id).scalar() or 0
@@ -679,6 +688,7 @@ def add_to_playlist(playlist_id, video_id):
         return jsonify({"success": True}), 200
     except Exception as e:
         db.session.rollback()
+        print(f"Error adding to playlist: {str(e)}")  # Debug log
         return jsonify({"error": str(e)}), 500
 
 @app.route('/get_playlist/<int:playlist_id>')
