@@ -801,6 +801,23 @@ def remove_from_playlist(playlist_id, video_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@app.route('/edit_playlist/<int:playlist_id>', methods=['POST'])
+def edit_playlist(playlist_id):
+    playlist = Playlist.query.get_or_404(playlist_id)
+    data = request.json
+    
+    try:
+        if 'name' in data:
+            playlist.name = data['name']
+        if 'description' in data:
+            playlist.description = data['description']
+            
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

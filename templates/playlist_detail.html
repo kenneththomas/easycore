@@ -22,9 +22,15 @@
 
     <div class="container">
         <header class="playlist-header">
-            <h1>{{ playlist.name }}</h1>
+            <div class="playlist-title-container">
+                <h1 id="playlistTitle" onclick="startEditingTitle()">{{ playlist.name }}</h1>
+                <input type="text" id="titleInput" class="edit-input" value="{{ playlist.name }}" style="display: none;">
+            </div>
             <div class="playlist-meta">
-                <p class="playlist-description">{{ playlist.description or 'No description' }}</p>
+                <p class="playlist-description" id="playlistDescription" onclick="startEditingDescription()">
+                    {{ playlist.description or 'No description' }}
+                </p>
+                <textarea id="descriptionInput" class="edit-input" style="display: none;">{{ playlist.description or '' }}</textarea>
                 <p class="playlist-info">{{ playlist_videos|length }} videos • Created {{ playlist.created_at.strftime('%Y-%m-%d') }}</p>
             </div>
             <div class="playlist-controls">
@@ -149,6 +155,104 @@
         document.getElementById('videoPlayer').addEventListener('ended', () => {
             if (autoplayEnabled) {
                 playNext();
+            }
+        });
+
+        // Title editing
+        function startEditingTitle() {
+            const titleElement = document.getElementById('playlistTitle');
+            const titleInput = document.getElementById('titleInput');
+            
+            titleElement.style.display = 'none';
+            titleInput.style.display = 'block';
+            titleInput.value = titleElement.textContent.trim();
+            titleInput.focus();
+        }
+
+        function saveTitle() {
+            const titleElement = document.getElementById('playlistTitle');
+            const titleInput = document.getElementById('titleInput');
+            const newTitle = titleInput.value.trim();
+            
+            if (!newTitle) return;
+
+            fetch(`/edit_playlist/{{ playlist.id }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: newTitle
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    titleElement.textContent = newTitle;
+                    titleElement.style.display = 'block';
+                    titleInput.style.display = 'none';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        }
+
+        // Description editing
+        function startEditingDescription() {
+            const descElement = document.getElementById('playlistDescription');
+            const descInput = document.getElementById('descriptionInput');
+            
+            descElement.style.display = 'none';
+            descInput.style.display = 'block';
+            descInput.focus();
+        }
+
+        function saveDescription() {
+            const descElement = document.getElementById('playlistDescription');
+            const descInput = document.getElementById('descriptionInput');
+            const newDescription = descInput.value.trim();
+
+            fetch(`/edit_playlist/{{ playlist.id }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    description: newDescription
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    descElement.textContent = newDescription || 'No description';
+                    descElement.style.display = 'block';
+                    descInput.style.display = 'none';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        }
+
+        // Event listeners for saving on Enter/Escape
+        document.getElementById('titleInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveTitle();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                document.getElementById('playlistTitle').style.display = 'block';
+                document.getElementById('titleInput').style.display = 'none';
+            }
+        });
+
+        document.getElementById('descriptionInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                saveDescription();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                document.getElementById('playlistDescription').style.display = 'block';
+                document.getElementById('descriptionInput').style.display = 'none';
             }
         });
     </script>
@@ -307,6 +411,39 @@
 
         .video-player-section.active {
             display: block;
+        }
+
+        .playlist-title-container {
+            position: relative;
+        }
+
+        .edit-input {
+            width: 100%;
+            padding: 0.5rem;
+            font-size: inherit;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+        }
+
+        #titleInput {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 0.67em 0;
+        }
+
+        #descriptionInput {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        #playlistTitle:hover,
+        #playlistDescription:hover {
+            cursor: pointer;
+            background: #f0f0f0;
+            border-radius: 4px;
+            padding: 2px 4px;
+            margin: -2px -4px;
         }
     </style>
 </body>
