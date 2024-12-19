@@ -53,11 +53,11 @@
 
             <section class="playlist-videos">
                 {% for video in playlist_videos %}
-                <div class="playlist-video-item" data-video-id="{{ video.id }}">
+                <div class="playlist-video-item" data-video-id="{{ video.id }}" onclick="playVideo({{ video.id }})">
                     <div class="video-number">{{ loop.index }}</div>
                     <div class="thumbnail">
                         <img src="{{ url_for('static', filename=video.thumbnail_path) }}" alt="Thumbnail">
-                        <button class="play-button" onclick="playVideo({{ video.id }})">▶</button>
+                        <button class="play-button">▶</button>
                     </div>
                     <div class="video-info">
                         <h3>{{ video.nickname or video.original_filepath }}</h3>
@@ -75,7 +75,7 @@
                         </div>
                         {% endif %}
                     </div>
-                    <button class="remove-btn" onclick="removeFromPlaylist({{ video.id }})">×</button>
+                    <button class="remove-btn" onclick="event.stopPropagation(); removeFromPlaylist({{ video.id }})">×</button>
                 </div>
                 {% endfor %}
             </section>
@@ -100,6 +100,7 @@
             currentVideoIndex = playlistVideos.findIndex(v => v.id === videoId);
             
             // Show player and start video
+            playerSection.style.display = 'block';
             playerSection.classList.add('active');
             videoPlayer.src = `/stream/${videoId}`;
             videoPlayer.play();
@@ -153,7 +154,7 @@
 
         // Add ended event listener to video player
         document.getElementById('videoPlayer').addEventListener('ended', () => {
-            if (autoplayEnabled) {
+            if (autoplayEnabled && currentVideoIndex < playlistVideos.length - 1) {
                 playNext();
             }
         });
@@ -255,32 +256,241 @@
                 document.getElementById('descriptionInput').style.display = 'none';
             }
         });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Format description text to preserve newlines
+            const descElement = document.getElementById('playlistDescription');
+            if (descElement.textContent.trim() === '') {
+                descElement.textContent = 'No description';
+                descElement.style.fontStyle = 'italic';
+                descElement.style.color = '#999';
+            }
+        });
     </script>
 
     <style>
         .playlist-header {
             margin-bottom: 2rem;
-            padding: 1rem;
+            padding: 1.5rem;
             background: #f8f9fa;
-            border-radius: 8px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .playlist-title-container h1 {
+            margin: 0;
+            color: #1a1a1a;
+            font-size: 2.2rem;
+            line-height: 1.2;
         }
 
         .playlist-meta {
-            margin: 1rem 0;
+            margin: 1.5rem 0;
+            color: #4a4a4a;
+        }
+
+        .playlist-description {
+            white-space: pre-line;  /* This preserves newlines */
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+
+        .playlist-info {
+            font-size: 0.9rem;
             color: #666;
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid #eee;
         }
 
         .playlist-controls {
             display: flex;
             gap: 1rem;
-            margin-top: 1rem;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn.primary {
+            background-color: #2196f3;
+            color: white;
+            border: none;
+        }
+
+        .btn.primary:hover {
+            background-color: #1976d2;
+        }
+
+        /* Improve video list aesthetics */
+        .playlist-video-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border: 1px solid #eee;
+            margin-bottom: 0.8rem;
+            border-radius: 8px;
+            position: relative;
+            transition: all 0.2s;
+            background: white;
+            cursor: pointer;
+        }
+
+        .playlist-video-item:hover {
+            transform: translateX(2px);
+            border-color: #2196f3;
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+        }
+
+        .playlist-video-item.playing {
+            background-color: #e3f2fd;
+            border-color: #2196f3;
+            box-shadow: 0 2px 12px rgba(33, 150, 243, 0.15);
+        }
+
+        .video-number {
+            min-width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #2196f3;
+            background: #e3f2fd;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .thumbnail {
+            position: relative;
+            width: 180px;
+            height: 100px;
+            margin: 0 1.2rem;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .video-info h3 {
+            margin: 0 0 0.8rem 0;
+            color: #1a1a1a;
+            font-size: 1.1rem;
+        }
+
+        .tag {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 0.3rem 0.8rem;
+            border-radius: 16px;
+            font-size: 0.85rem;
+            margin-right: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .tag:hover {
+            background: #bbdefb;
+        }
+
+        /* Improve edit inputs */
+        .edit-input {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: inherit;
+            border: 2px solid #2196f3;
+            border-radius: 6px;
+            background: #fff;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+        }
+
+        .edit-input:focus {
+            outline: none;
+            box-shadow: 0 2px 12px rgba(33, 150, 243, 0.2);
+        }
+
+        #titleInput {
+            font-size: 2.2rem;
+            font-weight: bold;
+            margin: 0.67em 0;
+        }
+
+        #descriptionInput {
+            min-height: 120px;
+            resize: vertical;
+            line-height: 1.6;
+        }
+
+        /* Improve hover states for editable elements */
+        #playlistTitle:hover,
+        #playlistDescription:hover {
+            cursor: pointer;
+            background: #e3f2fd;
+            border-radius: 6px;
+            padding: 4px 8px;
+            margin: -4px -8px;
+        }
+
+        /* Add smooth transitions */
+        .video-player-section {
+            transition: all 0.3s ease-in-out;
+        }
+
+        .video-player-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Update/add these alignment-focused styles */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .playlist-header {
+            /* ... existing styles ... */
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .playlist-view {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
         }
 
         .video-player-section {
             margin-bottom: 2rem;
             width: 100%;
-            background: #000;
             display: none; /* Hidden by default */
+        }
+
+        .video-player-section.active {
+            display: block;
         }
 
         .video-container {
@@ -289,6 +499,9 @@
             margin: 0 auto;
             position: relative;
             padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            background: #000; /* Move background color here */
+            border-radius: 8px;
+            overflow: hidden;
         }
 
         #videoPlayer {
@@ -297,43 +510,142 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: #000;
+            /* Remove background: #000; as it's already on the container */
+        }
+
+        .playlist-videos {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
         }
 
         .playlist-video-item {
-            display: flex;
-            align-items: center;
-            padding: 1rem;
-            border: 1px solid #ddd;
-            margin-bottom: 0.5rem;
-            border-radius: 4px;
-            position: relative;
-        }
-
-        .playlist-video-item.playing {
-            background-color: #e3f2fd;
-            border-color: #2196f3;
+            /* ... existing styles ... */
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .video-number {
-            min-width: 2rem;
-            text-align: center;
-            font-weight: bold;
-            color: #666;
+            flex-shrink: 0;
+            width: 2.5rem;
+            height: 2.5rem;
         }
 
         .thumbnail {
-            position: relative;
-            width: 160px;
-            height: 90px;
-            margin: 0 1rem;
+            /* ... existing styles ... */
+            flex-shrink: 0;
         }
 
-        .thumbnail img {
+        .video-info {
+            flex-grow: 1;
+            min-width: 0; /* Prevents flex item from overflowing */
+            padding-right: 1rem;
+        }
+
+        .video-info h3 {
+            /* ... existing styles ... */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .video-meta {
+            /* ... existing styles ... */
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .video-meta span:not(:last-child)::after {
+            content: "•";
+            margin: 0 0.5rem;
+            color: #999;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.8rem;
+        }
+
+        .tag {
+            /* ... existing styles ... */
+            margin: 0; /* Remove margin-right since we're using gap */
+        }
+
+        .remove-btn {
+            /* ... existing styles ... */
+            flex-shrink: 0;
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            border-radius: 50%;
+        }
+
+        .remove-btn:hover {
+            background-color: #fee;
+        }
+
+        /* Improve edit input alignment */
+        .playlist-title-container {
             width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .edit-input {
+            /* ... existing styles ... */
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Improve playlist controls alignment */
+        .playlist-controls {
+            /* ... existing styles ... */
+            justify-content: flex-start;
+            align-items: center;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .playlist-video-item {
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+
+            .thumbnail {
+                width: 100%;
+                height: 200px;
+                margin: 0;
+            }
+
+            .video-info {
+                width: 100%;
+                padding-right: 0;
+            }
+
+            .video-number {
+                position: absolute;
+                top: 0.5rem;
+                left: 0.5rem;
+                background: rgba(33, 150, 243, 0.9);
+                color: white;
+            }
+
+            .remove-btn {
+                position: absolute;
+                top: 0.5rem;
+                right: 0.5rem;
+                background: rgba(255, 255, 255, 0.9);
+            }
         }
 
         .play-button {
@@ -341,109 +653,20 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(33, 150, 243, 0.9);
             color: white;
             border: none;
             border-radius: 50%;
-            width: 32px;
-            height: 32px;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
             cursor: pointer;
             opacity: 0;
             transition: opacity 0.2s;
         }
 
-        .thumbnail:hover .play-button {
+        .playlist-video-item:hover .play-button {
             opacity: 1;
-        }
-
-        .video-info {
-            flex-grow: 1;
-        }
-
-        .video-info h3 {
-            margin: 0 0 0.5rem 0;
-        }
-
-        .video-meta {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .video-meta span:not(:last-child)::after {
-            content: "•";
-            margin: 0 0.5rem;
-        }
-
-        .tags {
-            margin-top: 0.5rem;
-        }
-
-        .tag {
-            background: #e0e0e0;
-            padding: 0.2rem 0.5rem;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            margin-right: 0.5rem;
-        }
-
-        .remove-btn {
-            background: none;
-            border: none;
-            color: #666;
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0.5rem;
-            margin-left: 1rem;
-        }
-
-        .remove-btn:hover {
-            color: #f44336;
-        }
-
-        .btn.primary {
-            background-color: #2196f3;
-            color: white;
-        }
-
-        .btn.primary:hover {
-            background-color: #1976d2;
-        }
-
-        .video-player-section.active {
-            display: block;
-        }
-
-        .playlist-title-container {
-            position: relative;
-        }
-
-        .edit-input {
-            width: 100%;
-            padding: 0.5rem;
-            font-size: inherit;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: #fff;
-        }
-
-        #titleInput {
-            font-size: 2rem;
-            font-weight: bold;
-            margin: 0.67em 0;
-        }
-
-        #descriptionInput {
-            min-height: 100px;
-            resize: vertical;
-        }
-
-        #playlistTitle:hover,
-        #playlistDescription:hover {
-            cursor: pointer;
-            background: #f0f0f0;
-            border-radius: 4px;
-            padding: 2px 4px;
-            margin: -2px -4px;
         }
     </style>
 </body>
