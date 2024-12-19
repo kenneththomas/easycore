@@ -29,6 +29,8 @@ class Video(db.Model):
     thumbnail_path = db.Column(db.String(255))  # New field for thumbnail
     view_count = db.Column(db.Integer, default=0)  # New field for view count
     likes = db.Column(db.Integer, default=0)  # Add this line
+    playlists = db.relationship('Playlist', secondary='playlist_video',
+                                 backref=db.backref('videos', lazy='dynamic'))
 
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -37,6 +39,18 @@ class Comment(db.Model):
     content = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     likes = db.Column(db.Integer, default=0)  # Add this line
+
+class Playlist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class PlaylistVideo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    playlist_id = db.Column(db.Integer, db.ForeignKey('playlist.id'), nullable=False)
+    video_id = db.Column(db.Integer, db.ForeignKey('video.id'), nullable=False)
+    position = db.Column(db.Integer, nullable=False)  # For ordering videos in playlist
 
 def convert_webm_to_mp4(input_path):
     """Convert WebM file to MP4 and return the new filepath"""
@@ -607,6 +621,97 @@ def move_to_regular(video_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+@app.route('/create_playlist', methods=['POST'])
+def create_playlist():
+    name = request.form.get('name')
+    description = request.form.get('description', '')
+    video_id = request.form.get('video_id')
+    
+    if not name:
+        return jsonify({"error": "Playlist name is required"}), 400
+        
+    try:
+        # Create the playlist first
+        playlist = Playlist(name=name, description=description)
+        db.session.add(playlist)
+        db.session.flush()  # This assigns the ID to the playlist object
+        
+        # If video_id is provided, add it to the playlist
+        if video_id:
+            try:
+                video_id = int(video_id)
+                playlist_video = PlaylistVideo(
+                    playlist_id=playlist.id,
+                    video_id=video_id,
+                    position=1
+                )
+                db.session.add(playlist_video)
+            except ValueError:
+                print(f"Invalid video_id: {video_id}")
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "playlist_id": playlist.id,
+            "name": playlist.name
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating playlist: {str(e)}")  # Debug log
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/add_to_playlist/<int:playlist_id>/<int:video_id>', methods=['POST'])
+def add_to_playlist(playlist_id, video_id):
+    try:
+        # Get the last position in the playlist
+        last_position = db.session.query(func.max(PlaylistVideo.position))\
+            .filter_by(playlist_id=playlist_id).scalar() or 0
+            
+        playlist_video = PlaylistVideo(
+            playlist_id=playlist_id,
+            video_id=video_id,
+            position=last_position + 1
+        )
+        db.session.add(playlist_video)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/get_playlist/<int:playlist_id>')
+def get_playlist(playlist_id):
+    playlist = Playlist.query.get_or_404(playlist_id)
+    videos = db.session.query(Video, PlaylistVideo)\
+        .join(PlaylistVideo)\
+        .filter(PlaylistVideo.playlist_id == playlist_id)\
+        .order_by(PlaylistVideo.position)\
+        .all()
+        
+    return jsonify({
+        "playlist": {
+            "id": playlist.id,
+            "name": playlist.name,
+            "description": playlist.description,
+            "videos": [{
+                "id": video.id,
+                "title": video.nickname or video.original_filepath,
+                "thumbnail": video.thumbnail_path,
+                "position": pv.position
+            } for video, pv in videos]
+        }
+    })
+
+@app.route('/get_playlists')
+def get_playlists():
+    playlists = Playlist.query.all()
+    return jsonify([{
+        "id": p.id,
+        "name": p.name,
+        "description": p.description
+    } for p in playlists])
 
 if __name__ == '__main__':
     with app.app_context():

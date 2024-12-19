@@ -35,6 +35,25 @@
                 </div>
             </section>
 
+            <section class="playlist-controls">
+                <div class="playlist-header">
+                    <h2>Playlist</h2>
+                    <div class="playlist-actions">
+                        <button id="toggleAutoplay" class="btn">
+                            Autoplay: <span id="autoplayStatus">Off</span>
+                        </button>
+                        <select id="playlistSelect">
+                            <option value="">Select Playlist</option>
+                        </select>
+                        <button id="createPlaylistBtn" class="btn">Create New Playlist</button>
+                    </div>
+                </div>
+                
+                <div id="playlistVideos" class="playlist-videos">
+                    <!-- Playlist videos will be loaded here -->
+                </div>
+            </section>
+
             <section class="video-info">
                 <h2>
                     <span id="title-display">{{ video.nickname or video.original_filepath }}</span>
@@ -146,6 +165,215 @@
             </section>
         </main>
     </div>
+    <div id="createPlaylistModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Create New Playlist</h3>
+            <form id="createPlaylistForm">
+                <input type="text" id="playlistName" placeholder="Playlist Name" required>
+                <textarea id="playlistDescription" placeholder="Description (optional)"></textarea>
+                <div class="modal-actions">
+                    <button type="submit" class="btn">Create</button>
+                    <button type="button" class="btn" onclick="closePlaylistModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
     <script src="{{ url_for('static', filename='js/video_detail.js') }}"></script>
+    <script>
+    let autoplayEnabled = false;
+    let currentPlaylist = null;
+
+    function loadPlaylists() {
+        fetch('/get_playlists')
+            .then(response => response.json())
+            .then(playlists => {
+                const select = document.getElementById('playlistSelect');
+                select.innerHTML = '<option value="">Select Playlist</option>';
+                playlists.forEach(playlist => {
+                    const option = document.createElement('option');
+                    option.value = playlist.id;
+                    option.textContent = playlist.name;
+                    select.appendChild(option);
+                });
+            });
+    }
+
+    function loadPlaylistVideos(playlistId) {
+        fetch(`/get_playlist/${playlistId}`)
+            .then(response => response.json())
+            .then(data => {
+                currentPlaylist = data.playlist;
+                displayPlaylistVideos();
+            });
+    }
+
+    function displayPlaylistVideos() {
+        const container = document.getElementById('playlistVideos');
+        container.innerHTML = '';
+        
+        if (!currentPlaylist) return;
+        
+        currentPlaylist.videos.forEach(video => {
+            const videoElement = document.createElement('div');
+            videoElement.className = 'playlist-video-item';
+            videoElement.innerHTML = `
+                <img src="/static/${video.thumbnail}" alt="Thumbnail">
+                <span>${video.title}</span>
+            `;
+            videoElement.onclick = () => playVideo(video.id);
+            container.appendChild(videoElement);
+        });
+    }
+
+    function onVideoEnded() {
+        if (!autoplayEnabled || !currentPlaylist) return;
+        
+        const currentVideoId = parseInt(new URL(videoPlayer.src).pathname.split('/').pop());
+        const currentIndex = currentPlaylist.videos.findIndex(v => v.id === currentVideoId);
+        
+        if (currentIndex < currentPlaylist.videos.length - 1) {
+            const nextVideo = currentPlaylist.videos[currentIndex + 1];
+            playVideo(nextVideo.id);
+        }
+    }
+
+    document.getElementById('toggleAutoplay').onclick = function() {
+        autoplayEnabled = !autoplayEnabled;
+        document.getElementById('autoplayStatus').textContent = autoplayEnabled ? 'On' : 'Off';
+    };
+
+    document.getElementById('playlistSelect').onchange = function(e) {
+        if (e.target.value) {
+            loadPlaylistVideos(e.target.value);
+        } else {
+            currentPlaylist = null;
+            displayPlaylistVideos();
+        }
+    };
+
+    document.getElementById('createPlaylistBtn').onclick = function() {
+        document.getElementById('createPlaylistModal').style.display = 'block';
+    };
+
+    function closePlaylistModal() {
+        document.getElementById('createPlaylistModal').style.display = 'none';
+    }
+
+    document.getElementById('createPlaylistForm').onsubmit = function(e) {
+        e.preventDefault();
+        const name = document.getElementById('playlistName').value;
+        const description = document.getElementById('playlistDescription').value;
+        const videoId = window.location.pathname.split('/').pop();
+        
+        fetch('/create_playlist', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `name=${encodeURIComponent(name)}&description=${encodeURIComponent(description)}&video_id=${videoId}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Playlist created:', data);  // Debug log
+                closePlaylistModal();
+                loadPlaylists();
+                // Select the new playlist
+                setTimeout(() => {
+                    document.getElementById('playlistSelect').value = data.playlist_id;
+                    loadPlaylistVideos(data.playlist_id);
+                }, 100);
+            } else {
+                console.error('Error:', data.error);  // Debug log
+                alert('Error creating playlist: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fetch error:', error);  // Debug log
+            alert('Error creating playlist. Please try again.');
+        });
+    };
+
+    // Add event listener for video end
+    document.getElementById('main-video').addEventListener('ended', onVideoEnded);
+
+    // Load playlists when page loads
+    loadPlaylists();
+    </script>
+    <style>
+    .playlist-controls {
+        margin-top: 20px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 15px;
+    }
+
+    .playlist-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .playlist-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .playlist-videos {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .playlist-video-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .playlist-video-item:hover {
+        background-color: #f5f5f5;
+    }
+
+    .playlist-video-item img {
+        width: 100px;
+        height: 56px;
+        object-fit: cover;
+    }
+
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        background-color: white;
+        padding: 20px;
+        border-radius: 4px;
+        width: 400px;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    </style>
 </body>
 </html>
