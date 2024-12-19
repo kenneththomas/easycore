@@ -52,6 +52,14 @@ class PlaylistVideo(db.Model):
     video_id = db.Column(db.Integer, db.ForeignKey('video.id'), nullable=False)
     position = db.Column(db.Integer, nullable=False)  # For ordering videos in playlist
 
+class PlaylistComment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    playlist_id = db.Column(db.Integer, db.ForeignKey('playlist.id'), nullable=False)
+    author = db.Column(db.String(100), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    likes = db.Column(db.Integer, default=0)
+
 def convert_webm_to_mp4(input_path):
     """Convert WebM file to MP4 and return the new filepath"""
     output_path = os.path.splitext(input_path)[0] + '.mp4'
@@ -745,15 +753,15 @@ def playlists():
 @app.route('/playlist/<int:playlist_id>')
 def playlist_detail(playlist_id):
     playlist = Playlist.query.get_or_404(playlist_id)
-    
-    # Get all videos in the playlist with their order
     playlist_videos = db.session.query(Video)\
         .join(PlaylistVideo)\
         .filter(PlaylistVideo.playlist_id == playlist_id)\
         .order_by(PlaylistVideo.position)\
         .all()
     
-    # Create a JSON-serializable version of the playlist videos
+    # Add this line to get playlist comments
+    comments = PlaylistComment.query.filter_by(playlist_id=playlist_id).order_by(PlaylistComment.timestamp.desc()).all()
+    
     serialized_videos = [{
         'id': video.id,
         'nickname': video.nickname,
@@ -767,7 +775,8 @@ def playlist_detail(playlist_id):
     return render_template('playlist_detail.html', 
                          playlist=playlist, 
                          playlist_videos=playlist_videos,
-                         serialized_videos=serialized_videos)
+                         serialized_videos=serialized_videos,
+                         comments=comments)  # Add comments to template context
 
 @app.route('/remove_from_playlist/<int:playlist_id>/<int:video_id>', methods=['POST'])
 def remove_from_playlist(playlist_id, video_id):
@@ -817,6 +826,49 @@ def edit_playlist(playlist_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+@app.route('/add_playlist_comment/<int:playlist_id>', methods=['POST'])
+def add_playlist_comment(playlist_id):
+    playlist = Playlist.query.get_or_404(playlist_id)
+    author = request.form.get('author', '').strip()
+    content = request.form.get('content', '').strip()
+    
+    if not author or not content:
+        return jsonify({"error": "Name and comment are required"}), 400
+    
+    try:
+        comment = PlaylistComment(
+            playlist_id=playlist_id,
+            author=author,
+            content=content,
+            likes=0
+        )
+        db.session.add(comment)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "comment": {
+                "id": comment.id,
+                "author": comment.author,
+                "content": comment.content,
+                "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
+                "likes": comment.likes
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/like_playlist_comment/<int:comment_id>', methods=['POST'])
+def like_playlist_comment(comment_id):
+    comment = PlaylistComment.query.get_or_404(comment_id)
+    if comment.likes is None:
+        comment.likes = 1
+    else:
+        comment.likes += 1
+    db.session.commit()
+    return jsonify({"success": True, "new_like_count": comment.likes})
 
 if __name__ == '__main__':
     with app.app_context():

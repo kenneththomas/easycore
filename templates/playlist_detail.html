@@ -80,6 +80,33 @@
                 {% endfor %}
             </section>
         </main>
+
+        <section class="comments-section">
+            <h2>Comments</h2>
+
+            <div class="comments-list">
+                {% for comment in comments %}
+                    <div class="comment">
+                        <div class="comment-header">
+                            <strong class="comment-author">{{ comment.author }}</strong>
+                            <span class="comment-timestamp">{{ comment.timestamp.strftime("%m/%d/%Y %I:%M %p") }}</span>
+                        </div>
+                        <div class="comment-content">{{ comment.content }}</div>
+                        <div class="comment-footer">
+                            <button class="like-comment-btn" onclick="likePlaylistComment({{ comment.id }})">
+                                👍 <span class="comment-like-count">{{ comment.likes or 0 }}</span>
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="comment-form">
+                <input type="text" id="comment-author" placeholder="Your name" maxlength="100">
+                <textarea id="comment-content" placeholder="Write a comment..."></textarea>
+                <button class="btn" onclick="submitPlaylistComment()">Post Comment</button>
+            </div>
+        </section>
     </div>
 
     <script>
@@ -266,6 +293,65 @@
                 descElement.style.color = '#999';
             }
         });
+
+        function submitPlaylistComment() {
+            const author = document.getElementById('comment-author').value.trim();
+            const content = document.getElementById('comment-content').value.trim();
+            
+            if (!author || !content) {
+                alert('Please enter both name and comment');
+                return;
+            }
+            
+            fetch(`/add_playlist_comment/{{ playlist.id }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `author=${encodeURIComponent(author)}&content=${encodeURIComponent(content)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Add new comment to the list
+                    const commentsList = document.querySelector('.comments-list');
+                    const newComment = document.createElement('div');
+                    newComment.className = 'comment';
+                    newComment.innerHTML = `
+                        <div class="comment-header">
+                            <strong class="comment-author">${data.comment.author}</strong>
+                            <span class="comment-timestamp">${data.comment.timestamp}</span>
+                        </div>
+                        <div class="comment-content">${data.comment.content}</div>
+                        <div class="comment-footer">
+                            <button class="like-comment-btn" onclick="likePlaylistComment(${data.comment.id})">
+                                👍 <span class="comment-like-count">0</span>
+                            </button>
+                        </div>
+                    `;
+                    commentsList.insertBefore(newComment, commentsList.firstChild);
+                    
+                    // Clear form
+                    document.getElementById('comment-author').value = '';
+                    document.getElementById('comment-content').value = '';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        }
+
+        function likePlaylistComment(commentId) {
+            fetch(`/like_playlist_comment/${commentId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const likeCount = document.querySelector(`[onclick="likePlaylistComment(${commentId})"] .comment-like-count`);
+                    likeCount.textContent = data.new_like_count;
+                }
+            });
+        }
     </script>
 
     <style>
@@ -667,6 +753,82 @@
 
         .playlist-video-item:hover .play-button {
             opacity: 1;
+        }
+
+        .comments-section {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .comments-list {
+            margin: 1.5rem 0;
+        }
+
+        .comment {
+            background: white;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .comment-author {
+            color: #2196f3;
+        }
+
+        .comment-timestamp {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .comment-content {
+            margin: 0.5rem 0;
+            line-height: 1.5;
+        }
+
+        .comment-footer {
+            margin-top: 0.5rem;
+        }
+
+        .like-comment-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .like-comment-btn:hover {
+            background-color: #f0f0f0;
+        }
+
+        .comment-form {
+            margin-top: 2rem;
+        }
+
+        .comment-form input,
+        .comment-form textarea {
+            width: 100%;
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .comment-form textarea {
+            min-height: 100px;
+            resize: vertical;
         }
     </style>
 </body>
