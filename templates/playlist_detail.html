@@ -27,10 +27,6 @@
                 <input type="text" id="titleInput" class="edit-input" value="{{ playlist.name }}" style="display: none;">
             </div>
             <div class="playlist-meta">
-                <p class="playlist-description" id="playlistDescription" onclick="startEditingDescription()">
-                    {{ playlist.description or 'No description' }}
-                </p>
-                <textarea id="descriptionInput" class="edit-input" style="display: none;">{{ playlist.description or '' }}</textarea>
                 <p class="playlist-info">{{ playlist_videos|length }} videos • Created {{ playlist.created_at.strftime('%Y-%m-%d') }}</p>
             </div>
             <div class="playlist-controls">
@@ -40,6 +36,13 @@
                 <button id="playAll" class="btn primary">Play All</button>
             </div>
         </header>
+
+        <section class="playlist-description">
+            <p class="playlist-description-text" id="playlistDescription" onclick="startEditingDescription()">
+                {{ playlist.description or 'No description' }}
+            </p>
+            <textarea id="descriptionInput" class="edit-input" style="display: none;">{{ playlist.description or '' }}</textarea>
+        </section>
 
         <main class="playlist-view">
             <section class="video-player-section">
@@ -396,9 +399,17 @@
         }
 
         .playlist-description {
+            margin: 1.5rem 0 2rem 0;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .playlist-description-text {
             white-space: pre-line;
             line-height: 1.8;
-            margin-bottom: 1.5rem;
+            margin: 0;
             padding: 0.8rem;
             border-radius: 6px;
             transition: background-color 0.2s;
@@ -788,7 +799,10 @@
             padding: 1.5rem;
             background: #f8f9fa;
             border-radius: 12px;
-            font-family: 'Roboto', sans-serif;
+        }
+
+        .comments-list {
+            margin: 1.5rem 0;
         }
 
         .comment {
@@ -797,18 +811,49 @@
             margin-bottom: 1rem;
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 0.95rem;
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
         }
 
         .comment-author {
             color: #2196f3;
-            font-weight: 500;
+        }
+
+        .comment-timestamp {
+            color: #666;
+            font-size: 0.9rem;
         }
 
         .comment-content {
             margin: 0.5rem 0;
-            line-height: 1.6;
-            font-weight: 300;
+            line-height: 1.5;
+        }
+
+        .comment-footer {
+            margin-top: 0.5rem;
+        }
+
+        .like-comment-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .like-comment-btn:hover {
+            background-color: #f0f0f0;
+        }
+
+        .comment-form {
+            margin-top: 2rem;
         }
 
         .comment-form input,
@@ -818,9 +863,7 @@
             margin-bottom: 1rem;
             border: 1px solid #ddd;
             border-radius: 6px;
-            font-size: 0.95rem;
-            font-family: 'Roboto', sans-serif;
-            font-weight: 300;
+            font-size: 1rem;
         }
 
         .comment-form textarea {
