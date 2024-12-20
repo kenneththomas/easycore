@@ -27,10 +27,6 @@
                 <input type="text" id="titleInput" class="edit-input" value="{{ playlist.name }}" style="display: none;">
             </div>
             <div class="playlist-meta">
-                <p class="playlist-description" id="playlistDescription" onclick="startEditingDescription()">
-                    {{ playlist.description or 'No description' }}
-                </p>
-                <textarea id="descriptionInput" class="edit-input" style="display: none;">{{ playlist.description or '' }}</textarea>
                 <p class="playlist-info">{{ playlist_videos|length }} videos • Created {{ playlist.created_at.strftime('%Y-%m-%d') }}</p>
             </div>
             <div class="playlist-controls">
@@ -40,6 +36,13 @@
                 <button id="playAll" class="btn primary">Play All</button>
             </div>
         </header>
+
+        <div class="playlist-description-section">
+            <p class="playlist-description" id="playlistDescription" onclick="startEditingDescription()">
+                {{ playlist.description or 'No description' }}
+            </p>
+            <textarea id="descriptionInput" class="edit-input" style="display: none;">{{ playlist.description or '' }}</textarea>
+        </div>
 
         <main class="playlist-view">
             <section class="video-player-section">
@@ -376,12 +379,17 @@
         }
 
         .playlist-description {
-            white-space: pre-line;  /* This preserves newlines */
-            line-height: 1.6;
-            margin-bottom: 1rem;
-            padding: 0.5rem;
+            white-space: pre-line;
+            line-height: 1.8;
+            margin-bottom: 1.5rem;
+            padding: 0.8rem;
             border-radius: 6px;
             transition: background-color 0.2s;
+            font-family: 'Roboto', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 300;
+            max-width: 800px;
+            color: #333;
         }
 
         .playlist-info {
@@ -517,9 +525,12 @@
         }
 
         #descriptionInput {
-            min-height: 120px;
+            min-height: 180px;
             resize: vertical;
-            line-height: 1.6;
+            line-height: 1.8;
+            font-family: 'Roboto', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 300;
         }
 
         /* Improve hover states for editable elements */
@@ -829,6 +840,14 @@
         .comment-form textarea {
             min-height: 100px;
             resize: vertical;
+        }
+
+        .playlist-description-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
     </style>
 </body>
