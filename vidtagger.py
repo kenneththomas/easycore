@@ -845,6 +845,17 @@ def get_playlists_json():
         }
     } for playlist in playlists])
 
+@app.route('/delete_playlist_comment/<int:comment_id>', methods=['POST'])
+def delete_playlist_comment(comment_id):
+    comment = PlaylistComment.query.get_or_404(comment_id)
+    try:
+        db.session.delete(comment)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
