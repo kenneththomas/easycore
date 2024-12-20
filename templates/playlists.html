@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playlists - Video Tagger</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="{{ url_for('index') }}" class="nav-logo">Video Tagger</a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('add_video') }}">Add Video</a>
+                <a href="{{ url_for('bulk_upload') }}">Bulk Upload</a>
+                <a href="{{ url_for('playlists') }}" class="active">Playlists</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header>
+            <h1>Your Playlists</h1>
+            <button id="createPlaylistBtn" class="btn primary">Create New Playlist</button>
+        </header>
+
+        <div class="playlists-grid">
+            {% for item in playlists %}
+            <div class="playlist-card">
+                <a href="{{ url_for('playlist_detail', playlist_id=item.playlist.id) }}" class="playlist-link">
+                    <div class="playlist-thumbnail">
+                        {% if item.thumbnail %}
+                            <img src="{{ url_for('static', filename=item.thumbnail) }}" alt="Playlist thumbnail">
+                        {% else %}
+                            <div class="empty-thumbnail">No videos</div>
+                        {% endif %}
+                        <div class="playlist-overlay">
+                            <span class="video-count">{{ item.video_count }} videos</span>
+                        </div>
+                    </div>
+                    <div class="playlist-info">
+                        <h3>{{ item.playlist.name }}</h3>
+                        <p class="playlist-description">{{ item.playlist.description or 'No description' }}</p>
+                        <p class="playlist-date">Created {{ item.playlist.created_at.strftime('%Y-%m-%d') }}</p>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Create Playlist Modal -->
+    <div id="createPlaylistModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Create New Playlist</h3>
+            <form id="createPlaylistForm">
+                <input type="text" id="playlistName" placeholder="Playlist Name" required>
+                <textarea id="playlistDescription" placeholder="Description (optional)"></textarea>
+                <div class="modal-actions">
+                    <button type="submit" class="btn primary">Create</button>
+                    <button type="button" class="btn" onclick="closePlaylistModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <style>
+    .playlists-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .playlist-card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.2s;
+    }
+
+    .playlist-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .playlist-link {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .playlist-thumbnail {
+        position: relative;
+        width: 100%;
+        padding-top: 56.25%; /* 16:9 aspect ratio */
+        background: #f5f5f5;
+    }
+
+    .playlist-thumbnail img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .empty-thumbnail {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #eee;
+        color: #666;
+    }
+
+    .playlist-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 10px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+    }
+
+    .playlist-info {
+        padding: 15px;
+    }
+
+    .playlist-info h3 {
+        margin: 0 0 10px 0;
+        font-size: 1.2rem;
+    }
+
+    .playlist-description {
+        color: #666;
+        margin: 0 0 10px 0;
+        font-size: 0.9rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .playlist-date {
+        color: #999;
+        font-size: 0.8rem;
+        margin: 0;
+    }
+
+    header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .btn.primary {
+        background-color: #2196f3;
+        color: white;
+    }
+
+    .btn.primary:hover {
+        background-color: #1976d2;
+    }
+    </style>
+
+    <script>
+    document.getElementById('createPlaylistBtn').onclick = function() {
+        document.getElementById('createPlaylistModal').style.display = 'flex';
+    }
+
+    function closePlaylistModal() {
+        document.getElementById('createPlaylistModal').style.display = 'none';
+    }
+
+    document.getElementById('createPlaylistForm').onsubmit = function(e) {
+        e.preventDefault();
+        const name = document.getElementById('playlistName').value;
+        const description = document.getElementById('playlistDescription').value;
+        
+        fetch('/create_playlist', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `name=${encodeURIComponent(name)}&description=${encodeURIComponent(description)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error creating playlist: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error creating playlist. Please try again.');
+        });
+    }
+    </script>
+</body>
+</html> 

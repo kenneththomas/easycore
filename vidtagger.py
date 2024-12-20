@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, Response, make_response
-from flask_sqlalchemy import SQLAlchemy
 import os
 from sqlalchemy import desc, func
 import re
@@ -13,30 +12,16 @@ import uuid
 import random
 import string
 
+# Import models
+from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment
+
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
 app.config['STEALTH_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'stealth_uploads')
-db = SQLAlchemy(app)
 
-class Video(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    original_filepath = db.Column(db.String(255), nullable=False)
-    stored_filepath = db.Column(db.String(255), nullable=False)
-    nickname = db.Column(db.String(100))
-    description = db.Column(db.Text)
-    tags = db.Column(db.String(255))
-    thumbnail_path = db.Column(db.String(255))  # New field for thumbnail
-    view_count = db.Column(db.Integer, default=0)  # New field for view count
-    likes = db.Column(db.Integer, default=0)  # Add this line
-
-class Comment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    video_id = db.Column(db.Integer, db.ForeignKey('video.id'), nullable=False)
-    author = db.Column(db.String(100), nullable=False)
-    content = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    likes = db.Column(db.Integer, default=0)  # Add this line
+# Initialize the db with this app
+db.init_app(app)
 
 def convert_webm_to_mp4(input_path):
     """Convert WebM file to MP4 and return the new filepath"""
@@ -604,6 +589,269 @@ def move_to_regular(video_id):
             "success": True,
             "message": "Video moved to regular uploads"
         }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/create_playlist', methods=['POST'])
+def create_playlist():
+    name = request.form.get('name')
+    description = request.form.get('description', '')
+    video_id = request.form.get('video_id')
+    
+    if not name:
+        return jsonify({"error": "Playlist name is required"}), 400
+        
+    try:
+        # Create the playlist first
+        playlist = Playlist(name=name, description=description)
+        db.session.add(playlist)
+        db.session.flush()  # This assigns the ID to the playlist object
+        
+        # If video_id is provided, add it to the playlist
+        if video_id:
+            try:
+                video_id = int(video_id)
+                playlist_video = PlaylistVideo(
+                    playlist_id=playlist.id,
+                    video_id=video_id,
+                    position=1
+                )
+                db.session.add(playlist_video)
+            except ValueError:
+                print(f"Invalid video_id: {video_id}")
+        
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "playlist_id": playlist.id,
+            "name": playlist.name
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating playlist: {str(e)}")  # Debug log
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/add_to_playlist/<int:playlist_id>/<int:video_id>', methods=['POST'])
+def add_to_playlist(playlist_id, video_id):
+    try:
+        # Get the last position in the playlist
+        last_position = db.session.query(func.max(PlaylistVideo.position))\
+            .filter_by(playlist_id=playlist_id).scalar() or 0
+            
+        playlist_video = PlaylistVideo(
+            playlist_id=playlist_id,
+            video_id=video_id,
+            position=last_position + 1
+        )
+        db.session.add(playlist_video)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/get_playlist/<int:playlist_id>')
+def get_playlist(playlist_id):
+    playlist = Playlist.query.get_or_404(playlist_id)
+    videos = db.session.query(Video, PlaylistVideo)\
+        .join(PlaylistVideo)\
+        .filter(PlaylistVideo.playlist_id == playlist_id)\
+        .order_by(PlaylistVideo.position)\
+        .all()
+        
+    return jsonify({
+        "playlist": {
+            "id": playlist.id,
+            "name": playlist.name,
+            "description": playlist.description,
+            "videos": [{
+                "id": video.id,
+                "title": video.nickname or os.path.basename(video.original_filepath),
+                "thumbnail": video.thumbnail_path,
+                "position": pv.position,
+                "description": video.description,
+                "tags": video.tags,
+                "view_count": video.view_count,
+                "likes": video.likes
+            } for video, pv in videos]
+        }
+    })
+
+@app.route('/get_playlists')
+def playlists():
+    playlists = Playlist.query.order_by(desc(Playlist.created_at)).all()
+    
+    # Get video count and first thumbnail for each playlist
+    playlist_info = []
+    for playlist in playlists:
+        # Convert Playlist object to dict with only the needed attributes
+        playlist_dict = {
+            'id': playlist.id,
+            'name': playlist.name,
+            'description': playlist.description,
+            'created_at': playlist.created_at
+        }
+        
+        video_count = PlaylistVideo.query.filter_by(playlist_id=playlist.id).count()
+        
+        # Get first video's thumbnail
+        first_video = db.session.query(Video)\
+            .join(PlaylistVideo)\
+            .filter(PlaylistVideo.playlist_id == playlist.id)\
+            .order_by(PlaylistVideo.position)\
+            .first()
+            
+        thumbnail = first_video.thumbnail_path if first_video else None
+        
+        playlist_info.append({
+            'playlist': playlist_dict,
+            'video_count': video_count,
+            'thumbnail': thumbnail
+        })
+    
+    return render_template('playlists.html', playlists=playlist_info)
+
+@app.route('/playlist/<int:playlist_id>')
+def playlist_detail(playlist_id):
+    playlist = Playlist.query.get_or_404(playlist_id)
+    playlist_videos = db.session.query(Video)\
+        .join(PlaylistVideo)\
+        .filter(PlaylistVideo.playlist_id == playlist_id)\
+        .order_by(PlaylistVideo.position)\
+        .all()
+    
+    # Add this line to get playlist comments
+    comments = PlaylistComment.query.filter_by(playlist_id=playlist_id).order_by(PlaylistComment.timestamp.desc()).all()
+    
+    serialized_videos = [{
+        'id': video.id,
+        'nickname': video.nickname,
+        'original_filepath': video.original_filepath,
+        'thumbnail_path': video.thumbnail_path,
+        'view_count': video.view_count or 0,
+        'likes': video.likes or 0,
+        'tags': video.tags
+    } for video in playlist_videos]
+    
+    return render_template('playlist_detail.html', 
+                         playlist=playlist, 
+                         playlist_videos=playlist_videos,
+                         serialized_videos=serialized_videos,
+                         comments=comments)  # Add comments to template context
+
+@app.route('/remove_from_playlist/<int:playlist_id>/<int:video_id>', methods=['POST'])
+def remove_from_playlist(playlist_id, video_id):
+    try:
+        playlist_video = PlaylistVideo.query.filter_by(
+            playlist_id=playlist_id,
+            video_id=video_id
+        ).first()
+        
+        if playlist_video:
+            # Get the position of the removed video
+            removed_position = playlist_video.position
+            
+            # Delete the playlist video entry
+            db.session.delete(playlist_video)
+            
+            # Update positions of remaining videos
+            PlaylistVideo.query.filter(
+                PlaylistVideo.playlist_id == playlist_id,
+                PlaylistVideo.position > removed_position
+            ).update(
+                {PlaylistVideo.position: PlaylistVideo.position - 1}
+            )
+            
+            db.session.commit()
+            return jsonify({"success": True}), 200
+        else:
+            return jsonify({"error": "Video not found in playlist"}), 404
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/edit_playlist/<int:playlist_id>', methods=['POST'])
+def edit_playlist(playlist_id):
+    playlist = Playlist.query.get_or_404(playlist_id)
+    data = request.json
+    
+    try:
+        if 'name' in data:
+            playlist.name = data['name']
+        if 'description' in data:
+            playlist.description = data['description']
+            
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/add_playlist_comment/<int:playlist_id>', methods=['POST'])
+def add_playlist_comment(playlist_id):
+    playlist = Playlist.query.get_or_404(playlist_id)
+    author = request.form.get('author', '').strip()
+    content = request.form.get('content', '').strip()
+    
+    if not author or not content:
+        return jsonify({"error": "Name and comment are required"}), 400
+    
+    try:
+        comment = PlaylistComment(
+            playlist_id=playlist_id,
+            author=author,
+            content=content,
+            likes=0
+        )
+        db.session.add(comment)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "comment": {
+                "id": comment.id,
+                "author": comment.author,
+                "content": comment.content,
+                "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
+                "likes": comment.likes
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/like_playlist_comment/<int:comment_id>', methods=['POST'])
+def like_playlist_comment(comment_id):
+    comment = PlaylistComment.query.get_or_404(comment_id)
+    if comment.likes is None:
+        comment.likes = 1
+    else:
+        comment.likes += 1
+    db.session.commit()
+    return jsonify({"success": True, "new_like_count": comment.likes})
+
+@app.route('/api/playlists')
+def get_playlists_json():
+    playlists = Playlist.query.order_by(desc(Playlist.created_at)).all()
+    return jsonify([{
+        'playlist': {
+            'id': playlist.id,
+            'name': playlist.name,
+            'description': playlist.description,
+            'created_at': playlist.created_at.isoformat() if playlist.created_at else None
+        }
+    } for playlist in playlists])
+
+@app.route('/delete_playlist_comment/<int:comment_id>', methods=['POST'])
+def delete_playlist_comment(comment_id):
+    comment = PlaylistComment.query.get_or_404(comment_id)
+    try:
+        db.session.delete(comment)
+        db.session.commit()
+        return jsonify({"success": True}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500

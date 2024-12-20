@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ playlist.name }} - Video Tagger</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="{{ url_for('index') }}" class="nav-logo">Video Tagger</a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('add_video') }}">Add Video</a>
+                <a href="{{ url_for('bulk_upload') }}">Bulk Upload</a>
+                <a href="{{ url_for('playlists') }}">Playlists</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <header class="playlist-header">
+            <div class="playlist-title-container">
+                <h1 id="playlistTitle" onclick="startEditingTitle()">{{ playlist.name }}</h1>
+                <input type="text" id="titleInput" class="edit-input" value="{{ playlist.name }}" style="display: none;">
+            </div>
+            <div class="playlist-meta">
+                <p class="playlist-info">{{ playlist_videos|length }} videos • Created {{ playlist.created_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+            <div class="playlist-controls">
+                <button id="toggleAutoplay" class="btn">
+                    Autoplay: <span id="autoplayStatus">Off</span>
+                </button>
+                <button id="playAll" class="btn primary">Play All</button>
+            </div>
+        </header>
+
+        <section class="playlist-description">
+            <p class="playlist-description-text" id="playlistDescription" onclick="startEditingDescription()">
+                {{ playlist.description or 'No description' }}
+            </p>
+            <textarea id="descriptionInput" class="edit-input" style="display: none;">{{ playlist.description or '' }}</textarea>
+        </section>
+
+        <main class="playlist-view">
+            <section class="video-player-section">
+                <div class="video-container">
+                    <video id="videoPlayer" controls>
+                        <source src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </section>
+
+            <section class="playlist-videos">
+                {% for video in playlist_videos %}
+                <div class="playlist-video-item" data-video-id="{{ video.id }}" onclick="playVideo({{ video.id }})">
+                    <div class="video-number">{{ loop.index }}</div>
+                    <div class="thumbnail">
+                        <img src="{{ url_for('static', filename=video.thumbnail_path) }}" alt="Thumbnail">
+                        <button class="play-button">▶</button>
+                    </div>
+                    <div class="video-info">
+                        <h3>{{ video.nickname or video.original_filepath }}</h3>
+                        <div class="video-meta">
+                            <span class="views">{{ video.view_count or 0 }} views</span>
+                            <span class="likes">{{ video.likes or 0 }} likes</span>
+                        </div>
+                        {% if video.tags %}
+                        <div class="tags">
+                            {% for tag in video.tags.split(',')[:3] %}
+                                {% if tag.strip() %}
+                                    <span class="tag">{{ tag.strip() }}</span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <button class="remove-btn" onclick="event.stopPropagation(); removeFromPlaylist({{ video.id }})">×</button>
+                </div>
+                {% endfor %}
+            </section>
+        </main>
+
+        <section class="comments-section">
+            <h2>Comments</h2>
+
+            <div class="comments-list">
+                {% for comment in comments %}
+                    <div class="comment">
+                        <div class="comment-header">
+                            <strong class="comment-author">{{ comment.author }}</strong>
+                            <span class="comment-timestamp">{{ comment.timestamp.strftime("%m/%d/%Y %I:%M %p") }}</span>
+                            <button class="delete-comment-btn" onclick="deletePlaylistComment({{ comment.id }})">×</button>
+                        </div>
+                        <div class="comment-content">{{ comment.content }}</div>
+                        <div class="comment-footer">
+                            <button class="like-comment-btn" onclick="likePlaylistComment({{ comment.id }})">
+                                👍 <span class="comment-like-count">{{ comment.likes or 0 }}</span>
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="comment-form">
+                <input type="text" id="comment-author" placeholder="Your name" maxlength="100">
+                <textarea id="comment-content" placeholder="Write a comment..."></textarea>
+                <button class="btn" onclick="submitPlaylistComment()">Post Comment</button>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        let autoplayEnabled = false;
+        let currentVideoIndex = -1;
+        const playlistVideos = {{ serialized_videos|tojson|safe }};
+
+        function toggleAutoplay() {
+            autoplayEnabled = !autoplayEnabled;
+            document.getElementById('autoplayStatus').textContent = autoplayEnabled ? 'On' : 'Off';
+        }
+
+        function playVideo(videoId) {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const playerSection = document.querySelector('.video-player-section');
+            
+            // Update current index
+            currentVideoIndex = playlistVideos.findIndex(v => v.id === videoId);
+            
+            // Show player and start video
+            playerSection.style.display = 'block';
+            playerSection.classList.add('active');
+            videoPlayer.src = `/stream/${videoId}`;
+            videoPlayer.play();
+            
+            // Highlight current video in playlist
+            document.querySelectorAll('.playlist-video-item').forEach(item => {
+                item.classList.remove('playing');
+            });
+            document.querySelector(`.playlist-video-item[data-video-id="${videoId}"]`).classList.add('playing');
+            
+            // Scroll to player
+            playerSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function playNext() {
+            if (currentVideoIndex < playlistVideos.length - 1) {
+                playVideo(playlistVideos[currentVideoIndex + 1].id);
+            }
+        }
+
+        function removeFromPlaylist(videoId) {
+            if (!confirm('Remove this video from the playlist?')) return;
+            
+            fetch(`/remove_from_playlist/{{ playlist.id }}/${videoId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        }
+
+        // Event Listeners
+        document.getElementById('toggleAutoplay').addEventListener('click', toggleAutoplay);
+        
+        // Update the playAll click handler
+        document.getElementById('playAll').addEventListener('click', () => {
+            if (playlistVideos && playlistVideos.length > 0) {
+                playVideo(playlistVideos[0].id);
+                if (!autoplayEnabled) {
+                    // Automatically enable autoplay when using Play All
+                    autoplayEnabled = true;
+                    document.getElementById('autoplayStatus').textContent = 'On';
+                }
+            }
+        });
+
+        // Add ended event listener to video player
+        document.getElementById('videoPlayer').addEventListener('ended', () => {
+            if (autoplayEnabled && currentVideoIndex < playlistVideos.length - 1) {
+                playNext();
+            }
+        });
+
+        // Title editing
+        function startEditingTitle() {
+            const titleElement = document.getElementById('playlistTitle');
+            const titleInput = document.getElementById('titleInput');
+            
+            titleElement.style.display = 'none';
+            titleInput.style.display = 'block';
+            titleInput.value = titleElement.textContent.trim();
+            titleInput.focus();
+        }
+
+        function saveTitle() {
+            const titleElement = document.getElementById('playlistTitle');
+            const titleInput = document.getElementById('titleInput');
+            const newTitle = titleInput.value.trim();
+            
+            if (!newTitle) return;
+
+            fetch(`/edit_playlist/{{ playlist.id }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: newTitle
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    titleElement.textContent = newTitle;
+                    titleElement.style.display = 'block';
+                    titleInput.style.display = 'none';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        }
+
+        // Description editing
+        function startEditingDescription() {
+            const descElement = document.getElementById('playlistDescription');
+            const descInput = document.getElementById('descriptionInput');
+            
+            descElement.style.display = 'none';
+            descInput.style.display = 'block';
+            descInput.focus();
+        }
+
+        function saveDescription() {
+            const descElement = document.getElementById('playlistDescription');
+            const descInput = document.getElementById('descriptionInput');
+            const newDescription = descInput.value.trim();
+
+            fetch(`/edit_playlist/{{ playlist.id }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    description: newDescription
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    descElement.textContent = newDescription || 'No description';
+                    descElement.style.display = 'block';
+                    descInput.style.display = 'none';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        }
+
+        // Event listeners for saving on Enter/Escape
+        document.getElementById('titleInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveTitle();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                document.getElementById('playlistTitle').style.display = 'block';
+                document.getElementById('titleInput').style.display = 'none';
+            }
+        });
+
+        document.getElementById('descriptionInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                saveDescription();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                document.getElementById('playlistDescription').style.display = 'block';
+                document.getElementById('descriptionInput').style.display = 'none';
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Format description text to preserve newlines
+            const descElement = document.getElementById('playlistDescription');
+            if (descElement.textContent.trim() === '') {
+                descElement.textContent = 'No description';
+                descElement.style.fontStyle = 'italic';
+                descElement.style.color = '#999';
+            }
+        });
+
+        function submitPlaylistComment() {
+            const author = document.getElementById('comment-author').value.trim();
+            const content = document.getElementById('comment-content').value.trim();
+            
+            if (!author || !content) {
+                alert('Please enter both name and comment');
+                return;
+            }
+            
+            fetch(`/add_playlist_comment/{{ playlist.id }}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `author=${encodeURIComponent(author)}&content=${encodeURIComponent(content)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Add new comment to the list
+                    const commentsList = document.querySelector('.comments-list');
+                    const newComment = document.createElement('div');
+                    newComment.className = 'comment';
+                    newComment.innerHTML = `
+                        <div class="comment-header">
+                            <strong class="comment-author">${data.comment.author}</strong>
+                            <span class="comment-timestamp">${data.comment.timestamp}</span>
+                        </div>
+                        <div class="comment-content">${data.comment.content}</div>
+                        <div class="comment-footer">
+                            <button class="like-comment-btn" onclick="likePlaylistComment(${data.comment.id})">
+                                👍 <span class="comment-like-count">0</span>
+                            </button>
+                        </div>
+                    `;
+                    commentsList.insertBefore(newComment, commentsList.firstChild);
+                    
+                    // Clear form
+                    document.getElementById('comment-author').value = '';
+                    document.getElementById('comment-content').value = '';
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        }
+
+        function likePlaylistComment(commentId) {
+            fetch(`/like_playlist_comment/${commentId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const likeCount = document.querySelector(`[onclick="likePlaylistComment(${commentId})"] .comment-like-count`);
+                    likeCount.textContent = data.new_like_count;
+                }
+            });
+        }
+
+        function deletePlaylistComment(commentId) {
+            if (!confirm('Are you sure you want to delete this comment?')) return;
+            
+            fetch(`/delete_playlist_comment/${commentId}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove the comment element from the DOM
+                    const commentElement = document.querySelector(`[onclick="deletePlaylistComment(${commentId})"]`)
+                        .closest('.comment');
+                    commentElement.remove();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            });
+        }
+    </script>
+
+    <style>
+        .playlist-header {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .playlist-title-container h1 {
+            margin: 0;
+            color: #1a1a1a;
+            font-size: 2.2rem;
+            line-height: 1.2;
+        }
+
+        .playlist-meta {
+            margin: 1.5rem 0;
+            color: #4a4a4a;
+        }
+
+        .playlist-description {
+            margin: 1.5rem 0 2rem 0;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .playlist-description-text {
+            white-space: pre-line;
+            line-height: 1.8;
+            margin: 0;
+            padding: 0.8rem;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+            font-family: 'Roboto', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 300;
+            max-width: 800px;
+            color: #333;
+        }
+
+        .playlist-info {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid #eee;
+        }
+
+        .playlist-controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .btn.primary {
+            background-color: #2196f3;
+            color: white;
+            border: none;
+        }
+
+        .btn.primary:hover {
+            background-color: #1976d2;
+        }
+
+        /* Improve video list aesthetics */
+        .playlist-video-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border: 1px solid #eee;
+            margin-bottom: 0.8rem;
+            border-radius: 8px;
+            position: relative;
+            transition: all 0.2s;
+            background: white;
+            cursor: pointer;
+        }
+
+        .playlist-video-item:hover {
+            transform: translateX(2px);
+            border-color: #2196f3;
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+        }
+
+        .playlist-video-item.playing {
+            background-color: #e3f2fd;
+            border-color: #2196f3;
+            box-shadow: 0 2px 12px rgba(33, 150, 243, 0.15);
+        }
+
+        .video-number {
+            min-width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #2196f3;
+            background: #e3f2fd;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .thumbnail {
+            position: relative;
+            width: 180px;
+            height: 100px;
+            margin: 0 1.2rem;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .video-info h3 {
+            margin: 0 0 0.8rem 0;
+            color: #1a1a1a;
+            font-size: 1.1rem;
+        }
+
+        .tag {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 0.3rem 0.8rem;
+            border-radius: 16px;
+            font-size: 0.85rem;
+            margin-right: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        .tag:hover {
+            background: #bbdefb;
+        }
+
+        /* Improve edit inputs */
+        .edit-input {
+            width: 100%;
+            padding: 0.8rem;
+            font-size: inherit;
+            border: 2px solid #2196f3;
+            border-radius: 6px;
+            background: #fff;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+        }
+
+        .edit-input:focus {
+            outline: none;
+            box-shadow: 0 2px 12px rgba(33, 150, 243, 0.2);
+        }
+
+        #titleInput {
+            font-size: 2.2rem;
+            font-weight: bold;
+            margin: 0.67em 0;
+        }
+
+        #descriptionInput {
+            min-height: 180px;
+            resize: vertical;
+            line-height: 1.8;
+            font-family: 'Roboto', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 300;
+        }
+
+        /* Improve hover states for editable elements */
+        #playlistTitle:hover,
+        #playlistDescription:hover {
+            cursor: pointer;
+            background: #e3f2fd;
+            border-radius: 6px;
+            padding: 4px 8px;
+            margin: -4px -8px;
+        }
+
+        /* Add smooth transitions */
+        .video-player-section {
+            transition: all 0.3s ease-in-out;
+        }
+
+        .video-player-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Update/add these alignment-focused styles */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .playlist-header {
+            /* ... existing styles ... */
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .playlist-view {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .video-player-section {
+            margin-bottom: 2rem;
+            width: 100%;
+            display: none; /* Hidden by default */
+        }
+
+        .video-player-section.active {
+            display: block;
+        }
+
+        .video-container {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            position: relative;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            background: #000; /* Move background color here */
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #videoPlayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Remove background: #000; as it's already on the container */
+        }
+
+        .playlist-videos {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .playlist-video-item {
+            /* ... existing styles ... */
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .video-number {
+            flex-shrink: 0;
+            width: 2.5rem;
+            height: 2.5rem;
+        }
+
+        .thumbnail {
+            /* ... existing styles ... */
+            flex-shrink: 0;
+        }
+
+        .video-info {
+            flex-grow: 1;
+            min-width: 0; /* Prevents flex item from overflowing */
+            padding-right: 1rem;
+        }
+
+        .video-info h3 {
+            /* ... existing styles ... */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .video-meta {
+            /* ... existing styles ... */
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .video-meta span:not(:last-child)::after {
+            content: "•";
+            margin: 0 0.5rem;
+            color: #999;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.8rem;
+        }
+
+        .tag {
+            /* ... existing styles ... */
+            margin: 0; /* Remove margin-right since we're using gap */
+        }
+
+        .remove-btn {
+            /* ... existing styles ... */
+            flex-shrink: 0;
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            border-radius: 50%;
+        }
+
+        .remove-btn:hover {
+            background-color: #fee;
+        }
+
+        /* Improve edit input alignment */
+        .playlist-title-container {
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        .edit-input {
+            /* ... existing styles ... */
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Improve playlist controls alignment */
+        .playlist-controls {
+            /* ... existing styles ... */
+            justify-content: flex-start;
+            align-items: center;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .playlist-video-item {
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+
+            .thumbnail {
+                width: 100%;
+                height: 200px;
+                margin: 0;
+            }
+
+            .video-info {
+                width: 100%;
+                padding-right: 0;
+            }
+
+            .video-number {
+                position: absolute;
+                top: 0.5rem;
+                left: 0.5rem;
+                background: rgba(33, 150, 243, 0.9);
+                color: white;
+            }
+
+            .remove-btn {
+                position: absolute;
+                top: 0.5rem;
+                right: 0.5rem;
+                background: rgba(255, 255, 255, 0.9);
+            }
+        }
+
+        .play-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(33, 150, 243, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .playlist-video-item:hover .play-button {
+            opacity: 1;
+        }
+
+        .comments-section {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .comments-list {
+            margin: 1.5rem 0;
+        }
+
+        .comment {
+            background: white;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .comment-author {
+            color: #2196f3;
+        }
+
+        .comment-timestamp {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .comment-content {
+            margin: 0.5rem 0;
+            line-height: 1.5;
+        }
+
+        .comment-footer {
+            margin-top: 0.5rem;
+        }
+
+        .like-comment-btn {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .like-comment-btn:hover {
+            background-color: #f0f0f0;
+        }
+
+        .comment-form {
+            margin-top: 2rem;
+        }
+
+        .comment-form input,
+        .comment-form textarea {
+            width: 100%;
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .comment-form textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .delete-comment-btn {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0 0.5rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .delete-comment-btn:hover {
+            color: #dc3545;
+            background-color: #fee;
+        }
+    </style>
+</body>
+</html> 
