@@ -186,17 +186,21 @@
     let currentPlaylist = null;
 
     function loadPlaylists() {
-        fetch('/get_playlists')
+        fetch('/api/playlists')
             .then(response => response.json())
-            .then(playlists => {
+            .then(data => {
                 const select = document.getElementById('playlistSelect');
                 select.innerHTML = '<option value="">Select Playlist</option>';
-                playlists.forEach(playlist => {
+                data.forEach(playlistInfo => {
+                    const playlist = playlistInfo.playlist;
                     const option = document.createElement('option');
                     option.value = playlist.id;
                     option.textContent = playlist.name;
                     select.appendChild(option);
                 });
+            })
+            .catch(error => {
+                console.error('Error loading playlists:', error);
             });
     }
 

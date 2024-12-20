@@ -870,6 +870,18 @@ def like_playlist_comment(comment_id):
     db.session.commit()
     return jsonify({"success": True, "new_like_count": comment.likes})
 
+@app.route('/api/playlists')
+def get_playlists_json():
+    playlists = Playlist.query.order_by(desc(Playlist.created_at)).all()
+    return jsonify([{
+        'playlist': {
+            'id': playlist.id,
+            'name': playlist.name,
+            'description': playlist.description,
+            'created_at': playlist.created_at.isoformat() if playlist.created_at else None
+        }
+    } for playlist in playlists])
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
