@@ -856,6 +856,139 @@ def delete_playlist_comment(comment_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@app.route('/add_multiple', methods=['GET', 'POST'])
+def add_multiple_videos():
+    if request.method == 'POST':
+        files = request.files.getlist('files')
+        playlist_name = request.form.get('playlist_name')
+        description = request.form.get('description')
+        tags = request.form.get('tags')
+        stealth = request.form.get('stealth') == 'on'
+        
+        if not files:
+            return jsonify({"error": "No files provided"}), 400
+            
+        try:
+            # Create playlist first if name provided
+            playlist = None
+            if playlist_name:
+                playlist = Playlist(name=playlist_name, description=description)
+                db.session.add(playlist)
+                db.session.flush()  # Get playlist ID
+            
+            uploaded_videos = []
+            for idx, file in enumerate(files, 1):
+                if not file or not file.filename:
+                    continue
+                    
+                # Generate unique nickname if using tags
+                video_nickname = None
+                if tags:
+                    tag_list = [tag.strip() for tag in tags.split(',')]
+                    timestamp = datetime.now().strftime('%H%M%S')
+                    video_nickname = f"{' '.join(tag_list)} {timestamp}_{idx}"
+                
+                # Use existing upload logic
+                original_filepath = file.filename
+                original_extension = os.path.splitext(original_filepath)[1]
+                
+                if video_nickname:
+                    base_filename = secure_filename(video_nickname + original_extension)
+                else:
+                    base_filename = secure_filename(original_filepath)
+                
+                upload_folder = app.config['STEALTH_UPLOAD_FOLDER'] if stealth else app.config['UPLOAD_FOLDER']
+                new_filename, stored_filepath = generate_unique_filename(base_filename, upload_folder)
+                
+                # Save and process video file (similar to add_video route)
+                os.makedirs(upload_folder, exist_ok=True)
+                file.save(stored_filepath)
+                
+                if original_extension == '.webm':
+                    stored_filepath = convert_webm_to_mp4(stored_filepath)
+                    new_filename = os.path.basename(stored_filepath)
+                
+                # Generate thumbnail (reuse existing thumbnail generation code)
+                thumbnail_filename = f"thumbnail_{os.path.splitext(new_filename)[0]}.jpg"
+                thumbnails_dir = os.path.join(app.static_folder, 'thumbnails')
+                os.makedirs(thumbnails_dir, exist_ok=True)
+                thumbnail_path = os.path.join(thumbnails_dir, thumbnail_filename)
+                
+                # Extract thumbnail (reuse existing thumbnail extraction code)
+                probe = ffmpeg.probe(stored_filepath)
+                duration = next((float(stream['duration']) for stream in probe['streams'] 
+                              if 'duration' in stream), None) or 0
+                
+                (
+                    ffmpeg
+                    .input(stored_filepath, ss=duration/2 if duration > 0 else 0)
+                    .filter('scale', 320, -1)
+                    .output(thumbnail_path, vframes=1)
+                    .overwrite_output()
+                    .run(capture_stdout=True, capture_stderr=True)
+                )
+                
+                relative_thumbnail_path = os.path.join('thumbnails', thumbnail_filename).replace('\\', '/')
+                
+                # Create video entry
+                new_video = Video(
+                    original_filepath=original_filepath,
+                    stored_filepath=stored_filepath,
+                    nickname=video_nickname,
+                    description=description,
+                    tags=tags,
+                    thumbnail_path=relative_thumbnail_path,
+                    view_count=0
+                )
+                db.session.add(new_video)
+                db.session.flush()  # Get video ID
+                
+                # Add to playlist if one was created
+                if playlist:
+                    playlist_video = PlaylistVideo(
+                        playlist_id=playlist.id,
+                        video_id=new_video.id,
+                        position=idx
+                    )
+                    db.session.add(playlist_video)
+                
+                uploaded_videos.append(new_video.id)
+            
+            db.session.commit()
+            
+            response_data = {
+                "success": True,
+                "videos": uploaded_videos
+            }
+            if playlist:
+                response_data["playlist_id"] = playlist.id
+                
+            return jsonify(response_data), 200
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+    
+    # GET request - show upload form
+    recent_tags = db.session.query(
+        Video.tags, Video.id
+    ).order_by(
+        desc(Video.id)
+    ).limit(20).all()
+    
+    processed_tags = []
+    seen_tags = set()
+    
+    for video_tags, _ in recent_tags:
+        if video_tags:
+            tags_list = [tag.strip() for tag in video_tags.split(',')]
+            for tag in tags_list:
+                if tag and tag.lower() not in seen_tags:
+                    seen_tags.add(tag.lower())
+                    processed_tags.append(tag)
+    
+    return render_template('add_multiple.html', recent_tags=processed_tags[:20])
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
