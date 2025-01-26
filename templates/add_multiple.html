@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Multiple Videos - Video Tagger</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Reuse existing styles from add.html -->
+    <style>
+        /* Copy styles from add.html */
+        #selected-files {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .file-item:last-child {
+            border-bottom: none;
+        }
+        .remove-file {
+            color: red;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="{{ url_for('index') }}" class="nav-logo">Video Tagger</a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('add_video') }}">Add Video</a>
+                <a href="{{ url_for('add_multiple_videos') }}">Add Multiple</a>
+                <a href="{{ url_for('bulk_upload') }}">Bulk Upload</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <h1>Add Multiple Videos</h1>
+        
+        <form action="{{ url_for('add_multiple_videos') }}" method="post" enctype="multipart/form-data">
+            <label for="files">Select Video Files:</label>
+            <input type="file" name="files" id="files" accept="video/*" multiple required>
+            
+            <div id="selected-files"></div>
+            
+            <label for="playlist_name">Playlist Name:</label>
+            <input type="text" name="playlist_name" id="playlist_name" placeholder="Enter playlist name (optional)">
+            
+            <label for="apply_to_videos">
+                <input type="checkbox" name="apply_to_videos" id="apply_to_videos" checked>
+                Apply playlist name to videos
+            </label>
+            
+            <label for="description">Description (applies to all videos):</label>
+            <textarea name="description" id="description" placeholder="Enter description"></textarea>
+            
+            <label for="tag-input">Tags (apply to all videos):</label>
+            <div id="tag-input-container"></div>
+            <input type="text" id="tag-input" placeholder="Type to add tags">
+            <div id="tag-suggestions"></div>
+            <input type="hidden" name="tags" id="tags">
+            
+            <label for="stealth">
+                <input type="checkbox" name="stealth" id="stealth">
+                Stealth Upload
+            </label>
+            
+            <div id="existing-tags">
+                <h3>Recently Used Tags:</h3>
+                {% for tag in recent_tags %}
+                    <button type="button" class="tag-button" data-tag="{{ tag }}">
+                        {{ tag }}
+                    </button>
+                {% endfor %}
+            </div>
+            
+            <input type="submit" value="Upload Videos" class="submit-button">
+        </form>
+        
+        <div id="progress-bar"></div>
+        <a href="{{ url_for('index') }}" class="back-link">Back to Video List</a>
+    </div>
+
+    <script>
+        // Reuse tag handling code from add.html
+        // Add file list display functionality
+        const fileInput = document.getElementById('files');
+        const selectedFiles = document.getElementById('selected-files');
+        
+        fileInput.addEventListener('change', function() {
+            selectedFiles.innerHTML = '';
+            Array.from(this.files).forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span>${file.name}</span>
+                    <span class="remove-file" data-index="${index}">&times;</span>
+                `;
+                selectedFiles.appendChild(fileItem);
+            });
+        });
+        
+        selectedFiles.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-file')) {
+                const index = parseInt(e.target.dataset.index);
+                const dt = new DataTransfer();
+                const { files } = fileInput;
+                
+                for (let i = 0; i < files.length; i++) {
+                    if (i !== index) {
+                        dt.items.add(files[i]);
+                    }
+                }
+                
+                fileInput.files = dt.files;
+                e.target.parentElement.remove();
+            }
+        });
+        
+        // Add form submission handling
+        document.querySelector('form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.playlist_id) {
+                        window.location.href = `/playlist/${data.playlist_id}`;
+                    } else if (data.videos && data.videos.length > 0) {
+                        window.location.href = `/video/${data.videos[0]}`;
+                    }
+                } else {
+                    alert('Error uploading videos: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An unexpected error occurred. Please try again.');
+            });
+        });
+    </script>
+</body>
+</html> 
