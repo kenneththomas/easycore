@@ -861,6 +861,7 @@ def add_multiple_videos():
     if request.method == 'POST':
         files = request.files.getlist('files')
         playlist_name = request.form.get('playlist_name')
+        apply_to_videos = request.form.get('apply_to_videos') == 'on'
         description = request.form.get('description')
         tags = request.form.get('tags')
         stealth = request.form.get('stealth') == 'on'
@@ -881,9 +882,14 @@ def add_multiple_videos():
                 if not file or not file.filename:
                     continue
                     
-                # Generate unique nickname if using tags
+                # Generate video nickname based on playlist name and/or tags
                 video_nickname = None
-                if tags:
+                if playlist_name and apply_to_videos:
+                    if tags:
+                        video_nickname = f"{playlist_name} - {' '.join(tag.strip() for tag in tags.split(','))} {idx}"
+                    else:
+                        video_nickname = f"{playlist_name} - {idx}"
+                elif tags:
                     tag_list = [tag.strip() for tag in tags.split(',')]
                     timestamp = datetime.now().strftime('%H%M%S')
                     video_nickname = f"{' '.join(tag_list)} {timestamp}_{idx}"
