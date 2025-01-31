@@ -995,6 +995,59 @@ def add_multiple_videos():
     
     return render_template('add_multiple.html', recent_tags=processed_tags[:20])
 
+@app.route('/extract_mp3', methods=['GET', 'POST'])
+def extract_mp3():
+    if request.method == 'POST':
+        file = request.files.get('file')
+        if not file:
+            return jsonify({"error": "No file provided"}), 400
+            
+        try:
+            # Generate unique filename for the input file
+            input_filename = secure_filename(file.filename)
+            input_filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_{input_filename}")
+            
+            # Generate output filename (change extension to .mp3)
+            output_filename = os.path.splitext(input_filename)[0] + '.mp3'
+            output_filepath = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+            
+            # Save uploaded file
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            file.save(input_filepath)
+            
+            # Extract audio using ffmpeg
+            try:
+                (
+                    ffmpeg
+                    .input(input_filepath)
+                    .output(output_filepath, acodec='libmp3lame', ab='192k')
+                    .overwrite_output()
+                    .run(capture_stdout=True, capture_stderr=True)
+                )
+                
+                # Clean up the input file
+                os.remove(input_filepath)
+                
+                # Send the MP3 file
+                return send_file(
+                    output_filepath,
+                    mimetype='audio/mpeg',
+                    as_attachment=True,
+                    download_name=output_filename
+                )
+                
+            except ffmpeg.Error as e:
+                return jsonify({"error": f"FFmpeg error: {e.stderr.decode()}"}), 500
+            finally:
+                # Clean up output file after sending
+                if os.path.exists(output_filepath):
+                    os.remove(output_filepath)
+                    
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+            
+    return render_template('extract_mp3.html')
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
