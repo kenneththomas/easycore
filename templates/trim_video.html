@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trim Video - {{ video.nickname or video.original_filepath }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="{{ url_for('index') }}" class="nav-logo">Video Tagger</a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('add_video') }}">Add Video</a>
+                <a href="{{ url_for('bulk_upload') }}">Bulk Upload</a>
+                <a href="{{ url_for('playlists') }}">Playlists</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        <header>
+            <h1>Trim Video</h1>
+            <a href="{{ url_for('video_detail', video_id=video.id) }}" class="back-link">Back to Video</a>
+        </header>
+
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+
+        <!-- Form to specify trim times and new title -->
+        <section class="trim-form">
+            <form method="POST">
+                <div>
+                    <label for="start_time">Start Time (seconds):</label>
+                    <input type="number" step="0.1" min="0" name="start_time" id="start_time" required>
+                </div>
+                <div>
+                    <label for="end_time">End Time (seconds):</label>
+                    <input type="number" step="0.1" min="0" name="end_time" id="end_time" required>
+                </div>
+                <div>
+                    <label for="new_title">New Title (optional):</label>
+                    <input type="text" name="new_title" id="new_title" value="{{ new_title }}">
+                </div>
+                <button type="submit" class="btn">Preview Trim</button>
+            </form>
+        </section>
+
+        {% if preview and trimmed_video_available %}
+        <section class="trim-preview">
+            <h2>Preview Trim</h2>
+            <div class="video-preview">
+                <div class="original-video">
+                    <h3>Original Video</h3>
+                    <video controls width="320">
+                        <source src="{{ url_for('stream_video', video_id=video.id) }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <div class="trimmed-video">
+                    <h3>Trimmed Video</h3>
+                    <video controls width="320">
+                        <source src="{{ url_for('preview_trim_video', video_id=video.id) }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </div>
+            <!-- Form to accept the trimmed video -->
+            <form method="POST" action="{{ url_for('accept_trim_video', video_id=video.id) }}">
+                <input type="hidden" name="new_title" value="{{ new_title }}">
+                <button type="submit" class="btn">Accept Trim</button>
+                <button type="button" class="btn" onclick="window.location.href='{{ url_for('video_detail', video_id=video.id) }}'">Cancel</button>
+            </form>
+        </section>
+        {% endif %}
+    </div>
+</body>
+</html> 

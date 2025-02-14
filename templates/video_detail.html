@@ -63,6 +63,7 @@
                 </h2>
                 <button id="edit-title-btn" class="btn" onclick="toggleTitleEdit()">Edit Title</button>
                 <button id="save-title-btn" class="btn" style="display: none;" onclick="editTitle('{{ video.id }}')">Save Title</button>
+                <button id="trim-video-btn" class="btn" onclick="window.location.href='{{ url_for('trim_video_view', video_id=video.id) }}'">Trim Video</button>
                 <div class="video-stats">
                     <p>Views: <span class="view-count">{{ video.view_count }}</span></p>
                     <div class="like-container">

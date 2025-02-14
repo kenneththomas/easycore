@@ -1048,6 +1048,126 @@ def extract_mp3():
             
     return render_template('extract_mp3.html')
 
+@app.route('/trim_video/<int:video_id>', methods=['GET', 'POST'])
+def trim_video_view(video_id):
+    """
+    Render a page that lets the user select start and end times (in seconds)
+    and optionally a new title. On POST, create a trimmed version using ffmpeg.
+    """
+    video = Video.query.get_or_404(video_id)
+    preview = False
+    trimmed_video_available = False
+    error = None
+    # Default new title to the current nickname
+    new_title = video.nickname  
+
+    if request.method == 'POST':
+        try:
+            start_time = float(request.form.get('start_time', 0))
+            end_time = float(request.form.get('end_time', 0))
+            new_title = request.form.get('new_title', video.nickname).strip() or video.nickname
+
+            if start_time < 0 or end_time <= start_time:
+                error = "Invalid start or end time. Please ensure end time is greater than start time."
+            else:
+                # Determine the file extension
+                file_ext = os.path.splitext(video.stored_filepath)[1]
+                # Create a temporary trimmed file path:
+                trimmed_video_path = os.path.splitext(video.stored_filepath)[0] + "_trimmed" + file_ext
+
+                # Use ffmpeg to trim the video (using -ss and -to with copy mode)
+                (
+                    ffmpeg
+                    .input(video.stored_filepath, ss=start_time, to=end_time)
+                    .output(trimmed_video_path, c='copy')
+                    .overwrite_output()
+                    .run(capture_stdout=True, capture_stderr=True)
+                )
+                preview = True
+                trimmed_video_available = True
+        except Exception as e:
+            error = f"Error during trimming: {str(e)}"
+
+    return render_template(
+        'trim_video.html',
+        video=video,
+        preview=preview,
+        trimmed_video_available=trimmed_video_available,
+        error=error,
+        new_title=new_title
+    )
+
+@app.route('/accept_trim_video/<int:video_id>', methods=['POST'])
+def accept_trim_video(video_id):
+    """
+    Replace the original video with the previously trimmed version.
+    Optionally update the video title and regenerate the thumbnail.
+    """
+    video = Video.query.get_or_404(video_id)
+    new_title = request.form.get('new_title', video.nickname).strip() or video.nickname
+    file_ext = os.path.splitext(video.stored_filepath)[1]
+    trimmed_video_path = os.path.splitext(video.stored_filepath)[0] + "_trimmed" + file_ext
+
+    if not os.path.exists(trimmed_video_path):
+        return jsonify({"error": "Trimmed video file not found."}), 404
+
+    try:
+        # Replace the original video with the trimmed version
+        os.replace(trimmed_video_path, video.stored_filepath)
+        
+        # Update the video title if modified
+        video.nickname = new_title
+        
+        # Regenerate a thumbnail based on the new trimmed video
+        thumbnail_filename = f"thumbnail_{os.path.splitext(os.path.basename(video.stored_filepath))[0]}.jpg"
+        thumbnails_dir = os.path.join(app.static_folder, 'thumbnails')
+        os.makedirs(thumbnails_dir, exist_ok=True)
+        thumbnail_path = os.path.join(thumbnails_dir, thumbnail_filename)
+        
+        # Determine the video duration (to get a middle frame)
+        probe = ffmpeg.probe(video.stored_filepath)
+        duration = None
+        for stream in probe['streams']:
+            if 'duration' in stream:
+                duration = float(stream['duration'])
+                break
+        if duration is None and 'format' in probe and 'duration' in probe['format']:
+            duration = float(probe['format']['duration'])
+        if duration is None:
+            duration = 0
+        
+        (
+            ffmpeg
+            .input(video.stored_filepath, ss=duration/2 if duration > 0 else 0)
+            .filter('scale', 320, -1)
+            .output(thumbnail_path, vframes=1)
+            .overwrite_output()
+            .run(capture_stdout=True, capture_stderr=True)
+        )
+        
+        relative_thumbnail_path = os.path.join('thumbnails', thumbnail_filename).replace('\\', '/')
+        video.thumbnail_path = relative_thumbnail_path
+        
+        db.session.commit()
+        return redirect(url_for('video_detail', video_id=video.id))
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/preview_trim_video/<int:video_id>')
+def preview_trim_video(video_id):
+    """
+    Serve the trimmed video file so that it can be previewed.
+    """
+    video = Video.query.get_or_404(video_id)
+    file_ext = os.path.splitext(video.stored_filepath)[1]
+    trimmed_video_path = os.path.splitext(video.stored_filepath)[0] + "_trimmed" + file_ext
+    if os.path.exists(trimmed_video_path):
+        mimetype = 'video/mp4' if file_ext.lower() in ['.mp4'] else 'video/webm'
+        return send_file(trimmed_video_path, mimetype=mimetype)
+    else:
+        return "Trimmed video not found", 404
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
