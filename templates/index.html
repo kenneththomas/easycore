@@ -189,9 +189,14 @@
             <h2>Video Player</h2>
             <button class="close-video-player" onclick="closeVideoPlayer()">&times;</button>
         </div>
-        <video id="videoPlayer" controls>
+        <video id="videoPlayer" controls loop>
             Your browser does not support the video tag.
         </video>
+        <div class="video-controls">
+            <label for="loopToggle">
+                <input type="checkbox" id="loopToggle" checked onchange="toggleLoop()"> Loop video
+            </label>
+        </div>
     </div>
     <script>
         let lastClickTime = 0;
@@ -295,6 +300,11 @@
                         document.getElementById(`view-count-${videoId}`).textContent = data.new_view_count;
                     }
                 });
+        }
+
+        function toggleLoop() {
+            const videoPlayer = document.getElementById('videoPlayer');
+            videoPlayer.loop = document.getElementById('loopToggle').checked;
         }
 
         function closeVideoPlayer() {
