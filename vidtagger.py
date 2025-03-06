@@ -13,7 +13,7 @@ import random
 import string
 
 # Import models
-from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment
+from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
@@ -230,16 +230,18 @@ def stream_video(video_id):
 @app.route('/filter')
 def filter_videos():
     tag = request.args.get('tag')
+    
+    # If a tag is provided, redirect to the dedicated tag page
+    if tag:
+        return redirect(url_for('tag_detail', tag=tag))
+    
+    # Otherwise, continue with the existing filtering logic
     page = request.args.get('page', 1, type=int)
-    sort_by = request.args.get('sort', 'newest')  # Default sort by newest
+    sort_by = request.args.get('sort', 'newest')
     per_page = 10
 
     # Create base query
     query = Video.query
-
-    # Apply tag filter
-    if tag:
-        query = query.filter(Video.tags.contains(tag))
 
     # Apply sorting
     if sort_by == 'newest':
@@ -444,10 +446,12 @@ def bulk_upload():
                     # Set the thumbnail_path to be relative to the static folder
                     relative_thumbnail_path = os.path.join('thumbnails', thumbnail_filename).replace('\\', '/')
                     
-                    new_video = Video(original_filepath=file.filename, 
-                                      stored_filepath=stored_filepath,
-                                      thumbnail_path=relative_thumbnail_path,
-                                      view_count=0)
+                    new_video = Video(
+                        original_filepath=file.filename, 
+                        stored_filepath=stored_filepath,
+                        thumbnail_path=relative_thumbnail_path,
+                        view_count=0
+                    )
                     db.session.add(new_video)
                     successful_uploads += 1
                 except Exception as e:
@@ -1167,6 +1171,148 @@ def preview_trim_video(video_id):
         return send_file(trimmed_video_path, mimetype=mimetype)
     else:
         return "Trimmed video not found", 404
+
+@app.route('/tag/<tag>')
+def tag_detail(tag):
+    """Display a dedicated page for a specific tag with additional features."""
+    page = request.args.get('page', 1, type=int)
+    sort_by = request.args.get('sort', 'newest')
+    per_page = 10
+
+    # Create base query for videos with this tag
+    query = Video.query.filter(Video.tags.contains(tag))
+
+    # Apply sorting
+    if sort_by == 'newest':
+        query = query.order_by(desc(Video.id))
+    elif sort_by == 'oldest':
+        query = query.order_by(Video.id)
+    elif sort_by == 'most_viewed':
+        query = query.order_by(desc(Video.view_count))
+    elif sort_by == 'most_liked':
+        query = query.order_by(desc(Video.likes))
+
+    # Get paginated videos
+    paginated_videos = query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Get all videos with this tag for the random player
+    all_tag_videos = query.all()
+    
+    # Get tag statistics
+    video_count = query.count()
+    total_views = query.with_entities(func.sum(Video.view_count)).scalar() or 0
+    total_likes = query.with_entities(func.sum(Video.likes)).scalar() or 0
+    
+    # Get related tags (tags that appear together with this tag)
+    related_tags = []
+    videos_with_tag = query.all()
+    tag_counts = {}
+    
+    for video in videos_with_tag:
+        if video.tags:
+            video_tags = [t.strip() for t in video.tags.split(',')]
+            for vtag in video_tags:
+                if vtag.lower() != tag.lower() and vtag.strip():
+                    tag_counts[vtag] = tag_counts.get(vtag, 0) + 1
+    
+    # Sort related tags by frequency and get top 10
+    related_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+    # Get tag description
+    tag_description = TagDescription.query.filter_by(tag_name=tag).first()
+    
+    # Get tag comments
+    tag_comments = TagComment.query.filter_by(tag_name=tag).order_by(TagComment.timestamp.desc()).all()
+    
+    return render_template(
+        'tag_detail.html',
+        tag=tag,
+        videos=paginated_videos.items,
+        all_videos=all_tag_videos,
+        page=page,
+        total_pages=paginated_videos.pages,
+        sort_by=sort_by,
+        video_count=video_count,
+        total_views=total_views,
+        total_likes=total_likes,
+        related_tags=related_tags,
+        tag_description=tag_description,
+        tag_comments=tag_comments
+    )
+
+@app.route('/edit_tag_description/<tag>', methods=['POST'])
+def edit_tag_description(tag):
+    description = request.form.get('description', '').strip()
+    
+    try:
+        # Find existing tag description or create a new one
+        tag_desc = TagDescription.query.filter_by(tag_name=tag).first()
+        
+        if tag_desc:
+            tag_desc.description = description
+            tag_desc.updated_at = datetime.utcnow()
+        else:
+            tag_desc = TagDescription(tag_name=tag, description=description)
+            db.session.add(tag_desc)
+            
+        db.session.commit()
+        return jsonify({"success": True, "description": description}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/add_tag_comment/<tag>', methods=['POST'])
+def add_tag_comment(tag):
+    author = request.form.get('author', '').strip()
+    content = request.form.get('content', '').strip()
+    
+    if not author or not content:
+        return jsonify({"error": "Name and comment are required"}), 400
+    
+    try:
+        comment = TagComment(
+            tag_name=tag,
+            author=author,
+            content=content,
+            likes=0
+        )
+        db.session.add(comment)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "comment": {
+                "id": comment.id,
+                "author": comment.author,
+                "content": comment.content,
+                "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
+                "likes": comment.likes
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/like_tag_comment/<int:comment_id>', methods=['POST'])
+def like_tag_comment(comment_id):
+    comment = TagComment.query.get_or_404(comment_id)
+    if comment.likes is None:
+        comment.likes = 1
+    else:
+        comment.likes += 1
+    db.session.commit()
+    return jsonify({"success": True, "new_like_count": comment.likes})
+
+@app.route('/delete_tag_comment/<int:comment_id>', methods=['POST'])
+def delete_tag_comment(comment_id):
+    comment = TagComment.query.get_or_404(comment_id)
+    try:
+        db.session.delete(comment)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     with app.app_context():
