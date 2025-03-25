@@ -71,11 +71,47 @@
             width: 100%;
             max-width: 800px;
             margin: 0 auto;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            background-color: #000;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            display: none;
         }
         
-        #randomVideoPlayer {
+        .video-player-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background-color: #333;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            color: white;
+        }
+        
+        .close-video-player {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        #videoPlayer, #randomVideoPlayer {
             width: 100%;
-            border-radius: 8px;
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .video-controls {
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
         }
         
         .section-title {
@@ -93,6 +129,38 @@
             
             .random-player-controls {
                 flex-wrap: wrap;
+            }
+            
+            .video-player-container {
+                width: 95%;
+                height: auto;
+                max-height: 90vh;
+            }
+            
+            #videoPlayer, #randomVideoPlayer {
+                width: 100%;
+                height: auto;
+            }
+            
+            .nav-content {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                padding: 5px 10px;
+                font-size: 0.9em;
+            }
+
+            .nav-links {
+                margin-top: 0;
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.8em;
+            }
+
+            .nav-logo {
+                font-size: 1em;
             }
         }
     </style>
@@ -300,6 +368,28 @@
         
         let currentRandomIndex = -1;
         const randomPlayer = document.getElementById('randomVideoPlayer');
+        let lastClickTime = 0;
+        
+        // Add event listener for clicks on the document - fixed implementation
+        document.addEventListener('click', function(e) {
+            const currentTime = new Date().getTime();
+            const videoPlayerContainer = document.getElementById('videoPlayerContainer');
+            
+            // Check if video player is open and click is outside the player
+            if (videoPlayerContainer && 
+                videoPlayerContainer.style.display === 'block' && 
+                !videoPlayerContainer.contains(e.target) && 
+                !e.target.classList.contains('button')) {  // Ignore clicks on buttons
+                
+                // If second click within 500ms, close the player
+                if (currentTime - lastClickTime < 500) {
+                    closeVideoPlayer();
+                    lastClickTime = 0;  // Reset time
+                    return;
+                }
+                lastClickTime = currentTime;
+            }
+        });
         
         // Play a random video from the tag videos
         function playRandomVideo() {
