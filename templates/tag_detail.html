@@ -82,6 +82,19 @@
             display: none;
         }
         
+        .random-video-container {
+            width: 100%;
+            margin: 15px 0;
+            display: block;
+        }
+        
+        #randomVideoPlayer {
+            width: 100%;
+            max-width: 100%;
+            display: block;
+            border-radius: 8px;
+        }
+        
         .video-player-header {
             display: flex;
             justify-content: space-between;
@@ -231,18 +244,18 @@
             <h2>Random Player</h2>
             <p>Play random videos with the "{{ tag }}" tag</p>
             
-            <div class="video-player-container">
+            <div class="random-video-container">
                 <video id="randomVideoPlayer" controls>
                     Your browser does not support the video tag.
                 </video>
-                
-                <div class="random-player-controls">
-                    <button class="button" onclick="playRandomVideo()">Play Random</button>
-                    <button class="button" onclick="playNextRandom()">Next Video</button>
-                    <label>
-                        <input type="checkbox" id="autoplayToggle"> Autoplay next
-                    </label>
-                </div>
+            </div>
+            
+            <div class="random-player-controls">
+                <button class="button" onclick="playRandomVideo()">Play Random</button>
+                <button class="button" onclick="playNextRandom()">Next Video</button>
+                <label>
+                    <input type="checkbox" id="autoplayToggle"> Autoplay next
+                </label>
             </div>
         </div>
         
@@ -461,6 +474,15 @@
         function playVideo(videoId) {
             const videoPlayer = document.getElementById('videoPlayer');
             const videoPlayerContainer = document.getElementById('videoPlayerContainer');
+            
+            // Pause and hide the random player
+            const randomPlayer = document.getElementById('randomVideoPlayer');
+            randomPlayer.pause();
+            const randomPlayerContainer = document.querySelector('.random-player');
+            if (randomPlayerContainer) {
+                randomPlayerContainer.style.display = 'none';
+            }
+            
             videoPlayer.src = `/stream/${videoId}`;
             videoPlayerContainer.style.display = 'block';
             videoPlayer.play();
@@ -486,6 +508,12 @@
             videoPlayer.pause();
             videoPlayer.src = '';
             videoPlayerContainer.style.display = 'none';
+            
+            // Show the random player section again
+            const randomPlayerContainer = document.querySelector('.random-player');
+            if (randomPlayerContainer) {
+                randomPlayerContainer.style.display = 'block';
+            }
         }
         
         function filterByTag(tag) {
