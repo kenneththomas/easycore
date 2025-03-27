@@ -113,6 +113,8 @@
                 <a href="{{ url_for('bulk_upload') }}">Bulk Upload</a>
                 <a href="{{ url_for('playlists') }}">Playlists</a>
                 <a href="{{ url_for('add_multiple_videos') }}">Add Multiple</a>
+                <a href="{{ url_for('extract_mp3') }}">Extract MP3</a>
+
             </div>
         </div>
     </nav>
@@ -188,9 +190,14 @@
             <h2>Video Player</h2>
             <button class="close-video-player" onclick="closeVideoPlayer()">&times;</button>
         </div>
-        <video id="videoPlayer" controls>
+        <video id="videoPlayer" controls loop>
             Your browser does not support the video tag.
         </video>
+        <div class="video-controls">
+            <label for="loopToggle">
+                <input type="checkbox" id="loopToggle" checked onchange="toggleLoop()"> Loop video
+            </label>
+        </div>
     </div>
     <script>
         let lastClickTime = 0;
@@ -262,7 +269,7 @@
         }
 
         function filterByTag(tag) {
-            window.location.href = `/filter?tag=${encodeURIComponent(tag)}`;
+            window.location.href = `/tag/${encodeURIComponent(tag)}`;
         }
 
         function displayTags(videoId, tags) {
@@ -294,6 +301,11 @@
                         document.getElementById(`view-count-${videoId}`).textContent = data.new_view_count;
                     }
                 });
+        }
+
+        function toggleLoop() {
+            const videoPlayer = document.getElementById('videoPlayer');
+            videoPlayer.loop = document.getElementById('loopToggle').checked;
         }
 
         function closeVideoPlayer() {

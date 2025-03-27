@@ -29,7 +29,7 @@
             <section class="video-player">
                 <h2>Video Player</h2>
                 <div class="video-container">
-                    <video id="main-video" controls>
+                    <video id="main-video" controls loop>
                         <source src="{{ url_for('stream_video', video_id=video.id) }}" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
@@ -63,6 +63,7 @@
                 </h2>
                 <button id="edit-title-btn" class="btn" onclick="toggleTitleEdit()">Edit Title</button>
                 <button id="save-title-btn" class="btn" style="display: none;" onclick="editTitle('{{ video.id }}')">Save Title</button>
+                <button id="trim-video-btn" class="btn" onclick="window.location.href='{{ url_for('trim_video_view', video_id=video.id) }}'">Trim Video</button>
                 <div class="video-stats">
                     <p>Views: <span class="view-count">{{ video.view_count }}</span></p>
                     <div class="like-container">
@@ -86,7 +87,9 @@
                         {% if video.tags %}
                             {% for tag in video.tags.split(',') %}
                                 {% if tag.strip() %}
-                                    <span class="tag" onclick="window.location.href='{{ url_for('filter_videos', tag=tag.strip()) }}'">{{ tag.strip() }}</span>
+                                    <span class="tag" onclick="window.location.href='{{ url_for('filter_videos', tag=tag.strip()) }}'">
+                                        {{ tag.strip() }}
+                                    </span>
                                 {% endif %}
                             {% endfor %}
                         {% endif %}
@@ -438,6 +441,52 @@
 
     .delete-comment-btn:hover {
         background-color: #ffe6e6;
+    }
+
+    .tag {
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+        padding: 0.2rem 0.5rem;
+        margin: 0 0.2rem;
+        background-color: #f0f0f0;
+        border-radius: 4px;
+    }
+
+    .tag:hover {
+        background-color: #e0e0e0;
+    }
+
+    /* Consistent tag pill and clickable tag styling */
+    .tag-pill {
+        background-color: #e3f2fd; /* consistent light blue background */
+        color: #0d47a1; /* consistent dark blue text */
+        border-radius: 4px;
+        padding: 0.3rem 0.6rem;
+        margin: 0 0.2rem;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .tag-pill .tag {
+        background: none; /* let the parent's background show */
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
+    }
+
+    .tag-pill button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        margin-left: 0.3rem;
+        color: inherit;
+        font-weight: bold;
+    }
+
+    /* Optional hover styles */
+    .tag-pill:hover {
+        background-color: #d0e3fd;
     }
     </style>
 </body>

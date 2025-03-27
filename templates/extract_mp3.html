@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extract MP3 - breeztube</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .upload-container {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: #f5f5f5;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .upload-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .file-input-container {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 1rem;
+            background: #e0e0e0;
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .file-input-label:hover {
+            background: #d0d0d0;
+        }
+
+        #uploadProgress {
+            width: 100%;
+            height: 20px;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .status-message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-content">
+            <a href="{{ url_for('index') }}" class="nav-logo">breeztube</a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}">Home</a>
+                <a href="{{ url_for('add_video') }}">Add Video</a>
+                <a href="{{ url_for('bulk_upload') }}">Bulk Upload</a>
+                <a href="{{ url_for('playlists') }}">Playlists</a>
+                <a href="{{ url_for('add_multiple_videos') }}">Add Multiple</a>
+                <a href="{{ url_for('extract_mp3') }}">Extract MP3</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="upload-container">
+            <h1>Extract MP3 from Video</h1>
+            <form id="uploadForm" class="upload-form" enctype="multipart/form-data">
+                <div class="file-input-container">
+                    <label for="file" class="file-input-label">
+                        Choose Video File
+                        <input type="file" id="file" name="file" accept="video/*" style="display: none;">
+                    </label>
+                    <div id="selectedFile"></div>
+                </div>
+                <button type="submit" class="button">Extract MP3</button>
+                <progress id="uploadProgress" value="0" max="100"></progress>
+                <div id="statusMessage" class="status-message"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('file');
+        const selectedFile = document.getElementById('selectedFile');
+        const progress = document.getElementById('uploadProgress');
+        const statusMessage = document.getElementById('statusMessage');
+
+        fileInput.addEventListener('change', () => {
+            selectedFile.textContent = fileInput.files[0] ? fileInput.files[0].name : '';
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!fileInput.files[0]) {
+                showStatus('Please select a file first.', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            progress.style.display = 'block';
+            statusMessage.style.display = 'none';
+
+            try {
+                const response = await fetch('/extract_mp3', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    // Get the filename from the response headers if available
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    const filename = contentDisposition
+                        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+                        : 'audio.mp3';
+
+                    // Create a blob from the response
+                    const blob = await response.blob();
+                    
+                    // Create a download link and trigger it
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    showStatus('MP3 extraction successful!', 'success');
+                } else {
+                    const error = await response.json();
+                    showStatus(`Error: ${error.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+
+            progress.style.display = 'none';
+        });
+
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message ${type}`;
+            statusMessage.style.display = 'block';
+        }
+    </script>
+</body>
+</html> 

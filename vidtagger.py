@@ -13,7 +13,7 @@ import random
 import string
 
 # Import models
-from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment
+from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
@@ -230,16 +230,18 @@ def stream_video(video_id):
 @app.route('/filter')
 def filter_videos():
     tag = request.args.get('tag')
+    
+    # If a tag is provided, redirect to the dedicated tag page
+    if tag:
+        return redirect(url_for('tag_detail', tag=tag))
+    
+    # Otherwise, continue with the existing filtering logic
     page = request.args.get('page', 1, type=int)
-    sort_by = request.args.get('sort', 'newest')  # Default sort by newest
+    sort_by = request.args.get('sort', 'newest')
     per_page = 10
 
     # Create base query
     query = Video.query
-
-    # Apply tag filter
-    if tag:
-        query = query.filter(Video.tags.contains(tag))
 
     # Apply sorting
     if sort_by == 'newest':
@@ -444,10 +446,12 @@ def bulk_upload():
                     # Set the thumbnail_path to be relative to the static folder
                     relative_thumbnail_path = os.path.join('thumbnails', thumbnail_filename).replace('\\', '/')
                     
-                    new_video = Video(original_filepath=file.filename, 
-                                      stored_filepath=stored_filepath,
-                                      thumbnail_path=relative_thumbnail_path,
-                                      view_count=0)
+                    new_video = Video(
+                        original_filepath=file.filename, 
+                        stored_filepath=stored_filepath,
+                        thumbnail_path=relative_thumbnail_path,
+                        view_count=0
+                    )
                     db.session.add(new_video)
                     successful_uploads += 1
                 except Exception as e:
@@ -994,6 +998,321 @@ def add_multiple_videos():
                     processed_tags.append(tag)
     
     return render_template('add_multiple.html', recent_tags=processed_tags[:20])
+
+@app.route('/extract_mp3', methods=['GET', 'POST'])
+def extract_mp3():
+    if request.method == 'POST':
+        file = request.files.get('file')
+        if not file:
+            return jsonify({"error": "No file provided"}), 400
+            
+        try:
+            # Generate unique filename for the input file
+            input_filename = secure_filename(file.filename)
+            input_filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_{input_filename}")
+            
+            # Generate output filename (change extension to .mp3)
+            output_filename = os.path.splitext(input_filename)[0] + '.mp3'
+            output_filepath = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
+            
+            # Save uploaded file
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            file.save(input_filepath)
+            
+            # Extract audio using ffmpeg
+            try:
+                (
+                    ffmpeg
+                    .input(input_filepath)
+                    .output(output_filepath, acodec='libmp3lame', ab='192k')
+                    .overwrite_output()
+                    .run(capture_stdout=True, capture_stderr=True)
+                )
+                
+                # Clean up the input file
+                os.remove(input_filepath)
+                
+                # Send the MP3 file
+                return send_file(
+                    output_filepath,
+                    mimetype='audio/mpeg',
+                    as_attachment=True,
+                    download_name=output_filename
+                )
+                
+            except ffmpeg.Error as e:
+                return jsonify({"error": f"FFmpeg error: {e.stderr.decode()}"}), 500
+            finally:
+                # Clean up output file after sending
+                if os.path.exists(output_filepath):
+                    os.remove(output_filepath)
+                    
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+            
+    return render_template('extract_mp3.html')
+
+@app.route('/trim_video/<int:video_id>', methods=['GET', 'POST'])
+def trim_video_view(video_id):
+    """
+    Render a page that lets the user select start and end times (in seconds)
+    and optionally a new title. On POST, create a trimmed version using ffmpeg.
+    """
+    video = Video.query.get_or_404(video_id)
+    preview = False
+    trimmed_video_available = False
+    error = None
+    # Default new title to the current nickname
+    new_title = video.nickname  
+
+    if request.method == 'POST':
+        try:
+            start_time = float(request.form.get('start_time', 0))
+            end_time = float(request.form.get('end_time', 0))
+            new_title = request.form.get('new_title', video.nickname).strip() or video.nickname
+
+            if start_time < 0 or end_time <= start_time:
+                error = "Invalid start or end time. Please ensure end time is greater than start time."
+            else:
+                # Determine the file extension
+                file_ext = os.path.splitext(video.stored_filepath)[1]
+                # Create a temporary trimmed file path:
+                trimmed_video_path = os.path.splitext(video.stored_filepath)[0] + "_trimmed" + file_ext
+
+                # Use ffmpeg to trim the video (using -ss and -to with copy mode)
+                (
+                    ffmpeg
+                    .input(video.stored_filepath, ss=start_time, to=end_time)
+                    .output(trimmed_video_path, c='copy')
+                    .overwrite_output()
+                    .run(capture_stdout=True, capture_stderr=True)
+                )
+                preview = True
+                trimmed_video_available = True
+        except Exception as e:
+            error = f"Error during trimming: {str(e)}"
+
+    return render_template(
+        'trim_video.html',
+        video=video,
+        preview=preview,
+        trimmed_video_available=trimmed_video_available,
+        error=error,
+        new_title=new_title
+    )
+
+@app.route('/accept_trim_video/<int:video_id>', methods=['POST'])
+def accept_trim_video(video_id):
+    """
+    Replace the original video with the previously trimmed version.
+    Optionally update the video title and regenerate the thumbnail.
+    """
+    video = Video.query.get_or_404(video_id)
+    new_title = request.form.get('new_title', video.nickname).strip() or video.nickname
+    file_ext = os.path.splitext(video.stored_filepath)[1]
+    trimmed_video_path = os.path.splitext(video.stored_filepath)[0] + "_trimmed" + file_ext
+
+    if not os.path.exists(trimmed_video_path):
+        return jsonify({"error": "Trimmed video file not found."}), 404
+
+    try:
+        # Replace the original video with the trimmed version
+        os.replace(trimmed_video_path, video.stored_filepath)
+        
+        # Update the video title if modified
+        video.nickname = new_title
+        
+        # Regenerate a thumbnail based on the new trimmed video
+        thumbnail_filename = f"thumbnail_{os.path.splitext(os.path.basename(video.stored_filepath))[0]}.jpg"
+        thumbnails_dir = os.path.join(app.static_folder, 'thumbnails')
+        os.makedirs(thumbnails_dir, exist_ok=True)
+        thumbnail_path = os.path.join(thumbnails_dir, thumbnail_filename)
+        
+        # Determine the video duration (to get a middle frame)
+        probe = ffmpeg.probe(video.stored_filepath)
+        duration = None
+        for stream in probe['streams']:
+            if 'duration' in stream:
+                duration = float(stream['duration'])
+                break
+        if duration is None and 'format' in probe and 'duration' in probe['format']:
+            duration = float(probe['format']['duration'])
+        if duration is None:
+            duration = 0
+        
+        (
+            ffmpeg
+            .input(video.stored_filepath, ss=duration/2 if duration > 0 else 0)
+            .filter('scale', 320, -1)
+            .output(thumbnail_path, vframes=1)
+            .overwrite_output()
+            .run(capture_stdout=True, capture_stderr=True)
+        )
+        
+        relative_thumbnail_path = os.path.join('thumbnails', thumbnail_filename).replace('\\', '/')
+        video.thumbnail_path = relative_thumbnail_path
+        
+        db.session.commit()
+        return redirect(url_for('video_detail', video_id=video.id))
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/preview_trim_video/<int:video_id>')
+def preview_trim_video(video_id):
+    """
+    Serve the trimmed video file so that it can be previewed.
+    """
+    video = Video.query.get_or_404(video_id)
+    file_ext = os.path.splitext(video.stored_filepath)[1]
+    trimmed_video_path = os.path.splitext(video.stored_filepath)[0] + "_trimmed" + file_ext
+    if os.path.exists(trimmed_video_path):
+        mimetype = 'video/mp4' if file_ext.lower() in ['.mp4'] else 'video/webm'
+        return send_file(trimmed_video_path, mimetype=mimetype)
+    else:
+        return "Trimmed video not found", 404
+
+@app.route('/tag/<tag>')
+def tag_detail(tag):
+    """Display a dedicated page for a specific tag with additional features."""
+    page = request.args.get('page', 1, type=int)
+    sort_by = request.args.get('sort', 'newest')
+    per_page = 10
+
+    # Create base query for videos with this tag
+    query = Video.query.filter(Video.tags.contains(tag))
+
+    # Apply sorting
+    if sort_by == 'newest':
+        query = query.order_by(desc(Video.id))
+    elif sort_by == 'oldest':
+        query = query.order_by(Video.id)
+    elif sort_by == 'most_viewed':
+        query = query.order_by(desc(Video.view_count))
+    elif sort_by == 'most_liked':
+        query = query.order_by(desc(Video.likes))
+
+    # Get paginated videos
+    paginated_videos = query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Get all videos with this tag for the random player
+    all_tag_videos = query.all()
+    
+    # Get tag statistics
+    video_count = query.count()
+    total_views = query.with_entities(func.sum(Video.view_count)).scalar() or 0
+    total_likes = query.with_entities(func.sum(Video.likes)).scalar() or 0
+    
+    # Get related tags (tags that appear together with this tag)
+    related_tags = []
+    videos_with_tag = query.all()
+    tag_counts = {}
+    
+    for video in videos_with_tag:
+        if video.tags:
+            video_tags = [t.strip() for t in video.tags.split(',')]
+            for vtag in video_tags:
+                if vtag.lower() != tag.lower() and vtag.strip():
+                    tag_counts[vtag] = tag_counts.get(vtag, 0) + 1
+    
+    # Sort related tags by frequency and get top 10
+    related_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+    # Get tag description
+    tag_description = TagDescription.query.filter_by(tag_name=tag).first()
+    
+    # Get tag comments
+    tag_comments = TagComment.query.filter_by(tag_name=tag).order_by(TagComment.timestamp.desc()).all()
+    
+    return render_template(
+        'tag_detail.html',
+        tag=tag,
+        videos=paginated_videos.items,
+        all_videos=all_tag_videos,
+        page=page,
+        total_pages=paginated_videos.pages,
+        sort_by=sort_by,
+        video_count=video_count,
+        total_views=total_views,
+        total_likes=total_likes,
+        related_tags=related_tags,
+        tag_description=tag_description,
+        tag_comments=tag_comments
+    )
+
+@app.route('/edit_tag_description/<tag>', methods=['POST'])
+def edit_tag_description(tag):
+    description = request.form.get('description', '').strip()
+    
+    try:
+        # Find existing tag description or create a new one
+        tag_desc = TagDescription.query.filter_by(tag_name=tag).first()
+        
+        if tag_desc:
+            tag_desc.description = description
+            tag_desc.updated_at = datetime.utcnow()
+        else:
+            tag_desc = TagDescription(tag_name=tag, description=description)
+            db.session.add(tag_desc)
+            
+        db.session.commit()
+        return jsonify({"success": True, "description": description}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/add_tag_comment/<tag>', methods=['POST'])
+def add_tag_comment(tag):
+    author = request.form.get('author', '').strip()
+    content = request.form.get('content', '').strip()
+    
+    if not author or not content:
+        return jsonify({"error": "Name and comment are required"}), 400
+    
+    try:
+        comment = TagComment(
+            tag_name=tag,
+            author=author,
+            content=content,
+            likes=0
+        )
+        db.session.add(comment)
+        db.session.commit()
+        
+        return jsonify({
+            "success": True,
+            "comment": {
+                "id": comment.id,
+                "author": comment.author,
+                "content": comment.content,
+                "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
+                "likes": comment.likes
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/like_tag_comment/<int:comment_id>', methods=['POST'])
+def like_tag_comment(comment_id):
+    comment = TagComment.query.get_or_404(comment_id)
+    if comment.likes is None:
+        comment.likes = 1
+    else:
+        comment.likes += 1
+    db.session.commit()
+    return jsonify({"success": True, "new_like_count": comment.likes})
+
+@app.route('/delete_tag_comment/<int:comment_id>', methods=['POST'])
+def delete_tag_comment(comment_id):
+    comment = TagComment.query.get_or_404(comment_id)
+    try:
+        db.session.delete(comment)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     with app.app_context():

@@ -14,10 +14,32 @@ function initializeTags() {
 function updateTagDisplay() {
     tagContainer.innerHTML = '';
     tags.forEach(tag => {
-        if (tag.trim() !== '') {
+        if (tag.trim()) {
+            // Create a container for the tag pill
             const tagPill = document.createElement('span');
             tagPill.className = 'tag-pill';
-            tagPill.innerHTML = `${tag.trim()}<button type="button" onclick="removeTag('${tag.trim()}')">&times;</button>`;
+
+            // Create a clickable link for the tag
+            const tagLink = document.createElement('a');
+            tagLink.href = `/filter?tag=${encodeURIComponent(tag.trim())}`;
+            tagLink.className = 'tag';
+            tagLink.textContent = tag.trim();
+
+            // Append the link to the tag pill
+            tagPill.appendChild(tagLink);
+
+            // Create the remove button (×) for the tag
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.innerHTML = '&times;';
+            removeBtn.onclick = function (e) {
+                // Prevent triggering the tag link navigation when the remove button is clicked
+                e.stopPropagation();
+                e.preventDefault();
+                removeTag(tag.trim());
+            };
+
+            tagPill.appendChild(removeBtn);
             tagContainer.appendChild(tagPill);
         }
     });
