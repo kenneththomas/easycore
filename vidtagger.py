@@ -1314,6 +1314,25 @@ def delete_tag_comment(comment_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@app.route('/delete_playlist/<int:playlist_id>', methods=['POST'])
+def delete_playlist(playlist_id):
+    playlist = Playlist.query.get_or_404(playlist_id)
+    try:
+        # Delete all playlist comments
+        PlaylistComment.query.filter_by(playlist_id=playlist_id).delete()
+        
+        # Delete all playlist video associations
+        PlaylistVideo.query.filter_by(playlist_id=playlist_id).delete()
+        
+        # Delete the playlist itself
+        db.session.delete(playlist)
+        db.session.commit()
+        
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
