@@ -46,6 +46,14 @@
 
         <main class="playlist-view">
             <section class="video-player-section">
+                <div class="video-title-container" id="videoTitleContainer" style="display: none;">
+                    <h2 id="currentVideoTitle" class="current-video-title">
+                        <a href="#" id="videoDetailLink" class="video-detail-link">
+                            <span id="videoTitleText"></span>
+                            <span class="edit-icon">✏️</span>
+                        </a>
+                    </h2>
+                </div>
                 <div class="video-container">
                     <video id="videoPlayer" controls>
                         <source src="" type="video/mp4">
@@ -126,11 +134,23 @@
         function playVideo(videoId) {
             const videoPlayer = document.getElementById('videoPlayer');
             const playerSection = document.querySelector('.video-player-section');
+            const titleContainer = document.getElementById('videoTitleContainer');
+            const titleText = document.getElementById('videoTitleText');
+            const videoDetailLink = document.getElementById('videoDetailLink');
             
             // Update current index
             currentVideoIndex = playlistVideos.findIndex(v => v.id === videoId);
             
-            // Show player and start video
+            // Get current video data
+            const currentVideo = playlistVideos[currentVideoIndex];
+            
+            // Update video title
+            const videoTitle = currentVideo.nickname || currentVideo.original_filepath;
+            titleText.textContent = videoTitle;
+            videoDetailLink.href = `/video/${videoId}`;
+            
+            // Show title container and player
+            titleContainer.style.display = 'block';
             playerSection.style.display = 'block';
             playerSection.classList.add('active');
             videoPlayer.src = `/stream/${videoId}`;
@@ -149,6 +169,9 @@
         function playNext() {
             if (currentVideoIndex < playlistVideos.length - 1) {
                 playVideo(playlistVideos[currentVideoIndex + 1].id);
+            } else {
+                // Hide title when playlist ends
+                document.getElementById('videoTitleContainer').style.display = 'none';
             }
         }
 
@@ -885,6 +908,45 @@
         .delete-comment-btn:hover {
             color: #dc3545;
             background-color: #fee;
+        }
+
+        /* Video title styles */
+        .video-title-container {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .current-video-title {
+            margin: 0;
+            font-size: 1.4rem;
+            color: #1a1a1a;
+        }
+
+        .video-detail-link {
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .video-detail-link:hover {
+            color: #2196f3;
+            transform: translateX(2px);
+        }
+
+        .edit-icon {
+            font-size: 1rem;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .video-detail-link:hover .edit-icon {
+            opacity: 1;
         }
     </style>
 </body>
