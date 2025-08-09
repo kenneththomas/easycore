@@ -105,7 +105,7 @@
         <div id="commentList">
           {% for c in comments %}
             <div class="comment" data-id="{{ c.id }}">
-              <div><strong>{{ c.author }}</strong> <span style="color:#777; font-size:12px;">{{ c.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span></div>
+              <div><strong><a href="{{ url_for('author_profile', slug=c.author|slugify) }}">{{ c.author }}</a></strong> <span style="color:#777; font-size:12px;">{{ c.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span></div>
               <div>{{ c.content }}</div>
               <button class="button like-comment">Like ({{ c.likes or 0 }})</button>
               <button class="button delete-comment">Delete</button>
@@ -163,7 +163,7 @@
           const div = document.createElement('div')
           div.className = 'comment'
           div.dataset.id = c.id
-          div.innerHTML = `<div><strong>${c.author}</strong> <span style="color:#777; font-size:12px;">${c.timestamp}</span></div>
+          div.innerHTML = `<div><strong><a href="/author/${c.author_slug}">${c.author}</a></strong> <span style="color:#777; font-size:12px;">${c.timestamp}</span></div>
                            <div>${c.content}</div>
                            <button class="button like-comment">Like (${c.likes})</button>
                            <button class="button delete-comment">Delete</button>`

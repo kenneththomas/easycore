@@ -349,7 +349,7 @@
                 {% for comment in tag_comments %}
                     <div class="comment" id="comment-{{ comment.id }}">
                         <div class="comment-header">
-                            <strong>{{ comment.author }}</strong>
+                            <strong><a href="{{ url_for('author_profile', slug=comment.author|slugify) }}">{{ comment.author }}</a></strong>
                             <span class="comment-date">{{ comment.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span>
                         </div>
                         <div class="comment-content">{{ comment.content }}</div>
@@ -620,7 +620,7 @@
                     commentElement.id = `comment-${data.comment.id}`;
                     commentElement.innerHTML = `
                         <div class="comment-header">
-                            <strong>${data.comment.author}</strong>
+                            <strong><a href="/author/${data.comment.author_slug}">${data.comment.author}</a></strong>
                             <span class="comment-date">${data.comment.timestamp}</span>
                         </div>
                         <div class="comment-content">${data.comment.content}</div>

@@ -11,6 +11,7 @@ from datetime import datetime
 import uuid
 import random
 import string
+import unicodedata
 
 # Import models
 from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment, Track, TrackComment, Artist, TrackArtist, VideoArtist
@@ -26,6 +27,134 @@ app.config['AVATAR_FOLDER'] = os.path.join(app.static_folder, 'avatars')
 
 # Initialize the db with this app
 db.init_app(app)
+
+def slugify_author(author_name: str) -> str:
+    """Create a URL-safe slug from an author name.
+    - Lowercase
+    - Normalize accents
+    - Replace non-alphanumeric with single hyphens
+    - Trim hyphens
+    """
+    if not author_name:
+        return ""
+    normalized = unicodedata.normalize('NFKD', author_name)
+    ascii_only = ''.join(ch for ch in normalized if not unicodedata.combining(ch))
+    lowered = ascii_only.lower()
+    slug_chars = []
+    prev_dash = False
+    for ch in lowered:
+        if ch.isalnum():
+            slug_chars.append(ch)
+            prev_dash = False
+        else:
+            if not prev_dash:
+                slug_chars.append('-')
+                prev_dash = True
+    slug = ''.join(slug_chars).strip('-')
+    return slug
+
+# Expose slugify to templates
+app.jinja_env.filters['slugify'] = slugify_author
+
+@app.route('/author/<slug>')
+def author_profile(slug: str):
+    """Show a profile page for a comment author, aggregating all their comments."""
+    # Gather comments across entities and match by slugified author
+    video_comments = Comment.query.order_by(desc(Comment.timestamp)).all()
+    playlist_comments = PlaylistComment.query.order_by(desc(PlaylistComment.timestamp)).all()
+    tag_comments = TagComment.query.order_by(desc(TagComment.timestamp)).all()
+    track_comments = TrackComment.query.order_by(desc(TrackComment.timestamp)).all()
+
+    def matches_author(a: str) -> bool:
+        return slugify_author(a) == slug
+
+    items = []
+
+    # Video comments
+    if video_comments:
+        video_id_to_video = {v.id: v for v in Video.query.filter(Video.id.in_({c.video_id for c in video_comments})).all()}
+        for c in video_comments:
+            if matches_author(c.author):
+                video = video_id_to_video.get(c.video_id)
+                items.append({
+                    'kind': 'video',
+                    'content': c.content,
+                    'timestamp': c.timestamp,
+                    'likes': c.likes or 0,
+                    'context_title': (video.nickname or video.original_filepath) if video else f"Video {c.video_id}",
+                    'context_url': url_for('video_detail', video_id=c.video_id)
+                })
+
+    # Playlist comments
+    if playlist_comments:
+        playlist_id_to_playlist = {p.id: p for p in Playlist.query.filter(Playlist.id.in_({c.playlist_id for c in playlist_comments})).all()}
+        for c in playlist_comments:
+            if matches_author(c.author):
+                playlist = playlist_id_to_playlist.get(c.playlist_id)
+                items.append({
+                    'kind': 'playlist',
+                    'content': c.content,
+                    'timestamp': c.timestamp,
+                    'likes': c.likes or 0,
+                    'context_title': playlist.name if playlist else f"Playlist {c.playlist_id}",
+                    'context_url': url_for('playlist_detail', playlist_id=c.playlist_id)
+                })
+
+    # Tag comments
+    for c in tag_comments:
+        if matches_author(c.author):
+            items.append({
+                'kind': 'tag',
+                'content': c.content,
+                'timestamp': c.timestamp,
+                'likes': c.likes or 0,
+                'context_title': f"#{c.tag_name}",
+                'context_url': url_for('tag_detail', tag=c.tag_name)
+            })
+
+    # Track comments
+    if track_comments:
+        track_id_to_track = {t.id: t for t in Track.query.filter(Track.id.in_({c.track_id for c in track_comments})).all()}
+        for c in track_comments:
+            if matches_author(c.author):
+                track = track_id_to_track.get(c.track_id)
+                items.append({
+                    'kind': 'track',
+                    'content': c.content,
+                    'timestamp': c.timestamp,
+                    'likes': c.likes or 0,
+                    'context_title': (track.nickname or track.original_filepath) if track else f"Track {c.track_id}",
+                    'context_url': url_for('track_detail', track_id=c.track_id)
+                })
+
+    # Sort by timestamp desc
+    items.sort(key=lambda x: x['timestamp'], reverse=True)
+
+    total_comments = len(items)
+    author_display = None
+    # Try to infer display from any matching item by reverse-slugifying (not perfect) or keep slug
+    # Prefer inspecting original comment authors
+    for c in video_comments + playlist_comments + tag_comments + track_comments:
+        if matches_author(c.author):
+            author_display = c.author
+            break
+    if not author_display:
+        author_display = slug.replace('-', ' ').title()
+
+    # Count per kind
+    kind_counts = {
+        'video': sum(1 for i in items if i['kind'] == 'video'),
+        'playlist': sum(1 for i in items if i['kind'] == 'playlist'),
+        'tag': sum(1 for i in items if i['kind'] == 'tag'),
+        'track': sum(1 for i in items if i['kind'] == 'track'),
+    }
+
+    return render_template('author_profile.html',
+                           slug=slug,
+                           author=author_display,
+                           total_comments=total_comments,
+                           kind_counts=kind_counts,
+                           items=items)
 
 def ensure_directories_exist():
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -291,6 +420,7 @@ def add_track_comment(track_id):
             "comment": {
                 "id": comment.id,
                 "author": comment.author,
+                "author_slug": slugify_author(comment.author),
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes
@@ -796,6 +926,7 @@ def add_comment(video_id):
             "comment": {
                 "id": comment.id,
                 "author": comment.author,
+                "author_slug": slugify_author(comment.author),
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes
@@ -1081,6 +1212,7 @@ def add_playlist_comment(playlist_id):
             "comment": {
                 "id": comment.id,
                 "author": comment.author,
+                "author_slug": slugify_author(comment.author),
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes

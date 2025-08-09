@@ -223,7 +223,7 @@ async function submitComment(videoId) {
             newComment.className = 'comment';
             newComment.innerHTML = `
                 <div class="comment-header">
-                    <strong class="comment-author">${data.comment.author}</strong>
+                    <strong class="comment-author"><a href="/author/${data.comment.author_slug}">${data.comment.author}</a></strong>
                     <span class="comment-timestamp">${data.comment.timestamp}</span>
                 </div>
                 <div class="comment-content">${data.comment.content}</div>

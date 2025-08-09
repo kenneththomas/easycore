@@ -120,7 +120,7 @@
                     {% for comment in comments %}
                         <div class="comment">
                             <div class="comment-header">
-                                <strong class="comment-author">{{ comment.author }}</strong>
+                                <strong class="comment-author"><a href="{{ url_for('author_profile', slug=comment.author|slugify) }}">{{ comment.author }}</a></strong>
                                 <span class="comment-timestamp">{{ comment.timestamp.strftime("%m/%d/%Y %I:%M %p") }}</span>
                             </div>
                             <div class="comment-content">{{ comment.content }}</div>
