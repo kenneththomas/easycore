@@ -13,15 +13,27 @@ import random
 import string
 
 # Import models
-from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment
+from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment, Track, TrackComment, Artist, TrackArtist, VideoArtist
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
 app.config['STEALTH_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'stealth_uploads')
+app.config['AUDIO_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads_audio')
+app.config['STEALTH_AUDIO_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'stealth_audio_uploads')
+app.config['COVER_FOLDER'] = os.path.join(app.static_folder, 'covers')
+app.config['AVATAR_FOLDER'] = os.path.join(app.static_folder, 'avatars')
 
 # Initialize the db with this app
 db.init_app(app)
+
+def ensure_directories_exist():
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['STEALTH_UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['AUDIO_UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['STEALTH_AUDIO_UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['COVER_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['AVATAR_FOLDER'], exist_ok=True)
 
 def convert_webm_to_mp4(input_path):
     """Convert WebM file to MP4 and return the new filepath"""
@@ -54,6 +66,257 @@ def generate_unique_filename(original_filename, upload_folder):
         filepath = os.path.join(upload_folder, filename)
     
     return filename, filepath
+
+def get_mime_type_for_audio(file_path):
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext in ['.mp3']:  # default and most common
+        return 'audio/mpeg'
+    if ext in ['.wav']:
+        return 'audio/wav'
+    if ext in ['.ogg', '.oga']:
+        return 'audio/ogg'
+    if ext in ['.flac']:
+        return 'audio/flac'
+    if ext in ['.m4a', '.mp4', '.aac']:
+        return 'audio/mp4'
+    return 'application/octet-stream'
+
+def get_related_tracks(current_track, limit=8):
+    if not current_track.tags:
+        return []
+    current_tags = set(tag.strip().lower() for tag in current_track.tags.split(',') if tag.strip())
+    other_tracks = Track.query.filter(Track.id != current_track.id).all()
+    track_scores = []
+    for track in other_tracks:
+        if track.tags:
+            track_tags = set(tag.strip().lower() for tag in track.tags.split(',') if tag.strip())
+            common_tags = len(current_tags.intersection(track_tags))
+            if common_tags > 0:
+                track_scores.append((track, common_tags))
+    track_scores.sort(key=lambda x: x[1], reverse=True)
+    return [track for track, score in track_scores[:limit]]
+
+@app.route('/artists')
+def artists_index():
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    artists = Artist.query.order_by(desc(Artist.created_at)).paginate(page=page, per_page=per_page, error_out=False)
+    return render_template('artists.html', artists=artists.items, page=page, total_pages=artists.pages)
+
+@app.route('/artist/<int:artist_id>')
+def artist_detail(artist_id):
+    artist = Artist.query.get_or_404(artist_id)
+    tracks = db.session.query(Track).join(TrackArtist, TrackArtist.track_id == Track.id).filter(TrackArtist.artist_id == artist_id).order_by(desc(Track.id)).all()
+    videos = db.session.query(Video).join(VideoArtist, VideoArtist.video_id == Video.id).filter(VideoArtist.artist_id == artist_id).order_by(desc(Video.id)).all()
+    return render_template('artist_detail.html', artist=artist, tracks=tracks, videos=videos)
+
+@app.route('/add_artist', methods=['GET', 'POST'])
+def add_artist():
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        bio = request.form.get('bio')
+        avatar = request.files.get('avatar')
+        if not name:
+            return jsonify({"error": "Artist name is required"}), 400
+        try:
+            existing = Artist.query.filter(Artist.name.ilike(name)).first()
+            if existing:
+                return jsonify({"success": True, "artist_id": existing.id}), 200
+            avatar_path_rel = None
+            if avatar and avatar.filename:
+                ext = os.path.splitext(avatar.filename)[1].lower()
+                if ext in ['.jpg', '.jpeg', '.png', '.webp']:
+                    filename = secure_filename(f"avatar_{uuid.uuid4().hex}{ext}")
+                    abs_path = os.path.join(app.config['AVATAR_FOLDER'], filename)
+                    os.makedirs(app.config['AVATAR_FOLDER'], exist_ok=True)
+                    avatar.save(abs_path)
+                    avatar_path_rel = os.path.join('avatars', filename).replace('\\', '/')
+            artist = Artist(name=name, bio=bio, avatar_path=avatar_path_rel)
+            db.session.add(artist)
+            db.session.commit()
+            return jsonify({"success": True, "artist_id": artist.id}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+    return render_template('add_artist.html')
+
+@app.route('/tracks')
+def tracks_index():
+    page = request.args.get('page', 1, type=int)
+    sort_by = request.args.get('sort', 'newest')
+    per_page = 10
+    query = Track.query
+    if sort_by == 'newest':
+        query = query.order_by(desc(Track.id))
+    elif sort_by == 'oldest':
+        query = query.order_by(Track.id)
+    elif sort_by == 'most_viewed':
+        query = query.order_by(desc(Track.view_count))
+    elif sort_by == 'most_liked':
+        query = query.order_by(desc(Track.likes))
+    tracks = query.paginate(page=page, per_page=per_page, error_out=False)
+    return render_template('tracks.html',
+                           tracks=tracks.items,
+                           page=page,
+                           total_pages=tracks.pages,
+                           sort_by=sort_by)
+
+@app.route('/add_track', methods=['GET', 'POST'])
+def add_track():
+    if request.method == 'POST':
+        file = request.files.get('file')
+        background = request.files.get('background')
+        nickname = request.form.get('nickname')
+        artist_name = request.form.get('artist_name', '').strip()
+        description = request.form.get('description')
+        tags = request.form.get('tags')
+        stealth = request.form.get('stealth') == 'on'
+
+        if not file or file.filename == '':
+            return jsonify({"error": "No audio file provided"}), 400
+
+        original_filepath = file.filename
+        original_extension = os.path.splitext(original_filepath)[1].lower()
+        allowed_audio_exts = ['.mp3', '.wav', '.ogg', '.oga', '.flac', '.m4a', '.aac']
+        if original_extension not in allowed_audio_exts:
+            return jsonify({"error": "Unsupported audio format"}), 400
+
+        base_filename = secure_filename((nickname or os.path.splitext(original_filepath)[0]) + original_extension)
+        upload_folder = app.config['STEALTH_AUDIO_UPLOAD_FOLDER'] if stealth else app.config['AUDIO_UPLOAD_FOLDER']
+        new_filename, stored_filepath = generate_unique_filename(base_filename, upload_folder)
+
+        try:
+            os.makedirs(upload_folder, exist_ok=True)
+            file.save(stored_filepath)
+
+            # Optional background image upload
+            relative_cover_path = None
+            if background and background.filename:
+                cover_ext = os.path.splitext(background.filename)[1].lower()
+                if cover_ext in ['.jpg', '.jpeg', '.png', '.webp']:
+                    cover_filename = secure_filename(f"cover_{os.path.splitext(new_filename)[0]}{cover_ext}")
+                    cover_path = os.path.join(app.config['COVER_FOLDER'], cover_filename)
+                    os.makedirs(app.config['COVER_FOLDER'], exist_ok=True)
+                    background.save(cover_path)
+                    relative_cover_path = os.path.join('covers', cover_filename).replace('\\', '/')
+
+            new_track = Track(
+                original_filepath=original_filepath,
+                stored_filepath=stored_filepath,
+                nickname=nickname,
+                description=description,
+                tags=tags,
+                background_image_path=relative_cover_path,
+                view_count=0,
+                likes=0,
+            )
+            db.session.add(new_track)
+            # Optional artist association (create if missing)
+            if artist_name:
+                artist = Artist.query.filter(Artist.name.ilike(artist_name)).first()
+                if not artist:
+                    artist = Artist(name=artist_name)
+                    db.session.add(artist)
+                    db.session.flush()
+                db.session.add(TrackArtist(track_id=new_track.id, artist_id=artist.id))
+            db.session.commit()
+
+            return jsonify({"success": True, "track_id": new_track.id}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": str(e)}), 500
+
+    # GET: show upload form
+    return render_template('add_track.html')
+
+@app.route('/stream_track/<int:track_id>')
+def stream_track(track_id):
+    track = Track.query.get_or_404(track_id)
+    mime_type = get_mime_type_for_audio(track.stored_filepath)
+    range_header = request.headers.get('Range', None)
+    file_size = os.path.getsize(track.stored_filepath)
+    if range_header:
+        byte1, byte2 = 0, None
+        match = re.search(r'(\d+)-(\d*)', range_header)
+        groups = match.groups()
+        if groups[0]:
+            byte1 = int(groups[0])
+        if groups[1]:
+            byte2 = int(groups[1])
+        if byte2 is None:
+            byte2 = file_size - 1
+        length = byte2 - byte1 + 1
+        with open(track.stored_filepath, 'rb') as f:
+            f.seek(byte1)
+            data = f.read(length)
+        resp = make_response(data)
+        resp.headers.set('Content-Type', mime_type)
+        resp.headers.set('Content-Range', f'bytes {byte1}-{byte2}/{file_size}')
+        resp.headers.set('Accept-Ranges', 'bytes')
+        resp.headers.set('Content-Length', str(length))
+        return resp, 206
+    else:
+        return send_file(track.stored_filepath, mimetype=mime_type)
+
+@app.route('/track/<int:track_id>')
+def track_detail(track_id):
+    track = Track.query.get_or_404(track_id)
+    track.view_count = (track.view_count or 0) + 1
+    related_tracks = get_related_tracks(track)
+    comments = TrackComment.query.filter_by(track_id=track_id).order_by(TrackComment.timestamp.desc()).all()
+    artists = db.session.query(Artist).join(TrackArtist, TrackArtist.artist_id == Artist.id).filter(TrackArtist.track_id == track_id).all()
+    db.session.commit()
+    return render_template('track_detail.html', track=track, related_tracks=related_tracks, comments=comments, artists=artists)
+
+@app.route('/like_track/<int:track_id>', methods=['POST'])
+def like_track(track_id):
+    track = Track.query.get_or_404(track_id)
+    track.likes = (track.likes or 0) + 1
+    db.session.commit()
+    return jsonify({"success": True, "new_like_count": track.likes})
+
+@app.route('/add_track_comment/<int:track_id>', methods=['POST'])
+def add_track_comment(track_id):
+    track = Track.query.get_or_404(track_id)
+    author = request.form.get('author', '').strip()
+    content = request.form.get('content', '').strip()
+    if not author or not content:
+        return jsonify({"error": "Name and comment are required"}), 400
+    try:
+        comment = TrackComment(track_id=track_id, author=author, content=content, likes=0)
+        db.session.add(comment)
+        db.session.commit()
+        return jsonify({
+            "success": True,
+            "comment": {
+                "id": comment.id,
+                "author": comment.author,
+                "content": comment.content,
+                "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
+                "likes": comment.likes
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/like_track_comment/<int:comment_id>', methods=['POST'])
+def like_track_comment(comment_id):
+    comment = TrackComment.query.get_or_404(comment_id)
+    comment.likes = (comment.likes or 0) + 1
+    db.session.commit()
+    return jsonify({"success": True, "new_like_count": comment.likes})
+
+@app.route('/delete_track_comment/<int:comment_id>', methods=['POST'])
+def delete_track_comment(comment_id):
+    comment = TrackComment.query.get_or_404(comment_id)
+    try:
+        db.session.delete(comment)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/')
 def index():
@@ -1335,5 +1598,6 @@ def delete_playlist(playlist_id):
 
 if __name__ == '__main__':
     with app.app_context():
+        ensure_directories_exist()
         db.create_all()
     app.run("0.0.0.0", 5015, debug=True)

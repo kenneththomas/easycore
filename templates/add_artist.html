@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Add Artist</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>.container{max-width:700px;margin:20px auto;padding:0 12px}.form-group{margin:12px 0}</style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Add Artist</h2>
+      <form id="artistForm" enctype="multipart/form-data" method="post">
+        <div class="form-group">
+          <label>Name</label>
+          <input type="text" name="name" required />
+        </div>
+        <div class="form-group">
+          <label>Bio</label>
+          <textarea name="bio" rows="4"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Avatar (optional)</label>
+          <input type="file" name="avatar" accept="image/*" />
+        </div>
+        <button type="submit">Create</button>
+      </form>
+      <div id="result" style="margin-top:10px;"></div>
+    </div>
+
+    <script>
+      const form = document.getElementById('artistForm')
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const data = new FormData(form)
+        const res = await fetch('{{ url_for('add_artist') }}', { method: 'POST', body: data })
+        const json = await res.json()
+        const resDiv = document.getElementById('result')
+        if (json.success) {
+          window.location = '{{ url_for('artist_detail', artist_id=0) }}'.replace('0', json.artist_id)
+        } else {
+          resDiv.textContent = json.error || 'Error creating artist'
+        }
+      })
+    </script>
+  </body>
+ </html>
+
+

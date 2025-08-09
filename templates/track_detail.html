@@ -1,0 +1,193 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>{{ track.nickname or track.original_filepath }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+      .hero {
+        position: relative; height: 260px;
+        background: #111 center/cover no-repeat;
+        color: #fff; display:flex; align-items:flex-end;
+      }
+      .hero::after { content:''; position:absolute; inset:0; background: linear-gradient(180deg,rgba(0,0,0,0.0),rgba(0,0,0,0.6)); }
+      .hero-content { position: relative; padding: 16px; z-index: 1; }
+      .title { font-size: 24px; font-weight: 700; margin: 0 0 4px; }
+      .meta { color: #ddd; font-size: 12px; }
+      .container { max-width: 960px; margin: 0 auto; padding: 16px; }
+      .player { background: #fff; border:1px solid #eee; border-radius: 8px; padding: 12px; margin-top: -40px; position: relative; z-index: 2; }
+      .controls { display:flex; align-items:center; gap:10px; margin-bottom: 8px; }
+      .comments { margin-top: 16px; }
+      .comment { border-top: 1px solid #eee; padding: 10px 0; }
+      .related { margin-top: 24px; }
+      .button { padding: 6px 10px; border:1px solid #ccc; border-radius: 6px; background:#fafafa; cursor:pointer; }
+      #waveform { height: 120px; }
+      /* Dropdown menu for compact nav */
+      .dropdown { position: relative; display: inline-block; }
+      .dropbtn {
+        background: transparent;
+        color: white;
+        border: 1px solid rgba(255,255,255,0.25);
+        padding: 6px 10px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .dropdown-content {
+        display: none; position: absolute; right: 0; background-color: #fff; min-width: 200px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15); border-radius: 6px; overflow: hidden; z-index: 1001;
+      }
+      .dropdown-content a { color: #333; padding: 10px 12px; text-decoration: none; display: block; border-bottom: 1px solid #f0f0f0; }
+      .dropdown-content a:last-child { border-bottom: none; }
+      .dropdown:hover .dropdown-content { display: block; }
+      .nav-links .dropdown { margin-left: 0.25rem; }
+    </style>
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="nav-content">
+        <a href="{{ url_for('index') }}" class="nav-logo">breeztube</a>
+        <div class="nav-links">
+          <a href="{{ url_for('index') }}">Home</a>
+          <a href="{{ url_for('playlists') }}">Playlists</a>
+          <a href="{{ url_for('tracks_index') }}">Tracks</a>
+          <a href="{{ url_for('artists_index') }}">Artists</a>
+          <div class="dropdown">
+            <button class="dropbtn">Upload</button>
+            <div class="dropdown-content">
+              <a href="{{ url_for('add_video') }}">Add Video</a>
+              <a href="{{ url_for('add_multiple_videos') }}">Add Multiple Videos</a>
+              <a href="{{ url_for('bulk_upload') }}">Bulk Upload Videos</a>
+              <a href="{{ url_for('add_track') }}">Add Track</a>
+            </div>
+          </div>
+          <div class="dropdown">
+            <button class="dropbtn">Tools</button>
+            <div class="dropdown-content">
+              <a href="{{ url_for('extract_mp3') }}">Extract MP3</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+    <div class="hero" style="background-image:url('{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}')">
+      <div class="hero-content">
+        <h1 class="title">{{ track.nickname or track.original_filepath }}</h1>
+        <div class="meta">
+          {% if artists and artists|length %}
+            by
+            {% for a in artists %}
+              <a href="{{ url_for('artist_detail', artist_id=a.id) }}" style="color:#fff; text-decoration: underline;">{{ a.name }}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+            ·
+          {% endif %}
+          {{ track.tags }} · {{ track.view_count or 0 }} plays · {{ track.likes or 0 }} likes
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="player">
+        <div class="controls">
+          <button id="playPause" class="button">Play</button>
+          <button id="likeBtn" class="button">Like ({{ track.likes or 0 }})</button>
+        </div>
+        <div id="waveform"></div>
+      </div>
+
+      <div class="comments">
+        <h3>Comments</h3>
+        <form id="commentForm">
+          <input type="text" name="author" placeholder="Your name" required />
+          <input type="text" name="content" placeholder="Write a comment" required />
+          <button class="button" type="submit">Post</button>
+        </form>
+        <div id="commentList">
+          {% for c in comments %}
+            <div class="comment" data-id="{{ c.id }}">
+              <div><strong>{{ c.author }}</strong> <span style="color:#777; font-size:12px;">{{ c.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span></div>
+              <div>{{ c.content }}</div>
+              <button class="button like-comment">Like ({{ c.likes or 0 }})</button>
+              <button class="button delete-comment">Delete</button>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% if related_tracks %}
+      <div class="related">
+        <h3>Related Tracks</h3>
+        <ul>
+          {% for t in related_tracks %}
+            <li><a href="{{ url_for('track_detail', track_id=t.id) }}">{{ t.nickname or t.original_filepath }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+
+    <script>
+      const wavesurfer = WaveSurfer.create({
+        container: '#waveform',
+        waveColor: '#aaa',
+        progressColor: '#ff5500',
+        height: 120,
+        barWidth: 2,
+        barGap: 1,
+        cursorColor: '#333',
+      })
+
+      wavesurfer.load("{{ url_for('stream_track', track_id=track.id) }}")
+
+      const btn = document.getElementById('playPause')
+      btn.addEventListener('click', () => {
+        wavesurfer.playPause()
+        btn.textContent = wavesurfer.isPlaying() ? 'Pause' : 'Play'
+      })
+
+      document.getElementById('likeBtn').addEventListener('click', async (e) => {
+        const res = await fetch("{{ url_for('like_track', track_id=track.id) }}", { method: 'POST' })
+        const json = await res.json()
+        if (json.success) e.target.textContent = `Like (${json.new_like_count})`
+      })
+
+      // Comments
+      const form = document.getElementById('commentForm')
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const data = new FormData(form)
+        const res = await fetch("{{ url_for('add_track_comment', track_id=track.id) }}", { method: 'POST', body: data })
+        const json = await res.json()
+        if (json.success) {
+          const c = json.comment
+          const div = document.createElement('div')
+          div.className = 'comment'
+          div.dataset.id = c.id
+          div.innerHTML = `<div><strong>${c.author}</strong> <span style="color:#777; font-size:12px;">${c.timestamp}</span></div>
+                           <div>${c.content}</div>
+                           <button class="button like-comment">Like (${c.likes})</button>
+                           <button class="button delete-comment">Delete</button>`
+          document.getElementById('commentList').prepend(div)
+          form.reset()
+        }
+      })
+
+      document.getElementById('commentList').addEventListener('click', async (e) => {
+        const item = e.target.closest('.comment')
+        if (!item) return
+        const id = item.dataset.id
+        if (e.target.classList.contains('like-comment')) {
+          const res = await fetch(`{{ url_for('like_track_comment', comment_id=0) }}`.replace('0', id), { method: 'POST' })
+          const json = await res.json()
+          if (json.success) e.target.textContent = `Like (${json.new_like_count})`
+        }
+        if (e.target.classList.contains('delete-comment')) {
+          const res = await fetch(`{{ url_for('delete_track_comment', comment_id=0) }}`.replace('0', id), { method: 'POST' })
+          const json = await res.json()
+          if (json.success) item.remove()
+        }
+      })
+    </script>
+  </body>
+ </html>
+

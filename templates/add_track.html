@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Add Track</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+      .form-group { margin: 12px 0; }
+      .container { max-width: 700px; margin: 20px auto; }
+      .help { color: #777; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Upload Audio Track</h2>
+      <form id="trackForm" enctype="multipart/form-data" method="post">
+        <div class="form-group">
+          <label>Audio file (.mp3, .wav, .ogg, .flac, .m4a)</label>
+          <input type="file" name="file" accept="audio/*" required />
+        </div>
+        <div class="form-group">
+          <label>Background image (optional)</label>
+          <input type="file" name="background" accept="image/*" />
+          <div class="help">Shown behind the waveform, similar to SoundCloud covers.</div>
+        </div>
+        <div class="form-group">
+          <label>Title</label>
+          <input type="text" name="nickname" placeholder="Track title" />
+        </div>
+        <div class="form-group">
+          <label>Artist (optional)</label>
+          <input type="text" name="artist_name" placeholder="Artist name" />
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea name="description" rows="3" placeholder="Describe your track"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Tags (comma-separated)</label>
+          <input type="text" name="tags" placeholder="chill, lofi" />
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" name="stealth" /> Upload to stealth audio</label>
+        </div>
+        <button type="submit">Upload</button>
+      </form>
+      <div id="result" style="margin-top:16px;"></div>
+    </div>
+
+    <script>
+    const form = document.getElementById('trackForm');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = new FormData(form);
+      const res = await fetch('{{ url_for('add_track') }}', { method: 'POST', body: data });
+      const json = await res.json();
+      const result = document.getElementById('result');
+      if (json.success) {
+        result.innerHTML = `Uploaded! <a href="${'${'}{{ url_for('track_detail', track_id=0) }}${'}'}" onclick="event.preventDefault(); window.location='${'${'}'${'}'}'">`;
+        window.location = `{{ url_for('track_detail', track_id=0) }}`.replace('0', json.track_id);
+      } else {
+        result.textContent = json.error || 'Upload failed';
+      }
+    });
+    </script>
+  </body>
+ </html>
+

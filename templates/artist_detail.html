@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>{{ artist.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+      .container { max-width: 960px; margin: 20px auto; padding: 0 12px; }
+      .hero { display:flex; gap:16px; align-items:center; }
+      .avatar { width: 96px; height: 96px; border-radius: 50%; background:#f2f2f2 center/cover no-repeat; }
+      .section { margin-top: 20px; }
+      ul { padding-left: 16px; }
+      /* Dropdown menu for compact nav */
+      .dropdown { position: relative; display: inline-block; }
+      .dropbtn { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.25); padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+      .dropdown-content { display: none; position: absolute; right: 0; background-color: #fff; min-width: 200px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); border-radius: 6px; overflow: hidden; z-index: 1001; }
+      .dropdown-content a { color: #333; padding: 10px 12px; text-decoration: none; display: block; border-bottom: 1px solid #f0f0f0; }
+      .dropdown-content a:last-child { border-bottom: none; }
+      .dropdown:hover .dropdown-content { display: block; }
+      .nav-links .dropdown { margin-left: 0.25rem; }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="nav-content">
+        <a href="{{ url_for('index') }}" class="nav-logo">breeztube</a>
+        <div class="nav-links">
+          <a href="{{ url_for('index') }}">Home</a>
+          <a href="{{ url_for('playlists') }}">Playlists</a>
+          <a href="{{ url_for('tracks_index') }}">Tracks</a>
+          <a href="{{ url_for('artists_index') }}">Artists</a>
+          <div class="dropdown">
+            <button class="dropbtn">Upload</button>
+            <div class="dropdown-content">
+              <a href="{{ url_for('add_video') }}">Add Video</a>
+              <a href="{{ url_for('add_multiple_videos') }}">Add Multiple Videos</a>
+              <a href="{{ url_for('bulk_upload') }}">Bulk Upload Videos</a>
+              <a href="{{ url_for('add_track') }}">Add Track</a>
+            </div>
+          </div>
+          <div class="dropdown">
+            <button class="dropbtn">Tools</button>
+            <div class="dropdown-content">
+              <a href="{{ url_for('extract_mp3') }}">Extract MP3</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+    <div class="container">
+      <div class="hero">
+        <div class="avatar" style="background-image:url('{% if artist.avatar_path %}{{ url_for('static', filename=artist.avatar_path) }}{% endif %}')"></div>
+        <div>
+          <h2 style="margin:0;">{{ artist.name }}</h2>
+          {% if artist.bio %}<div>{{ artist.bio }}</div>{% endif %}
+        </div>
+      </div>
+
+      {% if tracks %}
+      <div class="section">
+        <h3>Tracks</h3>
+        <ul>
+          {% for t in tracks %}
+            <li><a href="{{ url_for('track_detail', track_id=t.id) }}">{{ t.nickname or t.original_filepath }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      {% if videos %}
+      <div class="section">
+        <h3>Videos</h3>
+        <ul>
+          {% for v in videos %}
+            <li><a href="{{ url_for('video_detail', video_id=v.id) }}">{{ v.nickname or v.original_filepath }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </body>
+ </html>
+
+

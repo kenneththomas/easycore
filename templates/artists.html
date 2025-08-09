@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Artists</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <style>
+      .container { max-width: 960px; margin: 20px auto; padding: 0 12px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+      .card { background:#fff; border:1px solid #eee; border-radius:8px; padding:12px; display:flex; gap:10px; align-items:center; text-decoration:none; color:inherit; }
+      .avatar { width: 56px; height: 56px; border-radius: 50%; background:#f2f2f2; background-size: cover; background-position: center; }
+      .name { font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+        <h2>Artists</h2>
+        <a class="button" href="{{ url_for('add_artist') }}">Add Artist</a>
+      </div>
+      <div class="grid">
+        {% for a in artists %}
+          <a class="card" href="{{ url_for('artist_detail', artist_id=a.id) }}">
+            <div class="avatar" style="background-image:url('{% if a.avatar_path %}{{ url_for('static', filename=a.avatar_path) }}{% endif %}')"></div>
+            <div>
+              <div class="name">{{ a.name }}</div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  </body>
+ </html>
+
+

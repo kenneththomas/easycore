@@ -5,6 +5,10 @@ instance/
 uploads/
 stealth_uploads/
 static/thumbnails/
+static/avatars/
+static/covers/
+uploads_audio/
+stealth_audio_uploads/
 
 # Database file
 *.db
