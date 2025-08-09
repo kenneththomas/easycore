@@ -70,7 +70,7 @@
         </div>
       </div>
     </nav>
-    <div class="hero" style="background-image:url('{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}')">
+    <div class="hero" {% if track.background_image_path %}style="background-image:url('{{ url_for('static', filename=track.background_image_path) }}')"{% endif %}>
       <div class="hero-content">
         <h1 class="title">{{ track.nickname or track.original_filepath }}</h1>
         <div class="meta">
@@ -97,9 +97,9 @@
 
       <div class="comments">
         <h3>Comments</h3>
-        <form id="commentForm">
-          <input type="text" name="author" placeholder="Your name" required />
-          <input type="text" name="content" placeholder="Write a comment" required />
+        <form id="commentForm" autocomplete="off">
+          <input type="text" name="author" placeholder="Your name" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" readonly />
+          <input type="text" name="content" placeholder="Write a comment" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" readonly />
           <button class="button" type="submit">Post</button>
         </form>
         <div id="commentList">
@@ -154,6 +154,14 @@
         const res = await fetch("{{ url_for('like_track', track_id=track.id) }}", { method: 'POST' })
         const json = await res.json()
         if (json.success) e.target.textContent = `Like (${json.new_like_count})`
+      })
+
+      // Disable browser autofill by making fields readonly until user interacts
+      document.querySelectorAll('#commentForm input[type="text"]').forEach((el) => {
+        const unlock = () => el.removeAttribute('readonly')
+        el.addEventListener('focus', unlock, { once: true })
+        el.addEventListener('mousedown', unlock, { once: true })
+        el.addEventListener('touchstart', unlock, { once: true })
       })
 
       // Comments
