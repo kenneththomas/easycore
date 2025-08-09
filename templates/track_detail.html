@@ -105,7 +105,12 @@
         <div id="commentList">
           {% for c in comments %}
             <div class="comment" data-id="{{ c.id }}">
-              <div><strong><a href="{{ url_for('author_profile', slug=c.author|slugify) }}">{{ c.author }}</a></strong> <span style="color:#777; font-size:12px;">{{ c.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span></div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                {% set av = author_avatars.get(c.author|slugify) %}
+                <img alt="avatar" src="{% if av %}{{ url_for('static', filename=av) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;" />
+                <strong><a href="{{ url_for('author_profile', slug=c.author|slugify) }}">{{ c.author }}</a></strong>
+                <span style="color:#777; font-size:12px;">{{ c.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span>
+              </div>
               <div>{{ c.content }}</div>
               <button class="button like-comment">Like ({{ c.likes or 0 }})</button>
               <button class="button delete-comment">Delete</button>

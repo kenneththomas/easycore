@@ -14,7 +14,7 @@ import string
 import unicodedata
 
 # Import models
-from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment, Track, TrackComment, Artist, TrackArtist, VideoArtist
+from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment, Track, TrackComment, Artist, TrackArtist, VideoArtist, AuthorProfile
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
@@ -149,12 +149,68 @@ def author_profile(slug: str):
         'track': sum(1 for i in items if i['kind'] == 'track'),
     }
 
+    # Fetch or prepare profile record
+    author_record = AuthorProfile.query.filter_by(slug=slug).first()
+
     return render_template('author_profile.html',
                            slug=slug,
                            author=author_display,
                            total_comments=total_comments,
                            kind_counts=kind_counts,
-                           items=items)
+                           items=items,
+                           author_profile=author_record)
+
+@app.route('/author/<slug>/avatar', methods=['POST'])
+def upload_author_avatar(slug: str):
+    avatar = request.files.get('avatar')
+    if not avatar or not avatar.filename:
+        return redirect(url_for('author_profile', slug=slug))
+
+    try:
+        ext = os.path.splitext(avatar.filename)[1].lower()
+        if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+            return redirect(url_for('author_profile', slug=slug))
+
+        filename = secure_filename(f"author_{slug}_{uuid.uuid4().hex}{ext}")
+        abs_path = os.path.join(app.config['AVATAR_FOLDER'], filename)
+        os.makedirs(app.config['AVATAR_FOLDER'], exist_ok=True)
+        avatar.save(abs_path)
+        rel_path = os.path.join('avatars', filename).replace('\\', '/')
+
+        profile = AuthorProfile.query.filter_by(slug=slug).first()
+        if not profile:
+            profile = AuthorProfile(slug=slug, display_name=None, avatar_path=rel_path)
+            db.session.add(profile)
+        else:
+            profile.avatar_path = rel_path
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    return redirect(url_for('author_profile', slug=slug))
+
+@app.route('/artist/<int:artist_id>/avatar', methods=['POST'])
+def upload_artist_avatar(artist_id: int):
+    artist = Artist.query.get_or_404(artist_id)
+    avatar = request.files.get('avatar')
+    if not avatar or not avatar.filename:
+        return redirect(url_for('artist_detail', artist_id=artist_id))
+
+    try:
+        ext = os.path.splitext(avatar.filename)[1].lower()
+        if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+            return redirect(url_for('artist_detail', artist_id=artist_id))
+
+        filename = secure_filename(f"artist_{artist_id}_{uuid.uuid4().hex}{ext}")
+        abs_path = os.path.join(app.config['AVATAR_FOLDER'], filename)
+        os.makedirs(app.config['AVATAR_FOLDER'], exist_ok=True)
+        avatar.save(abs_path)
+        rel_path = os.path.join('avatars', filename).replace('\\', '/')
+
+        artist.avatar_path = rel_path
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    return redirect(url_for('artist_detail', artist_id=artist_id))
 
 def ensure_directories_exist():
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -393,9 +449,16 @@ def track_detail(track_id):
     track.view_count = (track.view_count or 0) + 1
     related_tracks = get_related_tracks(track)
     comments = TrackComment.query.filter_by(track_id=track_id).order_by(TrackComment.timestamp.desc()).all()
+    author_slugs = {slugify_author(c.author) for c in comments}
+    avatars = {}
+    if author_slugs:
+        profiles = AuthorProfile.query.filter(AuthorProfile.slug.in_(author_slugs)).all()
+        for p in profiles:
+            if p.avatar_path:
+                avatars[p.slug] = p.avatar_path
     artists = db.session.query(Artist).join(TrackArtist, TrackArtist.artist_id == Artist.id).filter(TrackArtist.track_id == track_id).all()
     db.session.commit()
-    return render_template('track_detail.html', track=track, related_tracks=related_tracks, comments=comments, artists=artists)
+    return render_template('track_detail.html', track=track, related_tracks=related_tracks, comments=comments, artists=artists, author_avatars=avatars)
 
 @app.route('/like_track/<int:track_id>', methods=['POST'])
 def like_track(track_id):
@@ -415,12 +478,17 @@ def add_track_comment(track_id):
         comment = TrackComment(track_id=track_id, author=author, content=content, likes=0)
         db.session.add(comment)
         db.session.commit()
+        author_slug = slugify_author(comment.author)
+        profile = AuthorProfile.query.filter_by(slug=author_slug).first()
+        avatar_rel = profile.avatar_path if profile and profile.avatar_path else None
+
         return jsonify({
             "success": True,
             "comment": {
                 "id": comment.id,
                 "author": comment.author,
-                "author_slug": slugify_author(comment.author),
+                "author_slug": author_slug,
+                "author_avatar": avatar_rel,
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes
@@ -718,8 +786,16 @@ def video_detail(video_id):
     
     related_videos = get_related_videos(video)
     comments = Comment.query.filter_by(video_id=video_id).order_by(Comment.timestamp.desc()).all()
+    # Build author avatar mapping for template
+    author_slugs = {slugify_author(c.author) for c in comments}
+    avatars = {}
+    if author_slugs:
+        profiles = AuthorProfile.query.filter(AuthorProfile.slug.in_(author_slugs)).all()
+        for p in profiles:
+            if p.avatar_path:
+                avatars[p.slug] = p.avatar_path
     db.session.commit()
-    return render_template('video_detail.html', video=video, related_videos=related_videos, comments=comments)
+    return render_template('video_detail.html', video=video, related_videos=related_videos, comments=comments, author_avatars=avatars)
 
 @app.route('/edit_description/<int:video_id>', methods=['POST'])
 def edit_description(video_id):
@@ -1674,11 +1750,18 @@ def add_tag_comment(tag):
         db.session.add(comment)
         db.session.commit()
         
+        # Find avatar for this author
+        author_slug = slugify_author(comment.author)
+        profile = AuthorProfile.query.filter_by(slug=author_slug).first()
+        avatar_rel = profile.avatar_path if profile and profile.avatar_path else None
+
         return jsonify({
             "success": True,
             "comment": {
                 "id": comment.id,
                 "author": comment.author,
+                "author_slug": author_slug,
+                "author_avatar": avatar_rel,
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes

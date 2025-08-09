@@ -120,6 +120,8 @@
                     {% for comment in comments %}
                         <div class="comment">
                             <div class="comment-header">
+                                {% set av = author_avatars.get(comment.author|slugify) %}
+                                <img alt="avatar" class="comment-avatar" src="{% if av %}{{ url_for('static', filename=av) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}">
                                 <strong class="comment-author"><a href="{{ url_for('author_profile', slug=comment.author|slugify) }}">{{ comment.author }}</a></strong>
                                 <span class="comment-timestamp">{{ comment.timestamp.strftime("%m/%d/%Y %I:%M %p") }}</span>
                             </div>
@@ -488,6 +490,8 @@
     .tag-pill:hover {
         background-color: #d0e3fd;
     }
+    .comment-header { display:flex; align-items:center; gap:8px; }
+    .comment-avatar { width:28px; height:28px; border-radius:50%; object-fit:cover; }
     </style>
 </body>
 </html>

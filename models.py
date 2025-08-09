@@ -105,3 +105,12 @@ class VideoArtist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     video_id = db.Column(db.Integer, db.ForeignKey('video.id'), nullable=False)
     artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), nullable=False)
+
+
+class AuthorProfile(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(150), unique=True, nullable=False)
+    display_name = db.Column(db.String(150), nullable=True)
+    avatar_path = db.Column(db.String(255), nullable=True)
+    bio = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

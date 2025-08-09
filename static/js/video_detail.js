@@ -221,8 +221,10 @@ async function submitComment(videoId) {
             const commentsList = document.querySelector('.comments-list');
             const newComment = document.createElement('div');
             newComment.className = 'comment';
+            const avatarSrc = data.comment.author_avatar ? `/static/${data.comment.author_avatar}` : `/static/avatars/default.png`;
             newComment.innerHTML = `
                 <div class="comment-header">
+                    <img alt="avatar" class="comment-avatar" src="${avatarSrc}">
                     <strong class="comment-author"><a href="/author/${data.comment.author_slug}">${data.comment.author}</a></strong>
                     <span class="comment-timestamp">${data.comment.timestamp}</span>
                 </div>

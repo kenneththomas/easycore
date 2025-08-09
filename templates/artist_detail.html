@@ -53,6 +53,11 @@
         <div>
           <h2 style="margin:0;">{{ artist.name }}</h2>
           {% if artist.bio %}<div>{{ artist.bio }}</div>{% endif %}
+          <form action="{{ url_for('upload_artist_avatar', artist_id=artist.id) }}" method="post" enctype="multipart/form-data" style="margin-top:8px;">
+            <label>Upload Artist Avatar:</label>
+            <input type="file" name="avatar" accept="image/*" />
+            <button class="button" type="submit">Upload</button>
+          </form>
         </div>
       </div>
 

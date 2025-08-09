@@ -34,7 +34,7 @@
 
   <div class="container">
     <div class="profile-header">
-      <div class="avatar">{{ author[:1].upper() }}</div>
+      <div class="avatar" style="background-image:url('{% if author_profile and author_profile.avatar_path %}{{ url_for('static', filename=author_profile.avatar_path) }}{% endif %}'); background-size:cover; background-position:center;">{% if not (author_profile and author_profile.avatar_path) %}{{ author[:1].upper() }}{% endif %}</div>
       <div>
         <h1 style="margin:0;">{{ author }}</h1>
         <div class="counts">{{ total_comments }} comments
@@ -45,6 +45,12 @@
         </div>
       </div>
     </div>
+
+    <form action="{{ url_for('upload_author_avatar', slug=slug) }}" method="post" enctype="multipart/form-data" style="margin-top:10px;">
+      <label>Upload Author Avatar:</label>
+      <input type="file" name="avatar" accept="image/*" />
+      <button class="button" type="submit">Upload</button>
+    </form>
 
     <div class="feed">
       {% for i in items %}
