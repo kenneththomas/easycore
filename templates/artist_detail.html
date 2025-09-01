@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ artist.name }} - Artist Profile</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
     <style>
       /* Enhanced Artist Detail Styles */
       .container { 
@@ -21,6 +22,179 @@
         margin-bottom: 40px;
         position: relative;
         overflow: hidden;
+      }
+      
+      /* Music Player Styles */
+      .music-player {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        color: white;
+        padding: 16px 20px;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+        z-index: 1000;
+        transform: translateY(100%);
+        transition: transform 0.3s ease;
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255,255,255,0.1);
+      }
+      
+      .music-player.active {
+        transform: translateY(0);
+      }
+      
+      .player-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+      
+      .player-title {
+        font-weight: 600;
+        font-size: 1rem;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .player-title .artist-name {
+        opacity: 0.8;
+        font-size: 0.9rem;
+      }
+      
+      .player-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: background 0.3s ease;
+      }
+      
+      .player-close:hover {
+        background: rgba(255,255,255,0.1);
+      }
+      
+      .player-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      
+      .player-btn {
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+      }
+      
+      .player-btn:hover {
+        background: rgba(255,255,255,0.3);
+        transform: translateY(-1px);
+      }
+      
+      .player-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+      .player-progress {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+        opacity: 0.8;
+      }
+      
+      .progress-bar {
+        flex: 1;
+        height: 4px;
+        background: rgba(255,255,255,0.2);
+        border-radius: 2px;
+        overflow: hidden;
+        cursor: pointer;
+      }
+      
+      .progress-fill {
+        height: 100%;
+        background: #667eea;
+        width: 0%;
+        transition: width 0.1s ease;
+      }
+      
+      .player-waveform {
+        height: 60px;
+        margin-bottom: 8px;
+      }
+      
+      .player-track-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.8rem;
+        opacity: 0.8;
+      }
+      
+      .track-number {
+        font-weight: 600;
+      }
+      
+      .track-duration {
+        font-family: monospace;
+      }
+      
+      /* Play Button on Track Cards */
+      .play-track-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        transition: all 0.3s ease;
+        opacity: 0;
+        z-index: 10;
+      }
+      
+      .media-card:hover .play-track-btn {
+        opacity: 1;
+      }
+      
+      .play-track-btn:hover {
+        background: rgba(0,0,0,0.9);
+        transform: scale(1.1);
+      }
+      
+      .play-track-btn.playing {
+        background: #667eea;
+        animation: pulse 2s infinite;
+      }
+      
+      @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
       }
       
       /* Modal/Lightbox Styles */
@@ -267,6 +441,7 @@
         text-decoration: none;
         color: inherit;
         border: 1px solid #f0f0f0;
+        position: relative;
       }
       
       .media-card:hover {
@@ -440,6 +615,20 @@
         .related-artists {
           grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
         }
+        
+        .music-player {
+          padding: 12px 16px;
+        }
+        
+        .player-controls {
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        
+        .player-btn {
+          padding: 6px 10px;
+          font-size: 0.8rem;
+        }
       }
       
       @media (max-width: 480px) {
@@ -552,6 +741,9 @@
               {% if tracks or videos %}
                 <a href="#content" class="btn-primary">View All Content</a>
               {% endif %}
+              {% if tracks %}
+                <button class="btn-primary" onclick="playAllTracks()">🎵 Play All Tracks</button>
+              {% endif %}
               <a href="{{ url_for('add_track') }}" class="btn-primary">Add Track</a>
               <a href="{{ url_for('add_video') }}" class="btn-primary">Add Video</a>
             </div>
@@ -580,8 +772,12 @@
             </div>
             <div class="media-grid">
               {% for track in tracks %}
-              <a href="{{ url_for('track_detail', track_id=track.id) }}" class="media-card">
-                <div class="media-thumbnail" style="background-image:url('{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}')"></div>
+              <div class="media-card">
+                <div class="media-thumbnail" style="background-image:url('{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}')">
+                  <button class="play-track-btn" data-track-id="{{ track.id }}" data-track-title="{{ track.nickname or track.original_filepath }}" data-track-url="{{ url_for('stream_track', track_id=track.id) }}">
+                    ▶
+                  </button>
+                </div>
                 <div class="media-info">
                   <div class="media-title">{{ track.nickname or track.original_filepath }}</div>
                   <div class="media-meta">
@@ -595,7 +791,8 @@
                     {% endif %}
                   </div>
                 </div>
-              </a>
+                <a href="{{ url_for('track_detail', track_id=track.id) }}" style="position: absolute; inset: 0; z-index: 5;"></a>
+              </div>
               {% endfor %}
             </div>
           </div>
@@ -704,6 +901,40 @@
       </div>
     </div>
 
+    <!-- Music Player -->
+    <div class="music-player" id="musicPlayer">
+      <div class="player-header">
+        <h3 class="player-title">
+          🎵 <span id="currentTrackTitle">No track selected</span>
+          <span class="artist-name">by {{ artist.name }}</span>
+        </h3>
+        <button class="player-close" onclick="closeMusicPlayer()">&times;</button>
+      </div>
+      
+      <div class="player-controls">
+        <button class="player-btn" id="prevBtn" onclick="playPrevious()">⏮</button>
+        <button class="player-btn" id="playPauseBtn" onclick="togglePlayPause()">▶</button>
+        <button class="player-btn" id="nextBtn" onclick="playNext()">⏭</button>
+        <button class="player-btn" id="shuffleBtn" onclick="toggleShuffle()">🔀</button>
+        <button class="player-btn" id="repeatBtn" onclick="toggleRepeat()">🔁</button>
+      </div>
+      
+      <div class="player-waveform" id="waveform"></div>
+      
+      <div class="player-progress">
+        <span id="currentTime">0:00</span>
+        <div class="progress-bar" onclick="seekTo(event)">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <span id="totalTime">0:00</span>
+      </div>
+      
+      <div class="player-track-info">
+        <span class="track-number" id="trackNumber">0 / 0</span>
+        <span class="track-duration" id="trackDuration">0:00</span>
+      </div>
+    </div>
+
     <!-- Avatar Modal -->
     <div id="avatarModal" class="modal">
       <span class="close-modal" onclick="closeAvatarModal()">&times;</span>
@@ -713,6 +944,286 @@
     </div>
 
     <script>
+      // Music Player Variables
+      let wavesurfer = null;
+      let currentTrackIndex = 0;
+      let isPlaying = false;
+      let isShuffled = false;
+      let repeatMode = 'none'; // none, one, all
+      let originalTrackOrder = [];
+      let shuffledTrackOrder = [];
+      
+      // Track data from server
+      const tracks = [
+        {% for track in tracks %}
+        {
+          id: {{ track.id }},
+          title: "{{ track.nickname or track.original_filepath }}",
+          url: "{{ url_for('stream_track', track_id=track.id) }}",
+          backgroundImage: "{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ];
+      
+      // Initialize music player
+      function initMusicPlayer() {
+        if (tracks.length === 0) return;
+        
+        // Initialize WaveSurfer
+        wavesurfer = WaveSurfer.create({
+          container: '#waveform',
+          waveColor: 'rgba(255,255,255,0.3)',
+          progressColor: '#667eea',
+          height: 60,
+          barWidth: 2,
+          barGap: 1,
+          cursorColor: 'rgba(255,255,255,0.5)',
+          responsive: true
+        });
+        
+        // Set up event listeners
+        wavesurfer.on('ready', () => {
+          updateTrackInfo();
+          updatePlayPauseButton();
+        });
+        
+        wavesurfer.on('audioprocess', () => {
+          updateProgress();
+        });
+        
+        wavesurfer.on('finish', () => {
+          handleTrackEnd();
+        });
+        
+        // Initialize track order
+        originalTrackOrder = [...Array(tracks.length).keys()];
+        shuffledTrackOrder = [...originalTrackOrder];
+        
+        // Load first track
+        loadTrack(0);
+      }
+      
+      // Load a specific track
+      function loadTrack(index) {
+        if (index < 0 || index >= tracks.length) return;
+        
+        currentTrackIndex = index;
+        const track = tracks[index];
+        
+        // Update UI
+        document.getElementById('currentTrackTitle').textContent = track.title;
+        document.getElementById('trackNumber').textContent = `${index + 1} / ${tracks.length}`;
+        
+        // Load audio
+        wavesurfer.load(track.url);
+        
+        // Update play buttons
+        updatePlayButtons();
+        
+        // Increment view count
+        fetch(`/increment_track_view/${track.id}`, { method: 'POST' })
+          .catch(err => console.log('Could not increment view count'));
+      }
+      
+      // Play/Pause toggle
+      function togglePlayPause() {
+        if (!wavesurfer) return;
+        
+        wavesurfer.playPause();
+        updatePlayPauseButton();
+      }
+      
+      // Update play/pause button
+      function updatePlayPauseButton() {
+        const btn = document.getElementById('playPauseBtn');
+        if (wavesurfer && wavesurfer.isPlaying()) {
+          btn.textContent = '⏸';
+          isPlaying = true;
+        } else {
+          btn.textContent = '▶';
+          isPlaying = false;
+        }
+      }
+      
+      // Play next track
+      function playNext() {
+        if (tracks.length === 0) return;
+        
+        let nextIndex = currentTrackIndex + 1;
+        if (nextIndex >= tracks.length) {
+          if (repeatMode === 'all') {
+            nextIndex = 0;
+          } else {
+            return; // End of playlist
+          }
+        }
+        
+        loadTrack(nextIndex);
+        if (isPlaying) {
+          wavesurfer.play();
+        }
+      }
+      
+      // Play previous track
+      function playPrevious() {
+        if (tracks.length === 0) return;
+        
+        let prevIndex = currentTrackIndex - 1;
+        if (prevIndex < 0) {
+          if (repeatMode === 'all') {
+            prevIndex = tracks.length - 1;
+          } else {
+            return; // Beginning of playlist
+          }
+        }
+        
+        loadTrack(prevIndex);
+        if (isPlaying) {
+          wavesurfer.play();
+        }
+      }
+      
+      // Handle track end
+      function handleTrackEnd() {
+        if (repeatMode === 'one') {
+          wavesurfer.play();
+        } else {
+          playNext();
+        }
+      }
+      
+      // Toggle shuffle
+      function toggleShuffle() {
+        isShuffled = !isShuffled;
+        const btn = document.getElementById('shuffleBtn');
+        
+        if (isShuffled) {
+          btn.textContent = '🔀';
+          btn.style.background = '#667eea';
+          // Create shuffled order
+          shuffledTrackOrder = [...originalTrackOrder].sort(() => Math.random() - 0.5);
+        } else {
+          btn.textContent = '🔀';
+          btn.style.background = 'rgba(255,255,255,0.2)';
+          // Restore original order
+          shuffledTrackOrder = [...originalTrackOrder];
+        }
+      }
+      
+      // Toggle repeat
+      function toggleRepeat() {
+        const btn = document.getElementById('repeatBtn');
+        
+        switch (repeatMode) {
+          case 'none':
+            repeatMode = 'all';
+            btn.textContent = '🔁';
+            btn.style.background = '#667eea';
+            break;
+          case 'all':
+            repeatMode = 'one';
+            btn.textContent = '🔂';
+            btn.style.background = '#667eea';
+            break;
+          case 'one':
+            repeatMode = 'none';
+            btn.textContent = '🔁';
+            btn.style.background = 'rgba(255,255,255,0.2)';
+            break;
+        }
+      }
+      
+      // Update progress bar
+      function updateProgress() {
+        if (!wavesurfer) return;
+        
+        const currentTime = wavesurfer.getCurrentTime();
+        const duration = wavesurfer.getDuration();
+        
+        if (duration > 0) {
+          const progress = (currentTime / duration) * 100;
+          document.getElementById('progressFill').style.width = progress + '%';
+          
+          document.getElementById('currentTime').textContent = formatTime(currentTime);
+          document.getElementById('totalTime').textContent = formatTime(duration);
+        }
+      }
+      
+      // Update track info
+      function updateTrackInfo() {
+        if (!wavesurfer) return;
+        
+        const duration = wavesurfer.getDuration();
+        document.getElementById('trackDuration').textContent = formatTime(duration);
+      }
+      
+      // Format time as MM:SS
+      function formatTime(seconds) {
+        if (isNaN(seconds)) return '0:00';
+        
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+      }
+      
+      // Seek to position in track
+      function seekTo(event) {
+        if (!wavesurfer) return;
+        
+        const progressBar = event.currentTarget;
+        const rect = progressBar.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const progressBarWidth = rect.width;
+        const seekPercent = clickX / progressBarWidth;
+        
+        const duration = wavesurfer.getDuration();
+        const seekTime = seekPercent * duration;
+        
+        wavesurfer.setTime(seekTime);
+      }
+      
+      // Update play buttons on track cards
+      function updatePlayButtons() {
+        document.querySelectorAll('.play-track-btn').forEach((btn, index) => {
+          btn.classList.remove('playing');
+          if (index === currentTrackIndex) {
+            btn.classList.add('playing');
+          }
+        });
+      }
+      
+      // Play all tracks
+      function playAllTracks() {
+        if (tracks.length === 0) return;
+        
+        showMusicPlayer();
+        loadTrack(0);
+        wavesurfer.play();
+      }
+      
+      // Play specific track
+      function playTrack(trackId) {
+        const trackIndex = tracks.findIndex(t => t.id === trackId);
+        if (trackIndex === -1) return;
+        
+        showMusicPlayer();
+        loadTrack(trackIndex);
+        wavesurfer.play();
+      }
+      
+      // Show music player
+      function showMusicPlayer() {
+        document.getElementById('musicPlayer').classList.add('active');
+      }
+      
+      // Close music player
+      function closeMusicPlayer() {
+        document.getElementById('musicPlayer').classList.remove('active');
+        if (wavesurfer) {
+          wavesurfer.pause();
+        }
+      }
+      
       // Avatar Modal Functions
       function openAvatarModal(imageSrc) {
         if (imageSrc && imageSrc.trim() !== '') {
@@ -727,8 +1238,14 @@
         document.body.style.overflow = 'auto'; // Restore scrolling
       }
       
-      // Add click event to avatar
+      // Event Listeners
       document.addEventListener('DOMContentLoaded', function() {
+        // Initialize music player if tracks exist
+        if (tracks.length > 0) {
+          initMusicPlayer();
+        }
+        
+        // Add click event to avatar
         const avatar = document.querySelector('.clickable-avatar');
         if (avatar) {
           avatar.addEventListener('click', function() {
@@ -738,6 +1255,16 @@
             }
           });
         }
+        
+        // Add click events to play buttons
+        document.querySelectorAll('.play-track-btn').forEach(btn => {
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const trackId = parseInt(this.getAttribute('data-track-id'));
+            playTrack(trackId);
+          });
+        });
       });
       
       // Close modal when clicking outside the image

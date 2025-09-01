@@ -489,6 +489,16 @@ def like_track(track_id):
     db.session.commit()
     return jsonify({"success": True, "new_like_count": track.likes})
 
+@app.route('/increment_track_view/<int:track_id>', methods=['POST'])
+def increment_track_view(track_id):
+    track = Track.query.get_or_404(track_id)
+    if track.view_count is None:
+        track.view_count = 1
+    else:
+        track.view_count += 1
+    db.session.commit()
+    return jsonify({"success": True, "new_view_count": track.view_count})
+
 @app.route('/add_track_comment/<int:track_id>', methods=['POST'])
 def add_track_comment(track_id):
     track = Track.query.get_or_404(track_id)
