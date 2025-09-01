@@ -23,6 +23,71 @@
         overflow: hidden;
       }
       
+      /* Modal/Lightbox Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.9);
+        backdrop-filter: blur(5px);
+      }
+      
+      .modal-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        max-width: 90%;
+        max-height: 90%;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      }
+      
+      .modal-image {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      
+      .close-modal {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        color: #f1f1f1;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+        z-index: 2001;
+        background: rgba(0,0,0,0.5);
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+      }
+      
+      .close-modal:hover {
+        background: rgba(0,0,0,0.8);
+        transform: scale(1.1);
+      }
+      
+      .clickable-avatar {
+        cursor: pointer;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      
+      .clickable-avatar:hover {
+        transform: scale(1.05);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+      }
+      
       .hero-section::before {
         content: '';
         position: absolute;
@@ -457,7 +522,7 @@
     <section class="hero-section">
       <div class="container">
         <div class="hero-content">
-          <div class="hero-avatar" style="background-image:url('{% if artist.avatar_path %}{{ url_for('static', filename=artist.avatar_path) }}{% endif %}')"></div>
+          <div class="hero-avatar clickable-avatar" style="background-image:url('{% if artist.avatar_path %}{{ url_for('static', filename=artist.avatar_path) }}{% endif %}')" data-avatar-url="{% if artist.avatar_path %}{{ url_for('static', filename=artist.avatar_path) }}{% endif %}"></div>
           <div class="hero-info">
             <h1>{{ artist.name }}</h1>
             {% if artist.bio %}
@@ -639,7 +704,56 @@
       </div>
     </div>
 
+    <!-- Avatar Modal -->
+    <div id="avatarModal" class="modal">
+      <span class="close-modal" onclick="closeAvatarModal()">&times;</span>
+      <div class="modal-content">
+        <img id="modalAvatarImage" class="modal-image" src="" alt="Artist Avatar">
+      </div>
+    </div>
+
     <script>
+      // Avatar Modal Functions
+      function openAvatarModal(imageSrc) {
+        if (imageSrc && imageSrc.trim() !== '') {
+          document.getElementById('modalAvatarImage').src = imageSrc;
+          document.getElementById('avatarModal').style.display = 'block';
+          document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+      }
+      
+      function closeAvatarModal() {
+        document.getElementById('avatarModal').style.display = 'none';
+        document.body.style.overflow = 'auto'; // Restore scrolling
+      }
+      
+      // Add click event to avatar
+      document.addEventListener('DOMContentLoaded', function() {
+        const avatar = document.querySelector('.clickable-avatar');
+        if (avatar) {
+          avatar.addEventListener('click', function() {
+            const avatarUrl = this.getAttribute('data-avatar-url');
+            if (avatarUrl && avatarUrl.trim() !== '') {
+              openAvatarModal(avatarUrl);
+            }
+          });
+        }
+      });
+      
+      // Close modal when clicking outside the image
+      document.getElementById('avatarModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          closeAvatarModal();
+        }
+      });
+      
+      // Close modal with Escape key
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          closeAvatarModal();
+        }
+      });
+
       // Smooth scrolling for anchor links
       document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
