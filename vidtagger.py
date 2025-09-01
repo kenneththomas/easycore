@@ -293,7 +293,29 @@ def artist_detail(artist_id):
     artist = Artist.query.get_or_404(artist_id)
     tracks = db.session.query(Track).join(TrackArtist, TrackArtist.track_id == Track.id).filter(TrackArtist.artist_id == artist_id).order_by(desc(Track.id)).all()
     videos = db.session.query(Video).join(VideoArtist, VideoArtist.video_id == Video.id).filter(VideoArtist.artist_id == artist_id).order_by(desc(Video.id)).all()
-    return render_template('artist_detail.html', artist=artist, tracks=tracks, videos=videos)
+    
+    # Calculate artist statistics
+    total_tracks = len(tracks)
+    total_videos = len(videos)
+    total_plays = sum((t.view_count or 0) for t in tracks) + sum((v.view_count or 0) for v in videos)
+    total_likes = sum((t.likes or 0) for t in tracks) + sum((v.likes or 0) for v in videos)
+    
+    # Get playlists that contain this artist's content (simplified)
+    artist_playlists = []
+    
+    # Get related artists (simplified approach - just get other artists)
+    related_artists = Artist.query.filter(Artist.id != artist_id).limit(6).all()
+    
+    return render_template('artist_detail.html', 
+                         artist=artist, 
+                         tracks=tracks, 
+                         videos=videos,
+                         total_tracks=total_tracks,
+                         total_videos=total_videos,
+                         total_plays=total_plays,
+                         total_likes=total_likes,
+                         artist_playlists=artist_playlists,
+                         related_artists=related_artists)
 
 @app.route('/add_artist', methods=['GET', 'POST'])
 def add_artist():
