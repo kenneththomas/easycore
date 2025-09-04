@@ -16,6 +16,9 @@ import unicodedata
 # Import models
 from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment, Track, TrackComment, Artist, TrackArtist, VideoArtist, AuthorProfile
 
+# Import blueprints
+from routes import video_bp, playlist_bp, comment_bp, filter_bp
+
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
@@ -27,6 +30,12 @@ app.config['AVATAR_FOLDER'] = os.path.join(app.static_folder, 'avatars')
 
 # Initialize the db with this app
 db.init_app(app)
+
+# Register blueprints
+app.register_blueprint(video_bp, url_prefix='/video')
+app.register_blueprint(playlist_bp, url_prefix='/playlist')
+app.register_blueprint(comment_bp, url_prefix='/comment')
+app.register_blueprint(filter_bp, url_prefix='/filter')
 
 def slugify_author(author_name: str) -> str:
     """Create a URL-safe slug from an author name.
@@ -82,7 +91,7 @@ def author_profile(slug: str):
                     'timestamp': c.timestamp,
                     'likes': c.likes or 0,
                     'context_title': (video.nickname or video.original_filepath) if video else f"Video {c.video_id}",
-                    'context_url': url_for('video_detail', video_id=c.video_id)
+                    'context_url': url_for('video.video_detail', video_id=c.video_id)
                 })
 
     # Playlist comments
@@ -575,112 +584,7 @@ def index():
                          tag=None,
                          sort_by=sort_by)
 
-@app.route('/add', methods=['GET', 'POST'])
-def add_video():
-    if request.method == 'POST':
-        file = request.files.get('file')
-        nickname = request.form.get('nickname')
-        description = request.form.get('description')
-        tags = request.form.get('tags')
-        stealth = request.form.get('stealth') == 'on'
-        
-        if not nickname and tags:
-            nickname = ' '.join(tag.strip() for tag in tags.split(','))
-        
-        if not file:
-            return jsonify({"error": "No file provided"}), 400
-        
-        original_filepath = file.filename
-        original_extension = os.path.splitext(original_filepath)[1]
-        
-        if nickname:
-            base_filename = secure_filename(nickname + original_extension)
-        else:
-            base_filename = secure_filename(original_filepath)
-        
-        upload_folder = app.config['STEALTH_UPLOAD_FOLDER'] if stealth else app.config['UPLOAD_FOLDER']
-        new_filename, stored_filepath = generate_unique_filename(base_filename, upload_folder)
-        
-        try:
-            os.makedirs(upload_folder, exist_ok=True)
-            file.save(stored_filepath)
-            
-            # Convert WebM to MP4 if necessary
-            if original_extension == '.webm':
-                stored_filepath = convert_webm_to_mp4(stored_filepath)
-                new_filename = os.path.basename(stored_filepath)
-            
-            # Generate thumbnail
-            thumbnail_filename = f"thumbnail_{os.path.splitext(new_filename)[0]}.jpg"
-            thumbnails_dir = os.path.join(app.static_folder, 'thumbnails')
-            os.makedirs(thumbnails_dir, exist_ok=True)
-            thumbnail_path = os.path.join(thumbnails_dir, thumbnail_filename)
-            
-            # Get video duration more robustly
-            probe = ffmpeg.probe(stored_filepath)
-            duration = None
-            # Try different methods to get duration
-            for stream in probe['streams']:
-                if 'duration' in stream:
-                    duration = float(stream['duration'])
-                    break
-            
-            # If duration not found in streams, try format
-            if duration is None and 'format' in probe and 'duration' in probe['format']:
-                duration = float(probe['format']['duration'])
-            
-            # If still no duration, use a default timestamp
-            if duration is None:
-                duration = 0
-            
-            # Extract middle frame
-            (
-                ffmpeg
-                .input(stored_filepath, ss=duration/2 if duration > 0 else 0)
-                .filter('scale', 320, -1)
-                .output(thumbnail_path, vframes=1)
-                .overwrite_output()
-                .run(capture_stdout=True, capture_stderr=True)
-            )
-            
-            # Set the thumbnail_path to be relative to the static folder
-            relative_thumbnail_path = os.path.join('thumbnails', thumbnail_filename).replace('\\', '/')
-            
-            new_video = Video(original_filepath=original_filepath, 
-                              stored_filepath=stored_filepath,
-                              nickname=nickname, 
-                              description=description, 
-                              tags=tags,
-                              thumbnail_path=relative_thumbnail_path,
-                              view_count=0)  # Initialize view_count to 0
-            db.session.add(new_video)
-            db.session.commit()
-            
-            return jsonify({"success": True, "video_id": new_video.id}), 200
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({"error": str(e)}), 500
-    
-    # Replace the existing tags query with a query for recent tags
-    recent_tags = db.session.query(
-        Video.tags, Video.id
-    ).order_by(
-        desc(Video.id)  # Order by most recent videos first
-    ).limit(20).all()  # Get tags from last 20 videos
-    
-    # Process the tags to get unique recent tags
-    processed_tags = []
-    seen_tags = set()
-    
-    for video_tags, _ in recent_tags:
-        if video_tags:  # Check if tags exist
-            tags_list = [tag.strip() for tag in video_tags.split(',')]
-            for tag in tags_list:
-                if tag and tag.lower() not in seen_tags:  # Avoid duplicates
-                    seen_tags.add(tag.lower())
-                    processed_tags.append(tag)
-    
-    return render_template('add.html', recent_tags=processed_tags[:20])
+# Route moved to video_routes.py blueprint
 
 @app.route('/stream/<int:video_id>')
 def stream_video(video_id):
@@ -808,26 +712,7 @@ def get_related_videos(current_video, limit=8):
     # Return the top N videos
     return [video for video, score in video_scores[:limit]]
 
-@app.route('/video/<int:video_id>')
-def video_detail(video_id):
-    video = Video.query.get_or_404(video_id)
-    if video.view_count is None:
-        video.view_count = 1
-    else:
-        video.view_count += 1
-    
-    related_videos = get_related_videos(video)
-    comments = Comment.query.filter_by(video_id=video_id).order_by(Comment.timestamp.desc()).all()
-    # Build author avatar mapping for template
-    author_slugs = {slugify_author(c.author) for c in comments}
-    avatars = {}
-    if author_slugs:
-        profiles = AuthorProfile.query.filter(AuthorProfile.slug.in_(author_slugs)).all()
-        for p in profiles:
-            if p.avatar_path:
-                avatars[p.slug] = p.avatar_path
-    db.session.commit()
-    return render_template('video_detail.html', video=video, related_videos=related_videos, comments=comments, author_avatars=avatars)
+# Route moved to video_routes.py blueprint
 
 @app.route('/edit_description/<int:video_id>', methods=['POST'])
 def edit_description(video_id):
@@ -1656,7 +1541,7 @@ def accept_trim_video(video_id):
         video.thumbnail_path = relative_thumbnail_path
         
         db.session.commit()
-        return redirect(url_for('video_detail', video_id=video.id))
+        return redirect(url_for('video.video_detail', video_id=video.id))
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500

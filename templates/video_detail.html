@@ -13,7 +13,7 @@
             <a href="{{ url_for('index') }}" class="nav-logo">Video Tagger</a>
             <div class="nav-links">
                 <a href="{{ url_for('index') }}">Home</a>
-                <a href="{{ url_for('add_video') }}">Add Video</a>
+                <a href="{{ url_for('video.add_video') }}">Add Video</a>
                 <a href="{{ url_for('bulk_upload') }}">Bulk Upload</a>
                 <a href="{{ url_for('playlists') }}">Playlists</a>
             </div>
@@ -148,7 +148,7 @@
                 <div class="related-videos-grid">
                     {% for related_video in related_videos %}
                         <div class="related-video-card">
-                            <a href="{{ url_for('video_detail', video_id=related_video.id) }}">
+                            <a href="{{ url_for('video.video_detail', video_id=related_video.id) }}">
                                 <div class="thumbnail-container">
                                     <img src="{{ url_for('static', filename=related_video.thumbnail_path) }}" alt="Thumbnail">
                                 </div>

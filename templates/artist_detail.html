@@ -691,7 +691,7 @@
           <div class="dropdown">
             <button class="dropbtn">Upload</button>
             <div class="dropdown-content">
-              <a href="{{ url_for('add_video') }}">Add Video</a>
+              <a href="{{ url_for('video.add_video') }}">Add Video</a>
               <a href="{{ url_for('add_multiple_videos') }}">Add Multiple Videos</a>
               <a href="{{ url_for('bulk_upload') }}">Bulk Upload Videos</a>
               <a href="{{ url_for('add_track') }}">Add Track</a>
@@ -745,7 +745,7 @@
                 <button class="btn-primary" onclick="playAllTracks()">🎵 Play All Tracks</button>
               {% endif %}
               <a href="{{ url_for('add_track') }}" class="btn-primary">Add Track</a>
-              <a href="{{ url_for('add_video') }}" class="btn-primary">Add Video</a>
+              <a href="{{ url_for('video.add_video') }}" class="btn-primary">Add Video</a>
             </div>
             
             <div class="avatar-upload">
@@ -807,7 +807,7 @@
             </div>
             <div class="media-grid">
               {% for video in videos %}
-              <a href="{{ url_for('video_detail', video_id=video.id) }}" class="media-card">
+                                      <a href="{{ url_for('video.video_detail', video_id=video.id) }}" class="media-card">
                 <div class="media-thumbnail" style="background-image:url('{% if video.thumbnail_path %}{{ url_for('static', filename=video.thumbnail_path) }}{% endif %}')"></div>
                 <div class="media-info">
                   <div class="media-title">{{ video.nickname or video.original_filepath }}</div>
@@ -837,7 +837,7 @@
               <p>This artist doesn't have any tracks or videos yet.</p>
               <div style="margin-top: 20px;">
                 <a href="{{ url_for('add_track') }}" class="btn-primary">Add First Track</a>
-                <a href="{{ url_for('add_video') }}" class="btn-primary">Add First Video</a>
+                <a href="{{ url_for('video.add_video') }}" class="btn-primary">Add First Video</a>
               </div>
             </div>
           </div>

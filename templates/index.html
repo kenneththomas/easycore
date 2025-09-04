@@ -147,7 +147,7 @@
                 <div class="dropdown">
                   <button class="dropbtn">Upload</button>
                   <div class="dropdown-content">
-                    <a href="{{ url_for('add_video') }}">Add Video</a>
+                    <a href="{{ url_for('video.add_video') }}">Add Video</a>
                     <a href="{{ url_for('add_multiple_videos') }}">Add Multiple Videos</a>
                     <a href="{{ url_for('bulk_upload') }}">Bulk Upload Videos</a>
                     <a href="{{ url_for('add_track') }}">Add Track</a>
@@ -167,7 +167,7 @@
     <div class="container" style="margin-top: 20px;">
         <h1>breeztube</h1>
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom: 8px;">
-            <a href="{{ url_for('add_video') }}" class="button">Add New Video</a>
+            <a href="{{ url_for('video.add_video') }}" class="button">Add New Video</a>
             <a href="{{ url_for('bulk_upload') }}" class="button">Bulk Upload Videos</a>
             <a href="{{ url_for('tracks_index') }}" class="button">Browse Tracks</a>
             <a href="{{ url_for('add_track') }}" class="button">Upload Track</a>
@@ -204,7 +204,7 @@
                         </div>
                         <div class="video-details">
                             <div class="video-title">
-                                <a href="{{ url_for('video_detail', video_id=video.id) }}">{{ video.nickname or video.original_filepath }}</a>
+                                <a href="{{ url_for('video.video_detail', video_id=video.id) }}">{{ video.nickname or video.original_filepath }}</a>
                             </div>
                             {% if video.description %}
                                 <p>{{ video.description }}</p>

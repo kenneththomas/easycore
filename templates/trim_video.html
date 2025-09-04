@@ -13,7 +13,7 @@
             <a href="{{ url_for('index') }}" class="nav-logo">Video Tagger</a>
             <div class="nav-links">
                 <a href="{{ url_for('index') }}">Home</a>
-                <a href="{{ url_for('add_video') }}">Add Video</a>
+                <a href="{{ url_for('video.add_video') }}">Add Video</a>
                 <a href="{{ url_for('bulk_upload') }}">Bulk Upload</a>
                 <a href="{{ url_for('playlists') }}">Playlists</a>
             </div>
@@ -22,7 +22,7 @@
     <div class="container">
         <header>
             <h1>Trim Video</h1>
-            <a href="{{ url_for('video_detail', video_id=video.id) }}" class="back-link">Back to Video</a>
+            <a href="{{ url_for('video.video_detail', video_id=video.id) }}" class="back-link">Back to Video</a>
         </header>
 
         {% if error %}
@@ -71,7 +71,7 @@
             <form method="POST" action="{{ url_for('accept_trim_video', video_id=video.id) }}">
                 <input type="hidden" name="new_title" value="{{ new_title }}">
                 <button type="submit" class="btn">Accept Trim</button>
-                <button type="button" class="btn" onclick="window.location.href='{{ url_for('video_detail', video_id=video.id) }}'">Cancel</button>
+                <button type="button" class="btn" onclick="window.location.href='{{ url_for('video.video_detail', video_id=video.id) }}'">Cancel</button>
             </form>
         </section>
         {% endif %}

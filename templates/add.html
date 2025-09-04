@@ -120,7 +120,7 @@
             <a href="{{ url_for('index') }}" class="nav-logo">Video Tagger</a>
             <div class="nav-links">
                 <a href="{{ url_for('index') }}">Home</a>
-                <a href="{{ url_for('add_video') }}">Add Video</a>
+                <a href="{{ url_for('video.add_video') }}">Add Video</a>
                 <a href="{{ url_for('bulk_upload') }}">Bulk Upload</a>
             </div>
         </div>
@@ -130,7 +130,7 @@
         <div id="drop-zone" class="hidden">
             <div class="drop-zone-text">Drop video file here</div>
         </div>
-        <form action="{{ url_for('add_video') }}" method="post" enctype="multipart/form-data">
+        <form action="{{ url_for('video.add_video') }}" method="post" enctype="multipart/form-data">
             <label for="file">Select Video File:</label>
             <input type="file" name="file" id="file" accept="video/*" required>
             
