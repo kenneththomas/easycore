@@ -102,67 +102,12 @@
             }
         }
 
-        /* Dropdown menu for compact nav */
-        .dropdown { position: relative; display: inline-block; }
-        .dropbtn {
-            background: transparent;
-            color: white;
-            border: 1px solid rgba(255,255,255,0.25);
-            padding: 6px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            right: 0;
-            background-color: #fff;
-            min-width: 200px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-            border-radius: 6px;
-            overflow: hidden;
-            z-index: 1001;
-        }
-        .dropdown-content a {
-            color: #333;
-            padding: 10px 12px;
-            text-decoration: none;
-            display: block;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .dropdown-content a:last-child { border-bottom: none; }
-        .dropdown:hover .dropdown-content { display: block; }
-        .nav-links .dropdown { margin-left: 0.25rem; }
+
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-content">
-            <a href="{{ url_for('index') }}" class="nav-logo">breeztube</a>
-            <div class="nav-links">
-                <a href="{{ url_for('index') }}">Home</a>
-                <a href="{{ url_for('playlists') }}">Playlists</a>
-                <a href="{{ url_for('tracks_index') }}">Tracks</a>
-                <a href="{{ url_for('artists_index') }}">Artists</a>
-                <div class="dropdown">
-                  <button class="dropbtn">Upload</button>
-                  <div class="dropdown-content">
-                    <a href="{{ url_for('video.add_video') }}">Add Video</a>
-                    <a href="{{ url_for('add_multiple_videos') }}">Add Multiple Videos</a>
-                    <a href="{{ url_for('bulk_upload') }}">Bulk Upload Videos</a>
-                    <a href="{{ url_for('add_track') }}">Add Track</a>
-                  </div>
-                </div>
-                <div class="dropdown">
-                  <button class="dropbtn">Tools</button>
-                  <div class="dropdown-content">
-                    <a href="{{ url_for('extract_mp3') }}">Extract MP3</a>
-                  </div>
-                </div>
-
-            </div>
-        </div>
-    </nav>
+    {% from 'navbar.html' import render_navbar %}
+    {{ render_navbar() }}
 
     <div class="container" style="margin-top: 20px;">
         <h1>breeztube</h1>
