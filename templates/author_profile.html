@@ -20,17 +20,8 @@
   </style>
   </head>
 <body>
-  <nav class="navbar">
-    <div class="nav-content">
-      <a href="{{ url_for('index') }}" class="nav-logo">breeztube</a>
-      <div class="nav-links">
-        <a href="{{ url_for('index') }}">Home</a>
-        <a href="{{ url_for('playlists') }}">Playlists</a>
-        <a href="{{ url_for('tracks_index') }}">Tracks</a>
-        <a href="{{ url_for('artists_index') }}">Artists</a>
-      </div>
-    </div>
-  </nav>
+  {% from 'navbar.html' import render_navbar %}
+  {{ render_navbar() }}
 
   <div class="container">
     <div class="profile-header">

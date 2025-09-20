@@ -18,6 +18,9 @@
     </style>
   </head>
   <body>
+    {% from 'navbar.html' import render_navbar %}
+    {{ render_navbar() }}
+
     <div class="container">
       <div class="toolbar">
         <h2 style="margin:0;">Audio Tracks</h2>
