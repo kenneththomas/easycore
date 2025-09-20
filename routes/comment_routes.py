@@ -41,3 +41,10 @@ def like_track_comment(comment_id):
         comment.likes += 1
     db.session.commit()
     return jsonify({"success": True, "new_like_count": comment.likes})
+
+
+
+
+
+
+
