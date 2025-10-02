@@ -13,6 +13,8 @@
     </style>
   </head>
   <body>
+    {% from 'navbar.html' import render_navbar %}
+    {{ render_navbar() }}
     <div class="container">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
         <h2>Artists</h2>
