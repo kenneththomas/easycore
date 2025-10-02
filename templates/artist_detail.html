@@ -45,6 +45,11 @@
         transform: translateY(0);
       }
       
+      /* Add bottom padding when music player is active */
+      body.music-player-active {
+        padding-bottom: 200px; /* Adjust based on player height */
+      }
+      
       .player-header {
         display: flex;
         justify-content: space-between;
@@ -1214,11 +1219,13 @@
       // Show music player
       function showMusicPlayer() {
         document.getElementById('musicPlayer').classList.add('active');
+        document.body.classList.add('music-player-active');
       }
       
       // Close music player
       function closeMusicPlayer() {
         document.getElementById('musicPlayer').classList.remove('active');
+        document.body.classList.remove('music-player-active');
         if (wavesurfer) {
           wavesurfer.pause();
         }
