@@ -461,28 +461,6 @@
         position: relative;
       }
       
-      .media-thumbnail::before {
-        content: '▶';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0,0,0,0.7);
-        color: white;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-      }
-      
-      .media-card:hover .media-thumbnail::before {
-        opacity: 1;
-      }
       
       .media-info {
         padding: 16px;
@@ -784,7 +762,9 @@
                   </button>
                 </div>
                 <div class="media-info">
-                  <div class="media-title">{{ track.nickname or track.original_filepath }}</div>
+                  <div class="media-title">
+                    <a href="{{ url_for('track_detail', track_id=track.id) }}" style="text-decoration: none; color: inherit;">{{ track.nickname or track.original_filepath }}</a>
+                  </div>
                   <div class="media-meta">
                     <div class="media-stats">
                       <span class="media-stat">🎵 Track</span>
@@ -796,7 +776,6 @@
                     {% endif %}
                   </div>
                 </div>
-                <a href="{{ url_for('track_detail', track_id=track.id) }}" style="position: absolute; inset: 0; z-index: 5;"></a>
               </div>
               {% endfor %}
             </div>
