@@ -252,7 +252,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    window.location.href = `/video/${data.video_id}`;
+                    window.location.href = `/video/video/${data.video_id}`;
                 } else {
                     alert('Error adding video: ' + data.error);
                 }
