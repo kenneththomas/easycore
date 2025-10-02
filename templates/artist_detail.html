@@ -45,6 +45,11 @@
         transform: translateY(0);
       }
       
+      /* Add bottom padding when music player is active */
+      body.music-player-active {
+        padding-bottom: 200px; /* Adjust based on player height */
+      }
+      
       .player-header {
         display: flex;
         justify-content: space-between;
@@ -456,28 +461,6 @@
         position: relative;
       }
       
-      .media-thumbnail::before {
-        content: '▶';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0,0,0,0.7);
-        color: white;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 14px;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-      }
-      
-      .media-card:hover .media-thumbnail::before {
-        opacity: 1;
-      }
       
       .media-info {
         padding: 16px;
@@ -669,6 +652,62 @@
         pointer-events: none;
       }
       
+      /* Activity Feed Styles */
+      .activity-feed {
+        display: grid;
+        gap: 12px;
+      }
+      
+      .activity-item {
+        background: #fff;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 12px;
+        transition: all 0.3s ease;
+      }
+      
+      .activity-item:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
+      }
+      
+      .activity-header {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        color: #555;
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+      
+      .activity-kind {
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #667eea;
+        font-size: 11px;
+        background: #f0f4ff;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      
+      .activity-title a {
+        color: inherit;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      
+      .activity-title a:hover {
+        color: #667eea;
+        text-decoration: underline;
+      }
+      
+      .activity-content {
+        margin-top: 6px;
+        font-size: 14px;
+        line-height: 1.4;
+        color: #333;
+      }
+
       /* Dropdown menu for compact nav */
       .dropdown { position: relative; display: inline-block; }
       .dropbtn { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.25); padding: 6px 10px; border-radius: 4px; cursor: pointer; }
@@ -677,12 +716,313 @@
       .dropdown-content a:last-child { border-bottom: none; }
       .dropdown:hover .dropdown-content { display: block; }
       .nav-links .dropdown { margin-left: 0.25rem; }
+
+      /* Enhanced Comments Section - Full Width */
+      .comments-section-full-width {
+        margin-top: 40px;
+        background: #f8f9fa;
+        padding: 40px 0;
+      }
+
+      .comments-section {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+      }
+
+      .comment-form {
+        margin-bottom: 24px;
+        padding: 20px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 12px;
+        border: 1px solid #dee2e6;
+      }
+
+      .comment-form-row {
+        display: grid;
+        grid-template-columns: 200px 1fr auto;
+        gap: 16px;
+        align-items: center;
+      }
+
+      .comment-author-input,
+      .comment-content-input {
+        padding: 12px 16px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        transition: all 0.3s ease;
+        background: white;
+      }
+
+      .comment-author-input:focus,
+      .comment-content-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      .comment-submit-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      }
+
+      .comment-submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+      }
+
+      .submit-icon {
+        font-size: 16px;
+      }
+
+      .comments-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .comment-card {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      }
+
+      .comment-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        border-color: #667eea;
+      }
+
+      .comment-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 12px;
+      }
+
+      .comment-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #f8f9fa;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        flex-shrink: 0;
+      }
+
+      .comment-meta {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .comment-author {
+        margin-bottom: 4px;
+      }
+
+      .comment-author a {
+        color: #333;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 15px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .comment-author a:hover {
+        color: #667eea;
+        text-decoration: underline;
+      }
+
+      .comment-timestamp {
+        color: #6c757d;
+        font-size: 13px;
+        font-weight: 500;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .comment-content {
+        font-size: 15px;
+        line-height: 1.6;
+        color: #333;
+        margin-bottom: 16px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        word-wrap: break-word;
+      }
+
+      .comment-context {
+        margin-bottom: 16px;
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 3px solid #667eea;
+      }
+
+      .context-label {
+        color: #6c757d;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .context-link {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 13px;
+      }
+
+      .context-link:hover {
+        text-decoration: underline;
+      }
+
+      .comment-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .comment-action-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 13px;
+        font-weight: 500;
+        color: #6c757d;
+      }
+
+      .comment-action-btn:hover {
+        background: #e9ecef;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
+
+      .comment-action-btn.like-comment:hover {
+        background: #fff5f5;
+        border-color: #ff6b6b;
+        color: #ff6b6b;
+      }
+
+      .comment-action-btn.delete-comment:hover {
+        background: #fff5f5;
+        border-color: #dc3545;
+        color: #dc3545;
+      }
+
+      .action-icon {
+        font-size: 14px;
+      }
+
+      .action-count {
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .track-comments-section {
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 2px solid #f8f9fa;
+      }
+
+      .track-comments-title {
+        color: #495057;
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .track-comment {
+        background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+        border-left: 4px solid #28a745;
+      }
+
+      /* Responsive Comments */
+      @media (max-width: 768px) {
+        .comments-section-full-width {
+          padding: 30px 0;
+        }
+
+        .comments-section {
+          padding: 0 16px;
+        }
+
+        .comment-form-row {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+
+        .comment-header {
+          gap: 12px;
+        }
+
+        .comment-avatar {
+          width: 40px;
+          height: 40px;
+        }
+
+        .comment-card {
+          padding: 16px;
+        }
+
+        .comment-content {
+          font-size: 14px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .comments-section-full-width {
+          padding: 20px 0;
+        }
+
+        .comments-section {
+          padding: 0 12px;
+        }
+
+        .comment-form {
+          padding: 16px;
+        }
+
+        .comment-card {
+          padding: 12px;
+        }
+
+        .comment-actions {
+          flex-wrap: wrap;
+        }
+
+        .comment-action-btn {
+          padding: 6px 10px;
+          font-size: 12px;
+        }
+      }
     </style>
   </head>
   <body>
     <nav class="navbar">
       <div class="nav-content">
-        <a href="{{ url_for('index') }}" class="nav-logo">breeztube</a>
+        <a href="{{ url_for('index') }}" class="nav-logo">easycore</a>
         <div class="nav-links">
           <a href="{{ url_for('index') }}">Home</a>
           <a href="{{ url_for('playlists') }}">Playlists</a>
@@ -714,9 +1054,6 @@
           <div class="hero-avatar clickable-avatar" style="background-image:url('{% if artist.avatar_path %}{{ url_for('static', filename=artist.avatar_path) }}{% endif %}')" data-avatar-url="{% if artist.avatar_path %}{{ url_for('static', filename=artist.avatar_path) }}{% endif %}"></div>
           <div class="hero-info">
             <h1>{{ artist.name }}</h1>
-            {% if artist.bio %}
-              <div class="hero-bio">{{ artist.bio }}</div>
-            {% endif %}
             
             <div class="hero-stats">
               <div class="stat-item">
@@ -761,13 +1098,35 @@
     </section>
 
     <div class="container" id="content">
+      <!-- Biography Section -->
+      <div class="section" style="margin-bottom: 40px;">
+        <div class="section-header">
+          <h2 class="section-title">Biography</h2>
+        </div>
+        <div class="hero-bio-container">
+          <div id="bio-display" class="hero-bio" style="display: none;">
+            <div id="bio-content"></div>
+            <button id="edit-bio-btn" class="btn-edit-bio" style="margin-top: 12px; padding: 8px 16px; font-size: 0.9rem; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;">Edit Biography</button>
+          </div>
+          <div id="bio-edit" class="bio-edit-form" style="display: none;">
+            <textarea id="bio-textarea" placeholder="Write your biography in Markdown format..." style="width: 100%; min-height: 150px; padding: 16px; border: 2px solid #e0e0e0; border-radius: 8px; background: #fafafa; color: #333; font-family: inherit; resize: vertical; font-size: 14px; line-height: 1.5;">{{ artist.bio or '' }}</textarea>
+            <div class="bio-edit-actions" style="margin-top: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+              <button id="save-bio-btn" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem; background: #667eea; border: none; border-radius: 6px; color: white; cursor: pointer;">Save Biography</button>
+              <button id="cancel-bio-btn" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem; background: #6c757d; border: none; border-radius: 6px; color: white; cursor: pointer;">Cancel</button>
+              <button id="preview-bio-btn" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem; background: #28a745; border: none; border-radius: 6px; color: white; cursor: pointer;">Preview</button>
+            </div>
+            <div id="bio-preview" class="bio-preview" style="margin-top: 16px; padding: 16px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; display: none; line-height: 1.6;"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="content-grid">
         <div class="main-content">
           <!-- Tracks Section -->
           {% if tracks %}
           <div class="section">
             <div class="section-header">
-              <h2 class="section-title">Tracks</h2>
+              <h2 class="section-title">Latest Tracks</h2>
               <span class="section-count">{{ tracks|length }}</span>
             </div>
             <div class="media-grid">
@@ -779,7 +1138,9 @@
                   </button>
                 </div>
                 <div class="media-info">
-                  <div class="media-title">{{ track.nickname or track.original_filepath }}</div>
+                  <div class="media-title">
+                    <a href="{{ url_for('track_detail', track_id=track.id) }}" style="text-decoration: none; color: inherit;">{{ track.nickname or track.original_filepath }}</a>
+                  </div>
                   <div class="media-meta">
                     <div class="media-stats">
                       <span class="media-stat">🎵 Track</span>
@@ -791,10 +1152,14 @@
                     {% endif %}
                   </div>
                 </div>
-                <a href="{{ url_for('track_detail', track_id=track.id) }}" style="position: absolute; inset: 0; z-index: 5;"></a>
               </div>
               {% endfor %}
             </div>
+            {% if tracks|length > 6 %}
+            <div style="text-align: center; margin-top: 20px;">
+              <a href="{{ url_for('tracks_index') }}?artist={{ artist.name }}" class="btn-primary">View All Tracks</a>
+            </div>
+            {% endif %}
           </div>
           {% endif %}
 
@@ -802,12 +1167,12 @@
           {% if videos %}
           <div class="section">
             <div class="section-header">
-              <h2 class="section-title">Videos</h2>
+              <h2 class="section-title">Latest Videos</h2>
               <span class="section-count">{{ videos|length }}</span>
             </div>
             <div class="media-grid">
               {% for video in videos %}
-                                      <a href="{{ url_for('video.video_detail', video_id=video.id) }}" class="media-card">
+              <a href="{{ url_for('video.video_detail', video_id=video.id) }}" class="media-card">
                 <div class="media-thumbnail" style="background-image:url('{% if video.thumbnail_path %}{{ url_for('static', filename=video.thumbnail_path) }}{% endif %}')"></div>
                 <div class="media-info">
                   <div class="media-title">{{ video.nickname or video.original_filepath }}</div>
@@ -825,6 +1190,11 @@
               </a>
               {% endfor %}
             </div>
+            {% if videos|length > 6 %}
+            <div style="text-align: center; margin-top: 20px;">
+              <a href="{{ url_for('index') }}?artist={{ artist.name }}" class="btn-primary">View All Videos</a>
+            </div>
+            {% endif %}
           </div>
           {% endif %}
 
@@ -845,6 +1215,31 @@
         </div>
 
         <div class="sidebar">
+          <!-- Quick Stats -->
+          <div class="section">
+            <div class="section-header">
+              <h3 class="section-title">Quick Stats</h3>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; text-align: center;">
+              <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">{{ total_tracks }}</div>
+                <div style="font-size: 0.8rem; color: #666;">Tracks</div>
+              </div>
+              <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">{{ total_videos }}</div>
+                <div style="font-size: 0.8rem; color: #666;">Videos</div>
+              </div>
+              <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #28a745;">{{ total_plays }}</div>
+                <div style="font-size: 0.8rem; color: #666;">Plays</div>
+              </div>
+              <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #dc3545;">{{ total_likes }}</div>
+                <div style="font-size: 0.8rem; color: #666;">Likes</div>
+              </div>
+            </div>
+          </div>
+
           <!-- Related Artists -->
           {% if related_artists %}
           <div class="section">
@@ -883,6 +1278,33 @@
           </div>
           {% endif %}
 
+          <!-- Recent Activity Section -->
+          <div class="section">
+            <div class="section-header">
+              <h3 class="section-title">Recent Activity</h3>
+            </div>
+            
+            <div class="activity-feed">
+              {% for activity in recent_activity %}
+              <div class="activity-item">
+                <div class="activity-header">
+                  <span class="activity-kind">{{ activity.kind }}</span>
+                  <span>on</span>
+                  <span class="activity-title"><a href="{{ activity.context_url }}">{{ activity.context_title }}</a></span>
+                  <span>·</span>
+                  <span>{{ activity.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span>
+                  <span>· ❤️ {{ activity.likes }}</span>
+                </div>
+                <div class="activity-content">{{ activity.content }}</div>
+              </div>
+              {% endfor %}
+              {% if not recent_activity %}
+                <p style="color: #666; text-align: center; padding: 20px;">No recent activity yet.</p>
+              {% endif %}
+            </div>
+          </div>
+
+
           <!-- Artist Info -->
           <div class="section">
             <div class="section-header">
@@ -890,13 +1312,111 @@
             </div>
             <div>
               <p><strong>Joined:</strong> {{ artist.created_at.strftime('%B %Y') if artist.created_at else 'Unknown' }}</p>
-              {% if artist.bio %}
-                <p><strong>Bio:</strong> {{ artist.bio }}</p>
-              {% else %}
-                <p><em>No biography available.</em></p>
-              {% endif %}
+              <p><strong>Total Content:</strong> {{ total_tracks + total_videos }} items</p>
+              <p><strong>Total Plays:</strong> {{ total_plays }}</p>
+              <p><strong>Total Likes:</strong> {{ total_likes }}</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Comments Section - Full Width -->
+      <div class="comments-section-full-width">
+        <div class="section comments-section">
+          <div class="section-header">
+            <h3 class="section-title">💬 Comments & Discussion</h3>
+          </div>
+          
+          <!-- Add Comment Form -->
+          <form id="artistCommentForm" class="comment-form" autocomplete="off">
+            <div class="comment-form-row">
+              <input type="text" name="author" placeholder="Your name" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" readonly class="comment-author-input" />
+              <input type="text" name="content" placeholder="Share your thoughts about this artist..." required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" readonly class="comment-content-input" />
+              <button class="comment-submit-btn" type="submit">
+                <span class="submit-icon">📝</span>
+                <span class="submit-text">Post Comment</span>
+              </button>
+            </div>
+          </form>
+          
+
+          <!-- Artist Comments -->
+          <div id="artistCommentList" class="comments-list">
+            {% for comment in artist_comments %}
+              <div class="comment comment-card" data-id="{{ comment.id }}" data-type="artist">
+                <div class="comment-header">
+                  {% set author_slug = comment.author|slugify %}
+                  {% set av = None %}
+                  {% if comment.author == artist.name and artist.avatar_path %}
+                    {% set av = artist.avatar_path %}
+                  {% else %}
+                    {% set av = author_avatars.get(author_slug) %}
+                  {% endif %}
+                  {% set avatar_url = url_for('static', filename=av) if av else url_for('static', filename='avatars/default.png') %}
+                  <img alt="avatar" src="{{ avatar_url }}" class="comment-avatar" title="Avatar URL: {{ avatar_url }}" />
+                  <div class="comment-meta">
+                    <div class="comment-author">
+                      <strong><a href="{{ url_for('artist_detail', artist_id=comment.author_artist_id) if comment.author_artist_id else '#' }}">{{ comment.author }}</a></strong>
+                    </div>
+                    <div class="comment-timestamp">{{ comment.timestamp.strftime('%b %d, %Y at %I:%M %p') }}</div>
+                  </div>
+                </div>
+                <div class="comment-content">{{ comment.content }}</div>
+                <div class="comment-actions">
+                  <button class="comment-action-btn like-comment" title="Like this comment">
+                    <span class="action-icon">❤️</span>
+                    <span class="action-count">{{ comment.likes or 0 }}</span>
+                  </button>
+                  <button class="comment-action-btn delete-comment" title="Delete this comment">
+                    <span class="action-icon">🗑️</span>
+                  </button>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          
+          <!-- Track Comments -->
+          {% if track_comment_data %}
+          <div class="track-comments-section">
+            <h4 class="track-comments-title">🎵 Comments on Tracks</h4>
+            <div id="trackCommentList" class="comments-list">
+              {% for data in track_comment_data %}
+                <div class="comment comment-card track-comment" data-id="{{ data.comment.id }}" data-type="track">
+                  <div class="comment-header">
+                    {% set author_slug = data.comment.author|slugify %}
+                    {% set av = None %}
+                    {% if data.comment.author == artist.name and artist.avatar_path %}
+                      {% set av = artist.avatar_path %}
+                    {% else %}
+                      {% set av = author_avatars.get(author_slug) %}
+                    {% endif %}
+                    <img alt="avatar" src="{% if av %}{{ url_for('static', filename=av) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}" class="comment-avatar" />
+                    <div class="comment-meta">
+                      <div class="comment-author">
+                        <strong><a href="{{ url_for('artist_detail', artist_id=data.comment.author_artist_id) if data.comment.author_artist_id else '#' }}">{{ data.comment.author }}</a></strong>
+                      </div>
+                      <div class="comment-timestamp">{{ data.comment.timestamp.strftime('%b %d, %Y at %I:%M %p') }}</div>
+                    </div>
+                  </div>
+                  <div class="comment-content">{{ data.comment.content }}</div>
+                  <div class="comment-context">
+                    <span class="context-label">on track:</span> 
+                    <a href="{{ url_for('track_detail', track_id=data.track.id) }}" class="context-link">{{ data.track.nickname or data.track.original_filepath }}</a>
+                  </div>
+                  <div class="comment-actions">
+                    <button class="comment-action-btn like-comment" title="Like this comment">
+                      <span class="action-icon">❤️</span>
+                      <span class="action-count">{{ data.comment.likes or 0 }}</span>
+                    </button>
+                    <button class="comment-action-btn delete-comment" title="Delete this comment">
+                      <span class="action-icon">🗑️</span>
+                    </button>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -958,9 +1478,9 @@
         {% for track in tracks %}
         {
           id: {{ track.id }},
-          title: "{{ track.nickname or track.original_filepath }}",
-          url: "{{ url_for('stream_track', track_id=track.id) }}",
-          backgroundImage: "{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+          title: {{ (track.nickname or track.original_filepath)|tojson }},
+          url: {{ url_for('stream_track', track_id=track.id)|tojson }},
+          backgroundImage: {{ (track.background_image_path and url_for('static', filename=track.background_image_path))|tojson }}
         }{% if not loop.last %},{% endif %}
         {% endfor %}
       ];
@@ -1214,11 +1734,13 @@
       // Show music player
       function showMusicPlayer() {
         document.getElementById('musicPlayer').classList.add('active');
+        document.body.classList.add('music-player-active');
       }
       
       // Close music player
       function closeMusicPlayer() {
         document.getElementById('musicPlayer').classList.remove('active');
+        document.body.classList.remove('music-player-active');
         if (wavesurfer) {
           wavesurfer.pause();
         }
@@ -1305,6 +1827,258 @@
           }
         });
       });
+
+      // Artist Biography Functionality
+      let originalBio = '';
+      let isEditingBio = false;
+      
+      function initializeBio() {
+        const bioDisplay = document.getElementById('bio-display');
+        const bioEdit = document.getElementById('bio-edit');
+        const bioContent = document.getElementById('bio-content');
+        const bioTextarea = document.getElementById('bio-textarea');
+        
+        // Initialize with current bio
+        const currentBio = {{ (artist.bio or '')|tojson }};
+        if (currentBio.trim()) {
+          // Convert markdown to HTML for display
+          const html = currentBio
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/`(.*?)`/g, '<code>$1</code>')
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            .replace(/^\* (.*$)/gim, '<li>$1</li>')
+            .replace(/^- (.*$)/gim, '<li>$1</li>')
+            .replace(/\n/g, '<br>');
+          bioContent.innerHTML = html;
+          bioDisplay.style.display = 'block';
+        } else {
+          // Show edit form if no bio exists
+          showBioEdit();
+        }
+      }
+      
+      function showBioEdit() {
+        const bioDisplay = document.getElementById('bio-display');
+        const bioEdit = document.getElementById('bio-edit');
+        const bioTextarea = document.getElementById('bio-textarea');
+        
+        bioDisplay.style.display = 'none';
+        bioEdit.style.display = 'block';
+        bioTextarea.focus();
+        isEditingBio = true;
+      }
+      
+      function showBioDisplay() {
+        const bioDisplay = document.getElementById('bio-display');
+        const bioEdit = document.getElementById('bio-edit');
+        const bioPreview = document.getElementById('bio-preview');
+        
+        bioEdit.style.display = 'none';
+        bioPreview.style.display = 'none';
+        bioDisplay.style.display = 'block';
+        isEditingBio = false;
+      }
+      
+      function saveBio() {
+        const bioTextarea = document.getElementById('bio-textarea');
+        const bioContent = document.getElementById('bio-content');
+        const bio = bioTextarea.value.trim();
+        
+        if (bio === originalBio) {
+          showBioDisplay();
+          return;
+        }
+        
+        // Save to server
+        const formData = new FormData();
+        formData.append('bio', bio);
+        
+        fetch(`/artist/{{ artist.id }}/bio`, {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            bioContent.innerHTML = data.bio_html || bio;
+            showBioDisplay();
+            originalBio = bio;
+          } else {
+            alert('Error saving biography: ' + (data.error || 'Unknown error'));
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Error saving biography');
+        });
+      }
+      
+      function previewBio() {
+        const bioTextarea = document.getElementById('bio-textarea');
+        const bioPreview = document.getElementById('bio-preview');
+        const bio = bioTextarea.value.trim();
+        
+        if (!bio) {
+          bioPreview.style.display = 'none';
+          return;
+        }
+        
+        // Convert markdown to HTML (client-side preview)
+        const html = bio
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+          .replace(/`(.*?)`/g, '<code>$1</code>')
+          .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+          .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+          .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+          .replace(/^\* (.*$)/gim, '<li>$1</li>')
+          .replace(/^- (.*$)/gim, '<li>$1</li>')
+          .replace(/\n/g, '<br>');
+        
+        bioPreview.innerHTML = html;
+        bioPreview.style.display = 'block';
+      }
+      
+      function cancelBioEdit() {
+        const bioTextarea = document.getElementById('bio-textarea');
+        bioTextarea.value = originalBio;
+        showBioDisplay();
+      }
+      
+      // Event listeners for bio editing
+      document.addEventListener('DOMContentLoaded', function() {
+        // Initialize bio
+        initializeBio();
+        
+        // Store original bio
+        originalBio = {{ (artist.bio or '')|tojson }};
+        
+        // Edit bio button
+        document.getElementById('edit-bio-btn').addEventListener('click', showBioEdit);
+        
+        // Save bio button
+        document.getElementById('save-bio-btn').addEventListener('click', saveBio);
+        
+        // Cancel bio button
+        document.getElementById('cancel-bio-btn').addEventListener('click', cancelBioEdit);
+        
+        // Preview bio button
+        document.getElementById('preview-bio-btn').addEventListener('click', previewBio);
+        
+        // Auto-preview on typing
+        document.getElementById('bio-textarea').addEventListener('input', function() {
+          clearTimeout(this.previewTimeout);
+          this.previewTimeout = setTimeout(previewBio, 500);
+        });
+        
+        // Save on Ctrl+S
+        document.getElementById('bio-textarea').addEventListener('keydown', function(e) {
+          if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            saveBio();
+          }
+        });
+      });
+
+      // Artist Comments Functionality
+      const artistCommentForm = document.getElementById('artistCommentForm');
+      if (artistCommentForm) {
+        // Disable browser autofill by making fields readonly until user interacts
+        document.querySelectorAll('#artistCommentForm input[type="text"]').forEach((el) => {
+          const unlock = () => el.removeAttribute('readonly')
+          el.addEventListener('focus', unlock, { once: true })
+          el.addEventListener('mousedown', unlock, { once: true })
+          el.addEventListener('touchstart', unlock, { once: true })
+        });
+
+        // Handle artist comment form submission
+        artistCommentForm.addEventListener('submit', async (e) => {
+          e.preventDefault()
+          const data = new FormData(artistCommentForm)
+          const res = await fetch("{{ url_for('add_artist_comment', artist_id=artist.id) }}", { method: 'POST', body: data })
+          const json = await res.json()
+          if (json.success) {
+            const c = json.comment
+            const div = document.createElement('div')
+            div.className = 'comment comment-card'
+            div.dataset.id = c.id
+            div.dataset.type = 'artist'
+            div.innerHTML = `<div class="comment-header">
+                             <img alt="avatar" src="${c.author_avatar ? '/static/' + c.author_avatar : '/static/avatars/default.png'}" class="comment-avatar" />
+                             <div class="comment-meta">
+                               <div class="comment-author">
+                                 <strong><a href="/artist/${c.author_artist_id || '#'}">${c.author}</a></strong>
+                               </div>
+                               <div class="comment-timestamp">${c.timestamp}</div>
+                             </div>
+                           </div>
+                           <div class="comment-content">${c.content}</div>
+                           <div class="comment-actions">
+                             <button class="comment-action-btn like-comment" title="Like this comment">
+                               <span class="action-icon">❤️</span>
+                               <span class="action-count">${c.likes}</span>
+                             </button>
+                             <button class="comment-action-btn delete-comment" title="Delete this comment">
+                               <span class="action-icon">🗑️</span>
+                             </button>
+                           </div>`
+            document.getElementById('artistCommentList').prepend(div)
+            artistCommentForm.reset()
+          }
+        })
+      }
+
+      // Handle comment interactions (like/delete)
+      document.addEventListener('click', async (e) => {
+        const item = e.target.closest('.comment')
+        if (!item) return
+        const id = item.dataset.id
+        const type = item.dataset.type
+        
+        if (e.target.closest('.like-comment')) {
+          let url
+          if (type === 'artist') {
+            url = `{{ url_for('like_artist_comment', comment_id=0) }}`.replace('0', id)
+          } else if (type === 'track') {
+            url = `{{ url_for('like_track_comment', comment_id=0) }}`.replace('0', id)
+          }
+          
+          if (url) {
+            const res = await fetch(url, { method: 'POST' })
+            const json = await res.json()
+            if (json.success) {
+              const countElement = item.querySelector('.action-count')
+              if (countElement) {
+                countElement.textContent = json.new_like_count
+              }
+            }
+          }
+        }
+        
+        if (e.target.closest('.delete-comment')) {
+          let url
+          if (type === 'artist') {
+            url = `{{ url_for('delete_artist_comment', comment_id=0) }}`.replace('0', id)
+          } else if (type === 'track') {
+            url = `{{ url_for('delete_track_comment', comment_id=0) }}`.replace('0', id)
+          }
+          
+          if (url) {
+            const res = await fetch(url, { method: 'POST' })
+            const json = await res.json()
+            if (json.success) {
+              // Add fade out animation before removing
+              item.style.transition = 'all 0.3s ease'
+              item.style.opacity = '0'
+              item.style.transform = 'translateY(-20px)'
+              setTimeout(() => item.remove(), 300)
+            }
+          }
+        }
+      })
     </script>
   </body>
 </html>

@@ -141,7 +141,7 @@
                     if (data.playlist_id) {
                         window.location.href = `/playlist/${data.playlist_id}`;
                     } else if (data.videos && data.videos.length > 0) {
-                        window.location.href = `/video/${data.videos[0]}`;
+                        window.location.href = `/video/video/${data.videos[0]}`;
                     }
                 } else {
                     alert('Error uploading videos: ' + data.error);

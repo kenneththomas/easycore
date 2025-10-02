@@ -67,7 +67,7 @@
               <div style="display:flex; align-items:center; gap:8px;">
                 {% set av = author_avatars.get(c.author|slugify) %}
                 <img alt="avatar" src="{% if av %}{{ url_for('static', filename=av) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;" />
-                <strong><a href="{{ url_for('author_profile', slug=c.author|slugify) }}">{{ c.author }}</a></strong>
+                <strong><a href="{{ url_for('artist_by_name', artist_name=c.author) }}">{{ c.author }}</a></strong>
                 <span style="color:#777; font-size:12px;">{{ c.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span>
               </div>
               <div>{{ c.content }}</div>
@@ -135,7 +135,7 @@
           const div = document.createElement('div')
           div.className = 'comment'
           div.dataset.id = c.id
-          div.innerHTML = `<div><strong><a href="/author/${c.author_slug}">${c.author}</a></strong> <span style="color:#777; font-size:12px;">${c.timestamp}</span></div>
+          div.innerHTML = `<div><strong><a href="/artist/${c.author}">${c.author}</a></strong> <span style="color:#777; font-size:12px;">${c.timestamp}</span></div>
                            <div>${c.content}</div>
                            <button class="button like-comment">Like (${c.likes})</button>
                            <button class="button delete-comment">Delete</button>`

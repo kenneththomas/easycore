@@ -225,7 +225,7 @@ async function submitComment(videoId) {
             newComment.innerHTML = `
                 <div class="comment-header">
                     <img alt="avatar" class="comment-avatar" src="${avatarSrc}">
-                    <strong class="comment-author"><a href="/author/${data.comment.author_slug}">${data.comment.author}</a></strong>
+                    <strong class="comment-author"><a href="/artist/${data.comment.author}">${data.comment.author}</a></strong>
                     <span class="comment-timestamp">${data.comment.timestamp}</span>
                 </div>
                 <div class="comment-content">${data.comment.content}</div>

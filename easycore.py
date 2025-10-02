@@ -12,9 +12,10 @@ import uuid
 import random
 import string
 import unicodedata
+import markdown
 
 # Import models
-from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment, Track, TrackComment, Artist, TrackArtist, VideoArtist, AuthorProfile
+from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment, Track, TrackComment, ArtistComment, Artist, TrackArtist, VideoArtist, AuthorProfile
 
 # Import blueprints
 from routes import video_bp, playlist_bp, comment_bp, filter_bp
@@ -36,6 +37,13 @@ app.register_blueprint(video_bp, url_prefix='/video')
 app.register_blueprint(playlist_bp, url_prefix='/playlist')
 app.register_blueprint(comment_bp, url_prefix='/comment')
 app.register_blueprint(filter_bp, url_prefix='/filter')
+
+# Add markdown filter
+@app.template_filter('markdown')
+def markdown_filter(text):
+    if not text:
+        return ''
+    return markdown.markdown(text, extensions=['nl2br', 'fenced_code'])
 
 def slugify_author(author_name: str) -> str:
     """Create a URL-safe slug from an author name.
@@ -62,140 +70,38 @@ def slugify_author(author_name: str) -> str:
     slug = ''.join(slug_chars).strip('-')
     return slug
 
+def get_or_create_artist_by_name(artist_name: str) -> Artist:
+    """Get or create an artist by name. This is used when someone comments to automatically create their artist page."""
+    if not artist_name:
+        return None
+    
+    # Try to find existing artist by name (case insensitive)
+    artist = Artist.query.filter(Artist.name.ilike(artist_name)).first()
+    
+    if not artist:
+        # Create new artist
+        artist = Artist(name=artist_name)
+        db.session.add(artist)
+        db.session.flush()  # Get the ID
+    
+    return artist
+
 # Expose slugify to templates
 app.jinja_env.filters['slugify'] = slugify_author
 
-@app.route('/author/<slug>')
-def author_profile(slug: str):
-    """Show a profile page for a comment author, aggregating all their comments."""
-    # Gather comments across entities and match by slugified author
-    video_comments = Comment.query.order_by(desc(Comment.timestamp)).all()
-    playlist_comments = PlaylistComment.query.order_by(desc(PlaylistComment.timestamp)).all()
-    tag_comments = TagComment.query.order_by(desc(TagComment.timestamp)).all()
-    track_comments = TrackComment.query.order_by(desc(TrackComment.timestamp)).all()
-
-    def matches_author(a: str) -> bool:
-        return slugify_author(a) == slug
-
-    items = []
-
-    # Video comments
-    if video_comments:
-        video_id_to_video = {v.id: v for v in Video.query.filter(Video.id.in_({c.video_id for c in video_comments})).all()}
-        for c in video_comments:
-            if matches_author(c.author):
-                video = video_id_to_video.get(c.video_id)
-                items.append({
-                    'kind': 'video',
-                    'content': c.content,
-                    'timestamp': c.timestamp,
-                    'likes': c.likes or 0,
-                    'context_title': (video.nickname or video.original_filepath) if video else f"Video {c.video_id}",
-                    'context_url': url_for('video.video_detail', video_id=c.video_id)
-                })
-
-    # Playlist comments
-    if playlist_comments:
-        playlist_id_to_playlist = {p.id: p for p in Playlist.query.filter(Playlist.id.in_({c.playlist_id for c in playlist_comments})).all()}
-        for c in playlist_comments:
-            if matches_author(c.author):
-                playlist = playlist_id_to_playlist.get(c.playlist_id)
-                items.append({
-                    'kind': 'playlist',
-                    'content': c.content,
-                    'timestamp': c.timestamp,
-                    'likes': c.likes or 0,
-                    'context_title': playlist.name if playlist else f"Playlist {c.playlist_id}",
-                    'context_url': url_for('playlist_detail', playlist_id=c.playlist_id)
-                })
-
-    # Tag comments
-    for c in tag_comments:
-        if matches_author(c.author):
-            items.append({
-                'kind': 'tag',
-                'content': c.content,
-                'timestamp': c.timestamp,
-                'likes': c.likes or 0,
-                'context_title': f"#{c.tag_name}",
-                'context_url': url_for('tag_detail', tag=c.tag_name)
-            })
-
-    # Track comments
-    if track_comments:
-        track_id_to_track = {t.id: t for t in Track.query.filter(Track.id.in_({c.track_id for c in track_comments})).all()}
-        for c in track_comments:
-            if matches_author(c.author):
-                track = track_id_to_track.get(c.track_id)
-                items.append({
-                    'kind': 'track',
-                    'content': c.content,
-                    'timestamp': c.timestamp,
-                    'likes': c.likes or 0,
-                    'context_title': (track.nickname or track.original_filepath) if track else f"Track {c.track_id}",
-                    'context_url': url_for('track_detail', track_id=c.track_id)
-                })
-
-    # Sort by timestamp desc
-    items.sort(key=lambda x: x['timestamp'], reverse=True)
-
-    total_comments = len(items)
-    author_display = None
-    # Try to infer display from any matching item by reverse-slugifying (not perfect) or keep slug
-    # Prefer inspecting original comment authors
-    for c in video_comments + playlist_comments + tag_comments + track_comments:
-        if matches_author(c.author):
-            author_display = c.author
-            break
-    if not author_display:
-        author_display = slug.replace('-', ' ').title()
-
-    # Count per kind
-    kind_counts = {
-        'video': sum(1 for i in items if i['kind'] == 'video'),
-        'playlist': sum(1 for i in items if i['kind'] == 'playlist'),
-        'tag': sum(1 for i in items if i['kind'] == 'tag'),
-        'track': sum(1 for i in items if i['kind'] == 'track'),
-    }
-
-    # Fetch or prepare profile record
-    author_record = AuthorProfile.query.filter_by(slug=slug).first()
-
-    return render_template('author_profile.html',
-                           slug=slug,
-                           author=author_display,
-                           total_comments=total_comments,
-                           kind_counts=kind_counts,
-                           items=items,
-                           author_profile=author_record)
-
-@app.route('/author/<slug>/avatar', methods=['POST'])
-def upload_author_avatar(slug: str):
-    avatar = request.files.get('avatar')
-    if not avatar or not avatar.filename:
-        return redirect(url_for('author_profile', slug=slug))
-
-    try:
-        ext = os.path.splitext(avatar.filename)[1].lower()
-        if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
-            return redirect(url_for('author_profile', slug=slug))
-
-        filename = secure_filename(f"author_{slug}_{uuid.uuid4().hex}{ext}")
-        abs_path = os.path.join(app.config['AVATAR_FOLDER'], filename)
-        os.makedirs(app.config['AVATAR_FOLDER'], exist_ok=True)
-        avatar.save(abs_path)
-        rel_path = os.path.join('avatars', filename).replace('\\', '/')
-
-        profile = AuthorProfile.query.filter_by(slug=slug).first()
-        if not profile:
-            profile = AuthorProfile(slug=slug, display_name=None, avatar_path=rel_path)
-            db.session.add(profile)
-        else:
-            profile.avatar_path = rel_path
+@app.route('/artist/<artist_name>')
+def artist_by_name(artist_name: str):
+    """Route to handle artist pages by name (for backward compatibility with comment links)."""
+    # Try to find artist by name (case insensitive)
+    artist = Artist.query.filter(Artist.name.ilike(artist_name)).first()
+    
+    if not artist:
+        # If no artist found, create one
+        artist = Artist(name=artist_name)
+        db.session.add(artist)
         db.session.commit()
-    except Exception:
-        db.session.rollback()
-    return redirect(url_for('author_profile', slug=slug))
+    
+    return redirect(url_for('artist_detail', artist_id=artist.id))
 
 @app.route('/artist/<int:artist_id>/avatar', methods=['POST'])
 def upload_artist_avatar(artist_id: int):
@@ -297,6 +203,45 @@ def artists_index():
     artists = Artist.query.order_by(desc(Artist.created_at)).paginate(page=page, per_page=per_page, error_out=False)
     return render_template('artists.html', artists=artists.items, page=page, total_pages=artists.pages)
 
+@app.route('/tracks')
+def tracks_index():
+    page = request.args.get('page', 1, type=int)
+    artist = request.args.get('artist')
+    sort_by = request.args.get('sort', 'newest')
+    per_page = 20
+    
+    # Base query for tracks
+    query = Track.query
+    
+    # Filter by artist if specified
+    if artist:
+        query = query.join(TrackArtist).join(Artist).filter(Artist.name.ilike(f'%{artist}%'))
+    
+    # Apply sorting
+    if sort_by == 'newest':
+        query = query.order_by(desc(Track.id))
+    elif sort_by == 'oldest':
+        query = query.order_by(Track.id)
+    elif sort_by == 'most_viewed':
+        query = query.order_by(desc(Track.view_count))
+    elif sort_by == 'most_liked':
+        query = query.order_by(desc(Track.likes))
+    
+    tracks = query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Get artists for each track
+    track_artists = {}
+    for track in tracks.items:
+        track_artists[track.id] = db.session.query(Artist).join(TrackArtist).filter(TrackArtist.track_id == track.id).all()
+    
+    return render_template('tracks.html', 
+                         tracks=tracks.items, 
+                         page=page, 
+                         total_pages=tracks.pages,
+                         artist=artist,
+                         sort_by=sort_by,
+                         track_artists=track_artists)
+
 @app.route('/artist/<int:artist_id>')
 def artist_detail(artist_id):
     artist = Artist.query.get_or_404(artist_id)
@@ -308,6 +253,106 @@ def artist_detail(artist_id):
     total_videos = len(videos)
     total_plays = sum((t.view_count or 0) for t in tracks) + sum((v.view_count or 0) for v in videos)
     total_likes = sum((t.likes or 0) for t in tracks) + sum((v.likes or 0) for v in videos)
+    
+    # Get artist comments
+    artist_comments = ArtistComment.query.filter_by(artist_id=artist_id).order_by(ArtistComment.timestamp.desc()).all()
+    
+    # Get track comments for this artist's tracks
+    track_comment_data = []
+    if tracks:
+        track_ids = [t.id for t in tracks]
+        track_comments = TrackComment.query.filter(TrackComment.track_id.in_(track_ids)).order_by(TrackComment.timestamp.desc()).all()
+        
+        # Create a mapping of track_id to track for easy lookup
+        track_map = {t.id: t for t in tracks}
+        
+        for comment in track_comments:
+            track = track_map.get(comment.track_id)
+            if track:
+                track_comment_data.append({
+                    'comment': comment,
+                    'track': track
+                })
+    
+    # Get recent activity (comments made by this artist across all entities)
+    recent_activity = []
+    
+    # Get all comments by this artist across different entities
+    video_comments = Comment.query.filter_by(author=artist.name).order_by(desc(Comment.timestamp)).limit(10).all()
+    playlist_comments = PlaylistComment.query.filter_by(author=artist.name).order_by(desc(PlaylistComment.timestamp)).limit(10).all()
+    tag_comments = TagComment.query.filter_by(author=artist.name).order_by(desc(TagComment.timestamp)).limit(10).all()
+    track_comments_by_artist = TrackComment.query.filter_by(author=artist.name).order_by(desc(TrackComment.timestamp)).limit(10).all()
+    
+    # Process video comments
+    if video_comments:
+        video_id_to_video = {v.id: v for v in Video.query.filter(Video.id.in_({c.video_id for c in video_comments})).all()}
+        for c in video_comments:
+            video = video_id_to_video.get(c.video_id)
+            recent_activity.append({
+                'kind': 'video',
+                'content': c.content,
+                'timestamp': c.timestamp,
+                'likes': c.likes or 0,
+                'context_title': (video.nickname or video.original_filepath) if video else f"Video {c.video_id}",
+                'context_url': url_for('video.video_detail', video_id=c.video_id)
+            })
+    
+    # Process playlist comments
+    if playlist_comments:
+        playlist_id_to_playlist = {p.id: p for p in Playlist.query.filter(Playlist.id.in_({c.playlist_id for c in playlist_comments})).all()}
+        for c in playlist_comments:
+            playlist = playlist_id_to_playlist.get(c.playlist_id)
+            recent_activity.append({
+                'kind': 'playlist',
+                'content': c.content,
+                'timestamp': c.timestamp,
+                'likes': c.likes or 0,
+                'context_title': playlist.name if playlist else f"Playlist {c.playlist_id}",
+                'context_url': url_for('playlist_detail', playlist_id=c.playlist_id)
+            })
+    
+    # Process tag comments
+    for c in tag_comments:
+        recent_activity.append({
+            'kind': 'tag',
+            'content': c.content,
+            'timestamp': c.timestamp,
+            'likes': c.likes or 0,
+            'context_title': f"#{c.tag_name}",
+            'context_url': url_for('tag_detail', tag=c.tag_name)
+        })
+    
+    # Process track comments
+    if track_comments_by_artist:
+        track_id_to_track = {t.id: t for t in Track.query.filter(Track.id.in_({c.track_id for c in track_comments_by_artist})).all()}
+        for c in track_comments_by_artist:
+            track = track_id_to_track.get(c.track_id)
+            recent_activity.append({
+                'kind': 'track',
+                'content': c.content,
+                'timestamp': c.timestamp,
+                'likes': c.likes or 0,
+                'context_title': (track.nickname or track.original_filepath) if track else f"Track {c.track_id}",
+                'context_url': url_for('track_detail', track_id=c.track_id)
+            })
+    
+    # Sort by timestamp desc
+    recent_activity.sort(key=lambda x: x['timestamp'], reverse=True)
+    recent_activity = recent_activity[:20]  # Limit to 20 most recent activities
+    
+    # Get author avatars for all comments
+    all_comment_authors = set()
+    for comment in artist_comments:
+        all_comment_authors.add(slugify_author(comment.author))
+    for data in track_comment_data:
+        all_comment_authors.add(slugify_author(data['comment'].author))
+    
+    author_avatars = {}
+    if all_comment_authors:
+        profiles = AuthorProfile.query.filter(AuthorProfile.slug.in_(all_comment_authors)).all()
+        for profile in profiles:
+            if profile.avatar_path:
+                author_avatars[profile.slug] = profile.avatar_path
     
     # Get playlists that contain this artist's content (simplified)
     artist_playlists = []
@@ -324,7 +369,11 @@ def artist_detail(artist_id):
                          total_plays=total_plays,
                          total_likes=total_likes,
                          artist_playlists=artist_playlists,
-                         related_artists=related_artists)
+                         related_artists=related_artists,
+                         artist_comments=artist_comments,
+                         track_comment_data=track_comment_data,
+                         author_avatars=author_avatars,
+                         recent_activity=recent_activity)
 
 @app.route('/add_artist', methods=['GET', 'POST'])
 def add_artist():
@@ -356,26 +405,6 @@ def add_artist():
             return jsonify({"error": str(e)}), 500
     return render_template('add_artist.html')
 
-@app.route('/tracks')
-def tracks_index():
-    page = request.args.get('page', 1, type=int)
-    sort_by = request.args.get('sort', 'newest')
-    per_page = 10
-    query = Track.query
-    if sort_by == 'newest':
-        query = query.order_by(desc(Track.id))
-    elif sort_by == 'oldest':
-        query = query.order_by(Track.id)
-    elif sort_by == 'most_viewed':
-        query = query.order_by(desc(Track.view_count))
-    elif sort_by == 'most_liked':
-        query = query.order_by(desc(Track.likes))
-    tracks = query.paginate(page=page, per_page=per_page, error_out=False)
-    return render_template('tracks.html',
-                           tracks=tracks.items,
-                           page=page,
-                           total_pages=tracks.pages,
-                           sort_by=sort_by)
 
 @app.route('/add_track', methods=['GET', 'POST'])
 def add_track():
@@ -516,7 +545,10 @@ def add_track_comment(track_id):
     if not author or not content:
         return jsonify({"error": "Name and comment are required"}), 400
     try:
-        comment = TrackComment(track_id=track_id, author=author, content=content, likes=0)
+        # Get or create artist for the comment author
+        artist = get_or_create_artist_by_name(author)
+        
+        comment = TrackComment(track_id=track_id, author=author, content=content, likes=0, author_artist_id=artist.id if artist else None)
         db.session.add(comment)
         db.session.commit()
         author_slug = slugify_author(comment.author)
@@ -530,6 +562,7 @@ def add_track_comment(track_id):
                 "author": comment.author,
                 "author_slug": author_slug,
                 "author_avatar": avatar_rel,
+                "author_artist_id": artist.id if artist else None,
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes
@@ -557,30 +590,152 @@ def delete_track_comment(comment_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@app.route('/add_artist_comment/<int:artist_id>', methods=['POST'])
+def add_artist_comment(artist_id):
+    artist = Artist.query.get_or_404(artist_id)
+    author = request.form.get('author', '').strip()
+    content = request.form.get('content', '').strip()
+    if not author or not content:
+        return jsonify({"error": "Name and comment are required"}), 400
+    try:
+        # Get or create artist for the comment author
+        comment_artist = get_or_create_artist_by_name(author)
+        
+        comment = ArtistComment(artist_id=artist_id, author=author, content=content, likes=0, author_artist_id=comment_artist.id if comment_artist else None)
+        db.session.add(comment)
+        db.session.commit()
+        author_slug = slugify_author(comment.author)
+        profile = AuthorProfile.query.filter_by(slug=author_slug).first()
+        avatar_rel = profile.avatar_path if profile and profile.avatar_path else None
+
+        return jsonify({
+            "success": True,
+            "comment": {
+                "id": comment.id,
+                "author": comment.author,
+                "author_slug": author_slug,
+                "author_avatar": avatar_rel,
+                "author_artist_id": comment_artist.id if comment_artist else None,
+                "content": comment.content,
+                "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
+                "likes": comment.likes
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/like_artist_comment/<int:comment_id>', methods=['POST'])
+def like_artist_comment(comment_id):
+    comment = ArtistComment.query.get_or_404(comment_id)
+    comment.likes = (comment.likes or 0) + 1
+    db.session.commit()
+    return jsonify({"success": True, "new_like_count": comment.likes})
+
+@app.route('/delete_artist_comment/<int:comment_id>', methods=['POST'])
+def delete_artist_comment(comment_id):
+    comment = ArtistComment.query.get_or_404(comment_id)
+    try:
+        db.session.delete(comment)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/artist/<int:artist_id>/bio', methods=['POST'])
+def update_artist_bio(artist_id):
+    artist = Artist.query.get_or_404(artist_id)
+    bio = request.form.get('bio', '').strip()
+    
+    try:
+        artist.bio = bio
+        db.session.commit()
+        
+        # Convert markdown to HTML for preview
+        bio_html = markdown.markdown(bio, extensions=['nl2br', 'fenced_code']) if bio else ''
+        
+        return jsonify({
+            "success": True,
+            "bio": bio,
+            "bio_html": bio_html
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/')
 def index():
     page = request.args.get('page', 1, type=int)
     sort_by = request.args.get('sort', 'newest')  # Default sort by newest
     per_page = 10
 
-    # Create base query
-    query = Video.query
+    # Get both videos and tracks
+    video_query = Video.query
+    track_query = Track.query
 
-    # Apply sorting
+    # Apply sorting to videos
     if sort_by == 'newest':
-        query = query.order_by(desc(Video.id))
+        video_query = video_query.order_by(desc(Video.id))
+        track_query = track_query.order_by(desc(Track.id))
     elif sort_by == 'oldest':
-        query = query.order_by(Video.id)
+        video_query = video_query.order_by(Video.id)
+        track_query = track_query.order_by(Track.id)
     elif sort_by == 'most_viewed':
-        query = query.order_by(desc(Video.view_count))
+        video_query = video_query.order_by(desc(Video.view_count))
+        track_query = track_query.order_by(desc(Track.view_count))
     elif sort_by == 'most_liked':
-        query = query.order_by(desc(Video.likes))
+        video_query = video_query.order_by(desc(Video.likes))
+        track_query = track_query.order_by(desc(Track.likes))
 
-    videos = query.paginate(page=page, per_page=per_page, error_out=False)
+    # Get all videos and tracks
+    all_videos = video_query.all()
+    all_tracks = track_query.all()
+    
+    # Combine and sort by creation time (using id as proxy)
+    combined_content = []
+    
+    # Add videos with type indicator
+    for video in all_videos:
+        combined_content.append({
+            'type': 'video',
+            'id': video.id,
+            'object': video,
+            'sort_key': video.id
+        })
+    
+    # Add tracks with type indicator
+    for track in all_tracks:
+        combined_content.append({
+            'type': 'track',
+            'id': track.id,
+            'object': track,
+            'sort_key': track.id
+        })
+    
+    # Sort combined content by sort_key (id) in descending order for newest first
+    if sort_by == 'newest':
+        combined_content.sort(key=lambda x: x['sort_key'], reverse=True)
+    elif sort_by == 'oldest':
+        combined_content.sort(key=lambda x: x['sort_key'])
+    elif sort_by == 'most_viewed':
+        combined_content.sort(key=lambda x: x['object'].view_count or 0, reverse=True)
+    elif sort_by == 'most_liked':
+        combined_content.sort(key=lambda x: x['object'].likes or 0, reverse=True)
+    
+    # Manual pagination
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_content = combined_content[start_idx:end_idx]
+    
+    # Calculate total pages
+    total_items = len(combined_content)
+    total_pages = (total_items + per_page - 1) // per_page
+    
     return render_template('index.html', 
-                         videos=videos.items, 
+                         content=paginated_content, 
                          page=page, 
-                         total_pages=videos.pages, 
+                         total_pages=total_pages, 
                          tag=None,
                          sort_by=sort_by)
 
@@ -637,25 +792,72 @@ def filter_videos():
     sort_by = request.args.get('sort', 'newest')
     per_page = 10
 
-    # Create base query
-    query = Video.query
+    # Get both videos and tracks
+    video_query = Video.query
+    track_query = Track.query
 
-    # Apply sorting
+    # Apply sorting to videos
     if sort_by == 'newest':
-        query = query.order_by(desc(Video.id))
+        video_query = video_query.order_by(desc(Video.id))
+        track_query = track_query.order_by(desc(Track.id))
     elif sort_by == 'oldest':
-        query = query.order_by(Video.id)
+        video_query = video_query.order_by(Video.id)
+        track_query = track_query.order_by(Track.id)
     elif sort_by == 'most_viewed':
-        query = query.order_by(desc(Video.view_count))
+        video_query = video_query.order_by(desc(Video.view_count))
+        track_query = track_query.order_by(desc(Track.view_count))
     elif sort_by == 'most_liked':
-        query = query.order_by(desc(Video.likes))
+        video_query = video_query.order_by(desc(Video.likes))
+        track_query = track_query.order_by(desc(Track.likes))
 
-    paginated_videos = query.paginate(page=page, per_page=per_page, error_out=False)
+    # Get all videos and tracks
+    all_videos = video_query.all()
+    all_tracks = track_query.all()
+    
+    # Combine and sort by creation time (using id as proxy)
+    combined_content = []
+    
+    # Add videos with type indicator
+    for video in all_videos:
+        combined_content.append({
+            'type': 'video',
+            'id': video.id,
+            'object': video,
+            'sort_key': video.id
+        })
+    
+    # Add tracks with type indicator
+    for track in all_tracks:
+        combined_content.append({
+            'type': 'track',
+            'id': track.id,
+            'object': track,
+            'sort_key': track.id
+        })
+    
+    # Sort combined content by sort_key (id) in descending order for newest first
+    if sort_by == 'newest':
+        combined_content.sort(key=lambda x: x['sort_key'], reverse=True)
+    elif sort_by == 'oldest':
+        combined_content.sort(key=lambda x: x['sort_key'])
+    elif sort_by == 'most_viewed':
+        combined_content.sort(key=lambda x: x['object'].view_count or 0, reverse=True)
+    elif sort_by == 'most_liked':
+        combined_content.sort(key=lambda x: x['object'].likes or 0, reverse=True)
+    
+    # Manual pagination
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_content = combined_content[start_idx:end_idx]
+    
+    # Calculate total pages
+    total_items = len(combined_content)
+    total_pages = (total_items + per_page - 1) // per_page
     
     return render_template('index.html', 
-                         videos=paginated_videos.items, 
+                         content=paginated_content, 
                          page=page, 
-                         total_pages=paginated_videos.pages,
+                         total_pages=total_pages,
                          tag=tag,
                          sort_by=sort_by)
 
@@ -669,6 +871,22 @@ def delete_video(video_id):
         
         # Delete the database entry
         db.session.delete(video)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/delete_track/<int:track_id>', methods=['POST'])
+def delete_track(track_id):
+    track = Track.query.get_or_404(track_id)
+    try:
+        # Delete the file
+        if os.path.exists(track.stored_filepath):
+            os.remove(track.stored_filepath)
+        
+        # Delete the database entry
+        db.session.delete(track)
         db.session.commit()
         return jsonify({"success": True}), 200
     except Exception as e:
@@ -905,11 +1123,15 @@ def add_comment(video_id):
         return jsonify({"error": "Name and comment are required"}), 400
     
     try:
+        # Get or create artist for the comment author
+        artist = get_or_create_artist_by_name(author)
+        
         comment = Comment(
             video_id=video_id,
             author=author,
             content=content,
-            likes=0
+            likes=0,
+            author_artist_id=artist.id if artist else None
         )
         db.session.add(comment)
         db.session.commit()
@@ -920,6 +1142,7 @@ def add_comment(video_id):
                 "id": comment.id,
                 "author": comment.author,
                 "author_slug": slugify_author(comment.author),
+                "author_artist_id": artist.id if artist else None,
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes
@@ -1191,11 +1414,15 @@ def add_playlist_comment(playlist_id):
         return jsonify({"error": "Name and comment are required"}), 400
     
     try:
+        # Get or create artist for the comment author
+        artist = get_or_create_artist_by_name(author)
+        
         comment = PlaylistComment(
             playlist_id=playlist_id,
             author=author,
             content=content,
-            likes=0
+            likes=0,
+            author_artist_id=artist.id if artist else None
         )
         db.session.add(comment)
         db.session.commit()
@@ -1206,6 +1433,7 @@ def add_playlist_comment(playlist_id):
                 "id": comment.id,
                 "author": comment.author,
                 "author_slug": slugify_author(comment.author),
+                "author_artist_id": artist.id if artist else None,
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes
@@ -1567,41 +1795,87 @@ def tag_detail(tag):
     sort_by = request.args.get('sort', 'newest')
     per_page = 10
 
-    # Create base query for videos with this tag
-    query = Video.query.filter(Video.tags.contains(tag))
+    # Create base queries for videos and tracks with this tag
+    video_query = Video.query.filter(Video.tags.contains(tag))
+    track_query = Track.query.filter(Track.tags.contains(tag))
 
     # Apply sorting
     if sort_by == 'newest':
-        query = query.order_by(desc(Video.id))
+        video_query = video_query.order_by(desc(Video.id))
+        track_query = track_query.order_by(desc(Track.id))
     elif sort_by == 'oldest':
-        query = query.order_by(Video.id)
+        video_query = video_query.order_by(Video.id)
+        track_query = track_query.order_by(Track.id)
     elif sort_by == 'most_viewed':
-        query = query.order_by(desc(Video.view_count))
+        video_query = video_query.order_by(desc(Video.view_count))
+        track_query = track_query.order_by(desc(Track.view_count))
     elif sort_by == 'most_liked':
-        query = query.order_by(desc(Video.likes))
+        video_query = video_query.order_by(desc(Video.likes))
+        track_query = track_query.order_by(desc(Track.likes))
 
-    # Get paginated videos
-    paginated_videos = query.paginate(page=page, per_page=per_page, error_out=False)
+    # Get all videos and tracks with this tag
+    all_videos = video_query.all()
+    all_tracks = track_query.all()
     
-    # Get all videos with this tag for the random player
-    all_tag_videos = query.all()
+    # Combine and sort by creation time (using id as proxy)
+    combined_content = []
     
-    # Get tag statistics
-    video_count = query.count()
-    total_views = query.with_entities(func.sum(Video.view_count)).scalar() or 0
-    total_likes = query.with_entities(func.sum(Video.likes)).scalar() or 0
+    # Add videos with type indicator
+    for video in all_videos:
+        combined_content.append({
+            'type': 'video',
+            'id': video.id,
+            'object': video,
+            'sort_key': video.id
+        })
+    
+    # Add tracks with type indicator
+    for track in all_tracks:
+        combined_content.append({
+            'type': 'track',
+            'id': track.id,
+            'object': track,
+            'sort_key': track.id
+        })
+    
+    # Sort combined content by sort_key (id) in descending order for newest first
+    if sort_by == 'newest':
+        combined_content.sort(key=lambda x: x['sort_key'], reverse=True)
+    elif sort_by == 'oldest':
+        combined_content.sort(key=lambda x: x['sort_key'])
+    elif sort_by == 'most_viewed':
+        combined_content.sort(key=lambda x: x['object'].view_count or 0, reverse=True)
+    elif sort_by == 'most_liked':
+        combined_content.sort(key=lambda x: x['object'].likes or 0, reverse=True)
+    
+    # Manual pagination
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_content = combined_content[start_idx:end_idx]
+    
+    # Calculate total pages
+    total_items = len(combined_content)
+    total_pages = (total_items + per_page - 1) // per_page
+    
+    # Get tag statistics (include both videos and tracks)
+    video_count = len(all_videos)
+    track_count = len(all_tracks)
+    total_content_count = video_count + track_count
+    
+    total_views = sum((v.view_count or 0) for v in all_videos) + sum((t.view_count or 0) for t in all_tracks)
+    total_likes = sum((v.likes or 0) for v in all_videos) + sum((t.likes or 0) for t in all_tracks)
     
     # Get related tags (tags that appear together with this tag)
     related_tags = []
-    videos_with_tag = query.all()
+    all_content_with_tag = all_videos + all_tracks
     tag_counts = {}
     
-    for video in videos_with_tag:
-        if video.tags:
-            video_tags = [t.strip() for t in video.tags.split(',')]
-            for vtag in video_tags:
-                if vtag.lower() != tag.lower() and vtag.strip():
-                    tag_counts[vtag] = tag_counts.get(vtag, 0) + 1
+    for content in all_content_with_tag:
+        if content.tags:
+            content_tags = [t.strip() for t in content.tags.split(',')]
+            for ctag in content_tags:
+                if ctag.lower() != tag.lower() and ctag.strip():
+                    tag_counts[ctag] = tag_counts.get(ctag, 0) + 1
     
     # Sort related tags by frequency and get top 10
     related_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:10]
@@ -1615,12 +1889,14 @@ def tag_detail(tag):
     return render_template(
         'tag_detail.html',
         tag=tag,
-        videos=paginated_videos.items,
-        all_videos=all_tag_videos,
+        content=paginated_content,
+        all_content=combined_content,
         page=page,
-        total_pages=paginated_videos.pages,
+        total_pages=total_pages,
         sort_by=sort_by,
         video_count=video_count,
+        track_count=track_count,
+        total_content_count=total_content_count,
         total_views=total_views,
         total_likes=total_likes,
         related_tags=related_tags,
@@ -1658,11 +1934,15 @@ def add_tag_comment(tag):
         return jsonify({"error": "Name and comment are required"}), 400
     
     try:
+        # Get or create artist for the comment author
+        artist = get_or_create_artist_by_name(author)
+        
         comment = TagComment(
             tag_name=tag,
             author=author,
             content=content,
-            likes=0
+            likes=0,
+            author_artist_id=artist.id if artist else None
         )
         db.session.add(comment)
         db.session.commit()
@@ -1679,6 +1959,7 @@ def add_tag_comment(tag):
                 "author": comment.author,
                 "author_slug": author_slug,
                 "author_avatar": avatar_rel,
+                "author_artist_id": artist.id if artist else None,
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes

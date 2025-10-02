@@ -2,55 +2,197 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Tracks</title>
+    <title>{% if artist %}Tracks by {{ artist }}{% else %}All Tracks{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
     <style>
-      .container { max-width: 960px; margin: 20px auto; padding: 0 12px; }
-      .toolbar { display:flex; justify-content: space-between; align-items:center; margin-bottom: 16px; }
-      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-      .card { border: 1px solid #e6e6e6; border-radius: 8px; overflow: hidden; background: #fff; }
-      .cover { height: 140px; background: #f2f2f2 center/cover no-repeat; }
-      .card-body { padding: 10px 12px; }
-      .title { font-weight: 600; margin: 0 0 6px; }
-      .meta { font-size: 12px; color: #666; }
-      .pagination { margin: 16px 0; display:flex; gap:8px; }
-      a.button { padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; text-decoration: none; }
+      .container { max-width: 1200px; margin: 20px auto; padding: 0 12px; }
+      .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+      .sort-controls { display: flex; gap: 12px; align-items: center; }
+      .sort-controls select { padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+      .track-card { 
+        background: #fff; 
+        border: 1px solid #eee; 
+        border-radius: 12px; 
+        overflow: hidden; 
+        text-decoration: none; 
+        color: inherit;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      .track-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      }
+      .track-thumbnail {
+        width: 100%;
+        height: 160px;
+        background: #f5f5f5 center/cover no-repeat;
+        position: relative;
+      }
+      .track-info { padding: 16px; }
+      .track-title { 
+        font-weight: 600; 
+        font-size: 1rem; 
+        margin-bottom: 8px; 
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .track-meta { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        font-size: 0.85rem; 
+        color: #666; 
+        margin-bottom: 8px;
+      }
+      .track-artists {
+        font-size: 0.8rem;
+        color: #888;
+        margin-bottom: 8px;
+      }
+      .track-stats {
+        display: flex;
+        gap: 12px;
+        font-size: 0.8rem;
+        color: #666;
+      }
+      .track-stat {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .pagination { 
+        display: flex; 
+        justify-content: center; 
+        gap: 8px; 
+        margin: 20px 0; 
+      }
+      .pagination a, .pagination span { 
+        padding: 8px 12px; 
+        border: 1px solid #ddd; 
+        border-radius: 4px; 
+        text-decoration: none; 
+        color: #333;
+      }
+      .pagination a:hover { background: #f5f5f5; }
+      .pagination .current { background: #667eea; color: white; border-color: #667eea; }
+      .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #666;
+      }
+      .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 16px;
+        opacity: 0.5;
+      }
+      .filter-info {
+        background: #f8f9fa;
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border-left: 4px solid #667eea;
+      }
     </style>
   </head>
   <body>
     {% from 'navbar.html' import render_navbar %}
     {{ render_navbar() }}
-
+    
     <div class="container">
-      <div class="toolbar">
-        <h2 style="margin:0;">Audio Tracks</h2>
+      <div class="header">
         <div>
-          <a class="button" href="{{ url_for('add_track') }}">Upload Track</a>
-          <a class="button" href="{{ url_for('index') }}">Videos</a>
+          <h2>{% if artist %}Tracks by {{ artist }}{% else %}All Tracks{% endif %}</h2>
+          {% if artist %}
+            <div class="filter-info">
+              Showing tracks by <strong>{{ artist }}</strong>
+              <a href="{{ url_for('tracks_index') }}" style="margin-left: 12px; color: #667eea; text-decoration: none;">View all tracks</a>
+            </div>
+          {% endif %}
+        </div>
+        <div class="sort-controls">
+          <label for="sort">Sort by:</label>
+          <select id="sort" onchange="window.location.href='{{ url_for('tracks_index', artist=artist) }}?sort=' + this.value">
+            <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest</option>
+            <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest</option>
+            <option value="most_viewed" {% if sort_by == 'most_viewed' %}selected{% endif %}>Most Viewed</option>
+            <option value="most_liked" {% if sort_by == 'most_liked' %}selected{% endif %}>Most Liked</option>
+          </select>
+          <a class="button" href="{{ url_for('add_track') }}">Add Track</a>
         </div>
       </div>
-
-      <div class="grid">
-        {% for t in tracks %}
-          <a class="card" href="{{ url_for('track_detail', track_id=t.id) }}" style="color:inherit; text-decoration:none;">
-            <div class="cover" style="background-image:url('{% if t.background_image_path %}{{ url_for('static', filename=t.background_image_path) }}{% endif %}')"></div>
-            <div class="card-body">
-              <div class="title">{{ t.nickname or t.original_filepath }}</div>
-              <div class="meta">{{ (t.tags or '')[:80] }}</div>
-            </div>
-          </a>
-        {% endfor %}
-      </div>
-
-      <div class="pagination">
-        {% if page > 1 %}
-          <a class="button" href="{{ url_for('tracks_index', page=page-1, sort_by=sort_by) }}">Prev</a>
+      
+      {% if tracks %}
+        <div class="grid">
+          {% for track in tracks %}
+            <a class="track-card" href="{{ url_for('track_detail', track_id=track.id) }}">
+              <div class="track-thumbnail" style="background-image:url('{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}')">
+                {% if not track.background_image_path %}
+                  <div style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 3rem; color: #ccc;">🎵</div>
+                {% endif %}
+              </div>
+              <div class="track-info">
+                <div class="track-title">{{ track.nickname or track.original_filepath }}</div>
+                {% if track_artists.get(track.id) %}
+                  <div class="track-artists">
+                    by {% for artist in track_artists[track.id] %}{{ artist.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+                  </div>
+                {% endif %}
+                <div class="track-meta">
+                  <div class="track-stats">
+                    <span class="track-stat">👁️ {{ track.view_count or 0 }}</span>
+                    <span class="track-stat">❤️ {{ track.likes or 0 }}</span>
+                  </div>
+                  {% if track.tags %}
+                    <span style="color: #667eea; font-size: 0.75rem;">{{ track.tags[:30] }}{% if track.tags|length > 30 %}...{% endif %}</span>
+                  {% endif %}
+                </div>
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+        
+        {% if total_pages > 1 %}
+          <div class="pagination">
+            {% if page > 1 %}
+              <a href="{{ url_for('tracks_index', page=page-1, artist=artist, sort=sort_by) }}">Previous</a>
+            {% endif %}
+            
+            {% for p in range(1, total_pages + 1) %}
+              {% if p == page %}
+                <span class="current">{{ p }}</span>
+              {% elif p <= 3 or p > total_pages - 3 or (p >= page - 2 and p <= page + 2) %}
+                <a href="{{ url_for('tracks_index', page=p, artist=artist, sort=sort_by) }}">{{ p }}</a>
+              {% elif p == 4 and page > 6 %}
+                <span>...</span>
+              {% elif p == total_pages - 3 and page < total_pages - 5 %}
+                <span>...</span>
+              {% endif %}
+            {% endfor %}
+            
+            {% if page < total_pages %}
+              <a href="{{ url_for('tracks_index', page=page+1, artist=artist, sort=sort_by) }}">Next</a>
+            {% endif %}
+          </div>
         {% endif %}
-        {% if page < total_pages %}
-          <a class="button" href="{{ url_for('tracks_index', page=page+1, sort_by=sort_by) }}">Next</a>
-        {% endif %}
-      </div>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-state-icon">🎵</div>
+          <h3>No tracks found</h3>
+          {% if artist %}
+            <p>No tracks found for artist "{{ artist }}".</p>
+          {% else %}
+            <p>No tracks have been uploaded yet.</p>
+          {% endif %}
+          <div style="margin-top: 20px;">
+            <a href="{{ url_for('add_track') }}" class="button">Add First Track</a>
+          </div>
+        </div>
+      {% endif %}
     </div>
   </body>
- </html>
-
+</html>
