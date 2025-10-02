@@ -697,9 +697,6 @@
           <div class="hero-avatar clickable-avatar" style="background-image:url('{% if artist.avatar_path %}{{ url_for('static', filename=artist.avatar_path) }}{% endif %}')" data-avatar-url="{% if artist.avatar_path %}{{ url_for('static', filename=artist.avatar_path) }}{% endif %}"></div>
           <div class="hero-info">
             <h1>{{ artist.name }}</h1>
-            {% if artist.bio %}
-              <div class="hero-bio">{{ artist.bio }}</div>
-            {% endif %}
             
             <div class="hero-stats">
               <div class="stat-item">
@@ -744,13 +741,35 @@
     </section>
 
     <div class="container" id="content">
+      <!-- Biography Section -->
+      <div class="section" style="margin-bottom: 40px;">
+        <div class="section-header">
+          <h2 class="section-title">Biography</h2>
+        </div>
+        <div class="hero-bio-container">
+          <div id="bio-display" class="hero-bio" style="display: none;">
+            <div id="bio-content"></div>
+            <button id="edit-bio-btn" class="btn-edit-bio" style="margin-top: 12px; padding: 8px 16px; font-size: 0.9rem; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;">Edit Biography</button>
+          </div>
+          <div id="bio-edit" class="bio-edit-form" style="display: none;">
+            <textarea id="bio-textarea" placeholder="Write your biography in Markdown format..." style="width: 100%; min-height: 150px; padding: 16px; border: 2px solid #e0e0e0; border-radius: 8px; background: #fafafa; color: #333; font-family: inherit; resize: vertical; font-size: 14px; line-height: 1.5;">{{ artist.bio or '' }}</textarea>
+            <div class="bio-edit-actions" style="margin-top: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+              <button id="save-bio-btn" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem; background: #667eea; border: none; border-radius: 6px; color: white; cursor: pointer;">Save Biography</button>
+              <button id="cancel-bio-btn" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem; background: #6c757d; border: none; border-radius: 6px; color: white; cursor: pointer;">Cancel</button>
+              <button id="preview-bio-btn" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem; background: #28a745; border: none; border-radius: 6px; color: white; cursor: pointer;">Preview</button>
+            </div>
+            <div id="bio-preview" class="bio-preview" style="margin-top: 16px; padding: 16px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; display: none; line-height: 1.6;"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="content-grid">
         <div class="main-content">
           <!-- Tracks Section -->
           {% if tracks %}
           <div class="section">
             <div class="section-header">
-              <h2 class="section-title">Tracks</h2>
+              <h2 class="section-title">Latest Tracks</h2>
               <span class="section-count">{{ tracks|length }}</span>
             </div>
             <div class="media-grid">
@@ -779,6 +798,11 @@
               </div>
               {% endfor %}
             </div>
+            {% if tracks|length > 6 %}
+            <div style="text-align: center; margin-top: 20px;">
+              <a href="{{ url_for('tracks_index') }}?artist={{ artist.name }}" class="btn-primary">View All Tracks</a>
+            </div>
+            {% endif %}
           </div>
           {% endif %}
 
@@ -786,12 +810,12 @@
           {% if videos %}
           <div class="section">
             <div class="section-header">
-              <h2 class="section-title">Videos</h2>
+              <h2 class="section-title">Latest Videos</h2>
               <span class="section-count">{{ videos|length }}</span>
             </div>
             <div class="media-grid">
               {% for video in videos %}
-                                      <a href="{{ url_for('video.video_detail', video_id=video.id) }}" class="media-card">
+              <a href="{{ url_for('video.video_detail', video_id=video.id) }}" class="media-card">
                 <div class="media-thumbnail" style="background-image:url('{% if video.thumbnail_path %}{{ url_for('static', filename=video.thumbnail_path) }}{% endif %}')"></div>
                 <div class="media-info">
                   <div class="media-title">{{ video.nickname or video.original_filepath }}</div>
@@ -809,6 +833,11 @@
               </a>
               {% endfor %}
             </div>
+            {% if videos|length > 6 %}
+            <div style="text-align: center; margin-top: 20px;">
+              <a href="{{ url_for('index') }}?artist={{ artist.name }}" class="btn-primary">View All Videos</a>
+            </div>
+            {% endif %}
           </div>
           {% endif %}
 
@@ -829,6 +858,31 @@
         </div>
 
         <div class="sidebar">
+          <!-- Quick Stats -->
+          <div class="section">
+            <div class="section-header">
+              <h3 class="section-title">Quick Stats</h3>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; text-align: center;">
+              <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">{{ total_tracks }}</div>
+                <div style="font-size: 0.8rem; color: #666;">Tracks</div>
+              </div>
+              <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">{{ total_videos }}</div>
+                <div style="font-size: 0.8rem; color: #666;">Videos</div>
+              </div>
+              <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #28a745;">{{ total_plays }}</div>
+                <div style="font-size: 0.8rem; color: #666;">Plays</div>
+              </div>
+              <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: #dc3545;">{{ total_likes }}</div>
+                <div style="font-size: 0.8rem; color: #666;">Likes</div>
+              </div>
+            </div>
+          </div>
+
           <!-- Related Artists -->
           {% if related_artists %}
           <div class="section">
@@ -936,11 +990,9 @@
             </div>
             <div>
               <p><strong>Joined:</strong> {{ artist.created_at.strftime('%B %Y') if artist.created_at else 'Unknown' }}</p>
-              {% if artist.bio %}
-                <p><strong>Bio:</strong> {{ artist.bio }}</p>
-              {% else %}
-                <p><em>No biography available.</em></p>
-              {% endif %}
+              <p><strong>Total Content:</strong> {{ total_tracks + total_videos }} items</p>
+              <p><strong>Total Plays:</strong> {{ total_plays }}</p>
+              <p><strong>Total Likes:</strong> {{ total_likes }}</p>
             </div>
           </div>
         </div>
@@ -1350,6 +1402,161 @@
           if (submitBtn) {
             submitBtn.textContent = 'Uploading...';
             submitBtn.disabled = true;
+          }
+        });
+      });
+
+      // Artist Biography Functionality
+      let originalBio = '';
+      let isEditingBio = false;
+      
+      function initializeBio() {
+        const bioDisplay = document.getElementById('bio-display');
+        const bioEdit = document.getElementById('bio-edit');
+        const bioContent = document.getElementById('bio-content');
+        const bioTextarea = document.getElementById('bio-textarea');
+        
+        // Initialize with current bio
+        const currentBio = `{{ artist.bio or '' }}`;
+        if (currentBio.trim()) {
+          // Convert markdown to HTML for display
+          const html = currentBio
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/`(.*?)`/g, '<code>$1</code>')
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            .replace(/^\* (.*$)/gim, '<li>$1</li>')
+            .replace(/^- (.*$)/gim, '<li>$1</li>')
+            .replace(/\n/g, '<br>');
+          bioContent.innerHTML = html;
+          bioDisplay.style.display = 'block';
+        } else {
+          // Show edit form if no bio exists
+          showBioEdit();
+        }
+      }
+      
+      function showBioEdit() {
+        const bioDisplay = document.getElementById('bio-display');
+        const bioEdit = document.getElementById('bio-edit');
+        const bioTextarea = document.getElementById('bio-textarea');
+        
+        bioDisplay.style.display = 'none';
+        bioEdit.style.display = 'block';
+        bioTextarea.focus();
+        isEditingBio = true;
+      }
+      
+      function showBioDisplay() {
+        const bioDisplay = document.getElementById('bio-display');
+        const bioEdit = document.getElementById('bio-edit');
+        const bioPreview = document.getElementById('bio-preview');
+        
+        bioEdit.style.display = 'none';
+        bioPreview.style.display = 'none';
+        bioDisplay.style.display = 'block';
+        isEditingBio = false;
+      }
+      
+      function saveBio() {
+        const bioTextarea = document.getElementById('bio-textarea');
+        const bioContent = document.getElementById('bio-content');
+        const bio = bioTextarea.value.trim();
+        
+        if (bio === originalBio) {
+          showBioDisplay();
+          return;
+        }
+        
+        // Save to server
+        const formData = new FormData();
+        formData.append('bio', bio);
+        
+        fetch(`/artist/{{ artist.id }}/bio`, {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            bioContent.innerHTML = data.bio_html || bio;
+            showBioDisplay();
+            originalBio = bio;
+          } else {
+            alert('Error saving biography: ' + (data.error || 'Unknown error'));
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Error saving biography');
+        });
+      }
+      
+      function previewBio() {
+        const bioTextarea = document.getElementById('bio-textarea');
+        const bioPreview = document.getElementById('bio-preview');
+        const bio = bioTextarea.value.trim();
+        
+        if (!bio) {
+          bioPreview.style.display = 'none';
+          return;
+        }
+        
+        // Convert markdown to HTML (client-side preview)
+        const html = bio
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+          .replace(/`(.*?)`/g, '<code>$1</code>')
+          .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+          .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+          .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+          .replace(/^\* (.*$)/gim, '<li>$1</li>')
+          .replace(/^- (.*$)/gim, '<li>$1</li>')
+          .replace(/\n/g, '<br>');
+        
+        bioPreview.innerHTML = html;
+        bioPreview.style.display = 'block';
+      }
+      
+      function cancelBioEdit() {
+        const bioTextarea = document.getElementById('bio-textarea');
+        bioTextarea.value = originalBio;
+        showBioDisplay();
+      }
+      
+      // Event listeners for bio editing
+      document.addEventListener('DOMContentLoaded', function() {
+        // Initialize bio
+        initializeBio();
+        
+        // Store original bio
+        originalBio = `{{ artist.bio or '' }}`;
+        
+        // Edit bio button
+        document.getElementById('edit-bio-btn').addEventListener('click', showBioEdit);
+        
+        // Save bio button
+        document.getElementById('save-bio-btn').addEventListener('click', saveBio);
+        
+        // Cancel bio button
+        document.getElementById('cancel-bio-btn').addEventListener('click', cancelBioEdit);
+        
+        // Preview bio button
+        document.getElementById('preview-bio-btn').addEventListener('click', previewBio);
+        
+        // Auto-preview on typing
+        document.getElementById('bio-textarea').addEventListener('input', function() {
+          clearTimeout(this.previewTimeout);
+          this.previewTimeout = setTimeout(previewBio, 500);
+        });
+        
+        // Save on Ctrl+S
+        document.getElementById('bio-textarea').addEventListener('keydown', function(e) {
+          if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            saveBio();
           }
         });
       });

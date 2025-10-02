@@ -12,6 +12,7 @@ import uuid
 import random
 import string
 import unicodedata
+import markdown
 
 # Import models
 from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment, Track, TrackComment, ArtistComment, Artist, TrackArtist, VideoArtist, AuthorProfile
@@ -36,6 +37,13 @@ app.register_blueprint(video_bp, url_prefix='/video')
 app.register_blueprint(playlist_bp, url_prefix='/playlist')
 app.register_blueprint(comment_bp, url_prefix='/comment')
 app.register_blueprint(filter_bp, url_prefix='/filter')
+
+# Add markdown filter
+@app.template_filter('markdown')
+def markdown_filter(text):
+    if not text:
+        return ''
+    return markdown.markdown(text, extensions=['nl2br', 'fenced_code'])
 
 def slugify_author(author_name: str) -> str:
     """Create a URL-safe slug from an author name.
@@ -639,6 +647,27 @@ def delete_artist_comment(comment_id):
         db.session.delete(comment)
         db.session.commit()
         return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/artist/<int:artist_id>/bio', methods=['POST'])
+def update_artist_bio(artist_id):
+    artist = Artist.query.get_or_404(artist_id)
+    bio = request.form.get('bio', '').strip()
+    
+    try:
+        artist.bio = bio
+        db.session.commit()
+        
+        # Convert markdown to HTML for preview
+        bio_html = markdown.markdown(bio, extensions=['nl2br', 'fenced_code']) if bio else ''
+        
+        return jsonify({
+            "success": True,
+            "bio": bio,
+            "bio_html": bio_html
+        }), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
