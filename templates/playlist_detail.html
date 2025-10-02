@@ -99,7 +99,7 @@
                 {% for comment in comments %}
                     <div class="comment">
                         <div class="comment-header">
-                            <strong class="comment-author"><a href="{{ url_for('author_profile', slug=comment.author|slugify) }}">{{ comment.author }}</a></strong>
+                            <strong class="comment-author"><a href="{{ url_for('artist_by_name', artist_name=comment.author) }}">{{ comment.author }}</a></strong>
                             <span class="comment-timestamp">{{ comment.timestamp.strftime("%m/%d/%Y %I:%M %p") }}</span>
                             <button class="delete-comment-btn" onclick="deletePlaylistComment({{ comment.id }})">×</button>
                         </div>

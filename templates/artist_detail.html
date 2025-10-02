@@ -652,6 +652,62 @@
         pointer-events: none;
       }
       
+      /* Activity Feed Styles */
+      .activity-feed {
+        display: grid;
+        gap: 12px;
+      }
+      
+      .activity-item {
+        background: #fff;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 12px;
+        transition: all 0.3s ease;
+      }
+      
+      .activity-item:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
+      }
+      
+      .activity-header {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        color: #555;
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+      
+      .activity-kind {
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #667eea;
+        font-size: 11px;
+        background: #f0f4ff;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      
+      .activity-title a {
+        color: inherit;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      
+      .activity-title a:hover {
+        color: #667eea;
+        text-decoration: underline;
+      }
+      
+      .activity-content {
+        margin-top: 6px;
+        font-size: 14px;
+        line-height: 1.4;
+        color: #333;
+      }
+
       /* Dropdown menu for compact nav */
       .dropdown { position: relative; display: inline-block; }
       .dropbtn { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.25); padding: 6px 10px; border-radius: 4px; cursor: pointer; }
@@ -921,6 +977,32 @@
           </div>
           {% endif %}
 
+          <!-- Recent Activity Section -->
+          <div class="section">
+            <div class="section-header">
+              <h3 class="section-title">Recent Activity</h3>
+            </div>
+            
+            <div class="activity-feed">
+              {% for activity in recent_activity %}
+              <div class="activity-item">
+                <div class="activity-header">
+                  <span class="activity-kind">{{ activity.kind }}</span>
+                  <span>on</span>
+                  <span class="activity-title"><a href="{{ activity.context_url }}">{{ activity.context_title }}</a></span>
+                  <span>·</span>
+                  <span>{{ activity.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span>
+                  <span>· ❤️ {{ activity.likes }}</span>
+                </div>
+                <div class="activity-content">{{ activity.content }}</div>
+              </div>
+              {% endfor %}
+              {% if not recent_activity %}
+                <p style="color: #666; text-align: center; padding: 20px;">No recent activity yet.</p>
+              {% endif %}
+            </div>
+          </div>
+
           <!-- Comments Section -->
           <div class="section">
             <div class="section-header">
@@ -943,7 +1025,7 @@
                   <div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
                     {% set av = author_avatars.get(comment.author|slugify) %}
                     <img alt="avatar" src="{% if av %}{{ url_for('static', filename=av) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;" />
-                    <strong><a href="{{ url_for('author_profile', slug=comment.author|slugify) }}">{{ comment.author }}</a></strong>
+                    <strong><a href="{{ url_for('artist_detail', artist_id=comment.author_artist_id) if comment.author_artist_id else '#' }}">{{ comment.author }}</a></strong>
                     <span style="color:#777; font-size:12px;">{{ comment.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span>
                   </div>
                   <div style="margin-bottom: 8px;">{{ comment.content }}</div>
@@ -965,7 +1047,7 @@
                     <div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
                       {% set av = author_avatars.get(data.comment.author|slugify) %}
                       <img alt="avatar" src="{% if av %}{{ url_for('static', filename=av) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}" style="width:20px; height:20px; border-radius:50%; object-fit:cover;" />
-                      <strong><a href="{{ url_for('author_profile', slug=data.comment.author|slugify) }}">{{ data.comment.author }}</a></strong>
+                      <strong><a href="{{ url_for('artist_detail', artist_id=data.comment.author_artist_id) if data.comment.author_artist_id else '#' }}">{{ data.comment.author }}</a></strong>
                       <span style="color:#777; font-size:11px;">{{ data.comment.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span>
                     </div>
                     <div style="margin-bottom: 8px; font-size: 14px;">{{ data.comment.content }}</div>
@@ -1056,9 +1138,9 @@
         {% for track in tracks %}
         {
           id: {{ track.id }},
-          title: "{{ track.nickname or track.original_filepath }}",
-          url: "{{ url_for('stream_track', track_id=track.id) }}",
-          backgroundImage: "{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+          title: {{ (track.nickname or track.original_filepath)|tojson }},
+          url: {{ url_for('stream_track', track_id=track.id)|tojson }},
+          backgroundImage: {{ (track.background_image_path and url_for('static', filename=track.background_image_path))|tojson }}
         }{% if not loop.last %},{% endif %}
         {% endfor %}
       ];
@@ -1417,7 +1499,7 @@
         const bioTextarea = document.getElementById('bio-textarea');
         
         // Initialize with current bio
-        const currentBio = `{{ artist.bio or '' }}`;
+        const currentBio = {{ (artist.bio or '')|tojson }};
         if (currentBio.trim()) {
           // Convert markdown to HTML for display
           const html = currentBio
@@ -1532,7 +1614,7 @@
         initializeBio();
         
         // Store original bio
-        originalBio = `{{ artist.bio or '' }}`;
+        originalBio = {{ (artist.bio or '')|tojson }};
         
         // Edit bio button
         document.getElementById('edit-bio-btn').addEventListener('click', showBioEdit);

@@ -24,6 +24,7 @@ class Comment(db.Model):
     content = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     likes = db.Column(db.Integer, default=0)
+    author_artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), nullable=True)
 
 class Playlist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -44,6 +45,7 @@ class PlaylistComment(db.Model):
     content = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     likes = db.Column(db.Integer, default=0)
+    author_artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), nullable=True)
 
 class TagDescription(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -58,7 +60,8 @@ class TagComment(db.Model):
     author = db.Column(db.String(100), nullable=False)
     content = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    likes = db.Column(db.Integer, default=0) 
+    likes = db.Column(db.Integer, default=0)
+    author_artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), nullable=True) 
 
 
 class Track(db.Model):
@@ -81,6 +84,7 @@ class TrackComment(db.Model):
     content = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     likes = db.Column(db.Integer, default=0)
+    author_artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), nullable=True)
 
 
 class ArtistComment(db.Model):
@@ -90,6 +94,7 @@ class ArtistComment(db.Model):
     content = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     likes = db.Column(db.Integer, default=0)
+    author_artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), nullable=True)
 
 
 class Artist(db.Model):

@@ -113,7 +113,7 @@
                             <div class="comment-header">
                                 {% set av = author_avatars.get(comment.author|slugify) %}
                                 <img alt="avatar" class="comment-avatar" src="{% if av %}{{ url_for('static', filename=av) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}">
-                                <strong class="comment-author"><a href="{{ url_for('author_profile', slug=comment.author|slugify) }}">{{ comment.author }}</a></strong>
+                                <strong class="comment-author"><a href="{{ url_for('artist_by_name', artist_name=comment.author) }}">{{ comment.author }}</a></strong>
                                 <span class="comment-timestamp">{{ comment.timestamp.strftime("%m/%d/%Y %I:%M %p") }}</span>
                             </div>
                             <div class="comment-content">{{ comment.content }}</div>

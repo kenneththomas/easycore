@@ -70,140 +70,38 @@ def slugify_author(author_name: str) -> str:
     slug = ''.join(slug_chars).strip('-')
     return slug
 
+def get_or_create_artist_by_name(artist_name: str) -> Artist:
+    """Get or create an artist by name. This is used when someone comments to automatically create their artist page."""
+    if not artist_name:
+        return None
+    
+    # Try to find existing artist by name (case insensitive)
+    artist = Artist.query.filter(Artist.name.ilike(artist_name)).first()
+    
+    if not artist:
+        # Create new artist
+        artist = Artist(name=artist_name)
+        db.session.add(artist)
+        db.session.flush()  # Get the ID
+    
+    return artist
+
 # Expose slugify to templates
 app.jinja_env.filters['slugify'] = slugify_author
 
-@app.route('/author/<slug>')
-def author_profile(slug: str):
-    """Show a profile page for a comment author, aggregating all their comments."""
-    # Gather comments across entities and match by slugified author
-    video_comments = Comment.query.order_by(desc(Comment.timestamp)).all()
-    playlist_comments = PlaylistComment.query.order_by(desc(PlaylistComment.timestamp)).all()
-    tag_comments = TagComment.query.order_by(desc(TagComment.timestamp)).all()
-    track_comments = TrackComment.query.order_by(desc(TrackComment.timestamp)).all()
-
-    def matches_author(a: str) -> bool:
-        return slugify_author(a) == slug
-
-    items = []
-
-    # Video comments
-    if video_comments:
-        video_id_to_video = {v.id: v for v in Video.query.filter(Video.id.in_({c.video_id for c in video_comments})).all()}
-        for c in video_comments:
-            if matches_author(c.author):
-                video = video_id_to_video.get(c.video_id)
-                items.append({
-                    'kind': 'video',
-                    'content': c.content,
-                    'timestamp': c.timestamp,
-                    'likes': c.likes or 0,
-                    'context_title': (video.nickname or video.original_filepath) if video else f"Video {c.video_id}",
-                    'context_url': url_for('video.video_detail', video_id=c.video_id)
-                })
-
-    # Playlist comments
-    if playlist_comments:
-        playlist_id_to_playlist = {p.id: p for p in Playlist.query.filter(Playlist.id.in_({c.playlist_id for c in playlist_comments})).all()}
-        for c in playlist_comments:
-            if matches_author(c.author):
-                playlist = playlist_id_to_playlist.get(c.playlist_id)
-                items.append({
-                    'kind': 'playlist',
-                    'content': c.content,
-                    'timestamp': c.timestamp,
-                    'likes': c.likes or 0,
-                    'context_title': playlist.name if playlist else f"Playlist {c.playlist_id}",
-                    'context_url': url_for('playlist_detail', playlist_id=c.playlist_id)
-                })
-
-    # Tag comments
-    for c in tag_comments:
-        if matches_author(c.author):
-            items.append({
-                'kind': 'tag',
-                'content': c.content,
-                'timestamp': c.timestamp,
-                'likes': c.likes or 0,
-                'context_title': f"#{c.tag_name}",
-                'context_url': url_for('tag_detail', tag=c.tag_name)
-            })
-
-    # Track comments
-    if track_comments:
-        track_id_to_track = {t.id: t for t in Track.query.filter(Track.id.in_({c.track_id for c in track_comments})).all()}
-        for c in track_comments:
-            if matches_author(c.author):
-                track = track_id_to_track.get(c.track_id)
-                items.append({
-                    'kind': 'track',
-                    'content': c.content,
-                    'timestamp': c.timestamp,
-                    'likes': c.likes or 0,
-                    'context_title': (track.nickname or track.original_filepath) if track else f"Track {c.track_id}",
-                    'context_url': url_for('track_detail', track_id=c.track_id)
-                })
-
-    # Sort by timestamp desc
-    items.sort(key=lambda x: x['timestamp'], reverse=True)
-
-    total_comments = len(items)
-    author_display = None
-    # Try to infer display from any matching item by reverse-slugifying (not perfect) or keep slug
-    # Prefer inspecting original comment authors
-    for c in video_comments + playlist_comments + tag_comments + track_comments:
-        if matches_author(c.author):
-            author_display = c.author
-            break
-    if not author_display:
-        author_display = slug.replace('-', ' ').title()
-
-    # Count per kind
-    kind_counts = {
-        'video': sum(1 for i in items if i['kind'] == 'video'),
-        'playlist': sum(1 for i in items if i['kind'] == 'playlist'),
-        'tag': sum(1 for i in items if i['kind'] == 'tag'),
-        'track': sum(1 for i in items if i['kind'] == 'track'),
-    }
-
-    # Fetch or prepare profile record
-    author_record = AuthorProfile.query.filter_by(slug=slug).first()
-
-    return render_template('author_profile.html',
-                           slug=slug,
-                           author=author_display,
-                           total_comments=total_comments,
-                           kind_counts=kind_counts,
-                           items=items,
-                           author_profile=author_record)
-
-@app.route('/author/<slug>/avatar', methods=['POST'])
-def upload_author_avatar(slug: str):
-    avatar = request.files.get('avatar')
-    if not avatar or not avatar.filename:
-        return redirect(url_for('author_profile', slug=slug))
-
-    try:
-        ext = os.path.splitext(avatar.filename)[1].lower()
-        if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
-            return redirect(url_for('author_profile', slug=slug))
-
-        filename = secure_filename(f"author_{slug}_{uuid.uuid4().hex}{ext}")
-        abs_path = os.path.join(app.config['AVATAR_FOLDER'], filename)
-        os.makedirs(app.config['AVATAR_FOLDER'], exist_ok=True)
-        avatar.save(abs_path)
-        rel_path = os.path.join('avatars', filename).replace('\\', '/')
-
-        profile = AuthorProfile.query.filter_by(slug=slug).first()
-        if not profile:
-            profile = AuthorProfile(slug=slug, display_name=None, avatar_path=rel_path)
-            db.session.add(profile)
-        else:
-            profile.avatar_path = rel_path
+@app.route('/artist/<artist_name>')
+def artist_by_name(artist_name: str):
+    """Route to handle artist pages by name (for backward compatibility with comment links)."""
+    # Try to find artist by name (case insensitive)
+    artist = Artist.query.filter(Artist.name.ilike(artist_name)).first()
+    
+    if not artist:
+        # If no artist found, create one
+        artist = Artist(name=artist_name)
+        db.session.add(artist)
         db.session.commit()
-    except Exception:
-        db.session.rollback()
-    return redirect(url_for('author_profile', slug=slug))
+    
+    return redirect(url_for('artist_detail', artist_id=artist.id))
 
 @app.route('/artist/<int:artist_id>/avatar', methods=['POST'])
 def upload_artist_avatar(artist_id: int):
@@ -337,6 +235,72 @@ def artist_detail(artist_id):
                     'track': track
                 })
     
+    # Get recent activity (comments made by this artist across all entities)
+    recent_activity = []
+    
+    # Get all comments by this artist across different entities
+    video_comments = Comment.query.filter_by(author=artist.name).order_by(desc(Comment.timestamp)).limit(10).all()
+    playlist_comments = PlaylistComment.query.filter_by(author=artist.name).order_by(desc(PlaylistComment.timestamp)).limit(10).all()
+    tag_comments = TagComment.query.filter_by(author=artist.name).order_by(desc(TagComment.timestamp)).limit(10).all()
+    track_comments_by_artist = TrackComment.query.filter_by(author=artist.name).order_by(desc(TrackComment.timestamp)).limit(10).all()
+    
+    # Process video comments
+    if video_comments:
+        video_id_to_video = {v.id: v for v in Video.query.filter(Video.id.in_({c.video_id for c in video_comments})).all()}
+        for c in video_comments:
+            video = video_id_to_video.get(c.video_id)
+            recent_activity.append({
+                'kind': 'video',
+                'content': c.content,
+                'timestamp': c.timestamp,
+                'likes': c.likes or 0,
+                'context_title': (video.nickname or video.original_filepath) if video else f"Video {c.video_id}",
+                'context_url': url_for('video.video_detail', video_id=c.video_id)
+            })
+    
+    # Process playlist comments
+    if playlist_comments:
+        playlist_id_to_playlist = {p.id: p for p in Playlist.query.filter(Playlist.id.in_({c.playlist_id for c in playlist_comments})).all()}
+        for c in playlist_comments:
+            playlist = playlist_id_to_playlist.get(c.playlist_id)
+            recent_activity.append({
+                'kind': 'playlist',
+                'content': c.content,
+                'timestamp': c.timestamp,
+                'likes': c.likes or 0,
+                'context_title': playlist.name if playlist else f"Playlist {c.playlist_id}",
+                'context_url': url_for('playlist_detail', playlist_id=c.playlist_id)
+            })
+    
+    # Process tag comments
+    for c in tag_comments:
+        recent_activity.append({
+            'kind': 'tag',
+            'content': c.content,
+            'timestamp': c.timestamp,
+            'likes': c.likes or 0,
+            'context_title': f"#{c.tag_name}",
+            'context_url': url_for('tag_detail', tag=c.tag_name)
+        })
+    
+    # Process track comments
+    if track_comments_by_artist:
+        track_id_to_track = {t.id: t for t in Track.query.filter(Track.id.in_({c.track_id for c in track_comments_by_artist})).all()}
+        for c in track_comments_by_artist:
+            track = track_id_to_track.get(c.track_id)
+            recent_activity.append({
+                'kind': 'track',
+                'content': c.content,
+                'timestamp': c.timestamp,
+                'likes': c.likes or 0,
+                'context_title': (track.nickname or track.original_filepath) if track else f"Track {c.track_id}",
+                'context_url': url_for('track_detail', track_id=c.track_id)
+            })
+    
+    # Sort by timestamp desc
+    recent_activity.sort(key=lambda x: x['timestamp'], reverse=True)
+    recent_activity = recent_activity[:20]  # Limit to 20 most recent activities
+    
     # Get author avatars for all comments
     all_comment_authors = set()
     for comment in artist_comments:
@@ -369,7 +333,8 @@ def artist_detail(artist_id):
                          related_artists=related_artists,
                          artist_comments=artist_comments,
                          track_comment_data=track_comment_data,
-                         author_avatars=author_avatars)
+                         author_avatars=author_avatars,
+                         recent_activity=recent_activity)
 
 @app.route('/add_artist', methods=['GET', 'POST'])
 def add_artist():
@@ -561,7 +526,10 @@ def add_track_comment(track_id):
     if not author or not content:
         return jsonify({"error": "Name and comment are required"}), 400
     try:
-        comment = TrackComment(track_id=track_id, author=author, content=content, likes=0)
+        # Get or create artist for the comment author
+        artist = get_or_create_artist_by_name(author)
+        
+        comment = TrackComment(track_id=track_id, author=author, content=content, likes=0, author_artist_id=artist.id if artist else None)
         db.session.add(comment)
         db.session.commit()
         author_slug = slugify_author(comment.author)
@@ -575,6 +543,7 @@ def add_track_comment(track_id):
                 "author": comment.author,
                 "author_slug": author_slug,
                 "author_avatar": avatar_rel,
+                "author_artist_id": artist.id if artist else None,
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes
@@ -610,7 +579,10 @@ def add_artist_comment(artist_id):
     if not author or not content:
         return jsonify({"error": "Name and comment are required"}), 400
     try:
-        comment = ArtistComment(artist_id=artist_id, author=author, content=content, likes=0)
+        # Get or create artist for the comment author
+        comment_artist = get_or_create_artist_by_name(author)
+        
+        comment = ArtistComment(artist_id=artist_id, author=author, content=content, likes=0, author_artist_id=comment_artist.id if comment_artist else None)
         db.session.add(comment)
         db.session.commit()
         author_slug = slugify_author(comment.author)
@@ -624,6 +596,7 @@ def add_artist_comment(artist_id):
                 "author": comment.author,
                 "author_slug": author_slug,
                 "author_avatar": avatar_rel,
+                "author_artist_id": comment_artist.id if comment_artist else None,
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes
@@ -1020,11 +993,15 @@ def add_comment(video_id):
         return jsonify({"error": "Name and comment are required"}), 400
     
     try:
+        # Get or create artist for the comment author
+        artist = get_or_create_artist_by_name(author)
+        
         comment = Comment(
             video_id=video_id,
             author=author,
             content=content,
-            likes=0
+            likes=0,
+            author_artist_id=artist.id if artist else None
         )
         db.session.add(comment)
         db.session.commit()
@@ -1035,6 +1012,7 @@ def add_comment(video_id):
                 "id": comment.id,
                 "author": comment.author,
                 "author_slug": slugify_author(comment.author),
+                "author_artist_id": artist.id if artist else None,
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes
@@ -1306,11 +1284,15 @@ def add_playlist_comment(playlist_id):
         return jsonify({"error": "Name and comment are required"}), 400
     
     try:
+        # Get or create artist for the comment author
+        artist = get_or_create_artist_by_name(author)
+        
         comment = PlaylistComment(
             playlist_id=playlist_id,
             author=author,
             content=content,
-            likes=0
+            likes=0,
+            author_artist_id=artist.id if artist else None
         )
         db.session.add(comment)
         db.session.commit()
@@ -1321,6 +1303,7 @@ def add_playlist_comment(playlist_id):
                 "id": comment.id,
                 "author": comment.author,
                 "author_slug": slugify_author(comment.author),
+                "author_artist_id": artist.id if artist else None,
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes
@@ -1773,11 +1756,15 @@ def add_tag_comment(tag):
         return jsonify({"error": "Name and comment are required"}), 400
     
     try:
+        # Get or create artist for the comment author
+        artist = get_or_create_artist_by_name(author)
+        
         comment = TagComment(
             tag_name=tag,
             author=author,
             content=content,
-            likes=0
+            likes=0,
+            author_artist_id=artist.id if artist else None
         )
         db.session.add(comment)
         db.session.commit()
@@ -1794,6 +1781,7 @@ def add_tag_comment(tag):
                 "author": comment.author,
                 "author_slug": author_slug,
                 "author_avatar": avatar_rel,
+                "author_artist_id": artist.id if artist else None,
                 "content": comment.content,
                 "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
                 "likes": comment.likes
