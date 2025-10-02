@@ -867,6 +867,68 @@
           </div>
           {% endif %}
 
+          <!-- Comments Section -->
+          <div class="section">
+            <div class="section-header">
+              <h3 class="section-title">Comments</h3>
+            </div>
+            
+            <!-- Add Comment Form -->
+            <form id="artistCommentForm" autocomplete="off" style="margin-bottom: 20px;">
+              <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <input type="text" name="author" placeholder="Your name" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" readonly style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+                <input type="text" name="content" placeholder="Write a comment" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" readonly style="flex: 2; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+                <button class="button" type="submit" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">Post</button>
+              </div>
+            </form>
+            
+            <!-- Artist Comments -->
+            <div id="artistCommentList">
+              {% for comment in artist_comments %}
+                <div class="comment" data-id="{{ comment.id }}" data-type="artist">
+                  <div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
+                    {% set av = author_avatars.get(comment.author|slugify) %}
+                    <img alt="avatar" src="{% if av %}{{ url_for('static', filename=av) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;" />
+                    <strong><a href="{{ url_for('author_profile', slug=comment.author|slugify) }}">{{ comment.author }}</a></strong>
+                    <span style="color:#777; font-size:12px;">{{ comment.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span>
+                  </div>
+                  <div style="margin-bottom: 8px;">{{ comment.content }}</div>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="button like-comment" style="padding: 4px 8px; font-size: 12px;">Like ({{ comment.likes or 0 }})</button>
+                    <button class="button delete-comment" style="padding: 4px 8px; font-size: 12px;">Delete</button>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+            
+            <!-- Track Comments -->
+            {% if track_comment_data %}
+            <div style="margin-top: 20px;">
+              <h4 style="margin-bottom: 12px; color: #666; font-size: 14px;">Comments on Tracks</h4>
+              <div id="trackCommentList">
+                {% for data in track_comment_data %}
+                  <div class="comment" data-id="{{ data.comment.id }}" data-type="track" style="margin-bottom: 12px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
+                      {% set av = author_avatars.get(data.comment.author|slugify) %}
+                      <img alt="avatar" src="{% if av %}{{ url_for('static', filename=av) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}" style="width:20px; height:20px; border-radius:50%; object-fit:cover;" />
+                      <strong><a href="{{ url_for('author_profile', slug=data.comment.author|slugify) }}">{{ data.comment.author }}</a></strong>
+                      <span style="color:#777; font-size:11px;">{{ data.comment.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span>
+                    </div>
+                    <div style="margin-bottom: 8px; font-size: 14px;">{{ data.comment.content }}</div>
+                    <div style="margin-bottom: 8px; font-size: 12px; color: #666;">
+                      <strong>on track:</strong> <a href="{{ url_for('track_detail', track_id=data.track.id) }}" style="color: #667eea;">{{ data.track.nickname or data.track.original_filepath }}</a>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                      <button class="button like-comment" style="padding: 3px 6px; font-size: 11px;">Like ({{ data.comment.likes or 0 }})</button>
+                      <button class="button delete-comment" style="padding: 3px 6px; font-size: 11px;">Delete</button>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+          </div>
+
           <!-- Artist Info -->
           <div class="section">
             <div class="section-header">
@@ -1291,6 +1353,83 @@
           }
         });
       });
+
+      // Artist Comments Functionality
+      const artistCommentForm = document.getElementById('artistCommentForm');
+      if (artistCommentForm) {
+        // Disable browser autofill by making fields readonly until user interacts
+        document.querySelectorAll('#artistCommentForm input[type="text"]').forEach((el) => {
+          const unlock = () => el.removeAttribute('readonly')
+          el.addEventListener('focus', unlock, { once: true })
+          el.addEventListener('mousedown', unlock, { once: true })
+          el.addEventListener('touchstart', unlock, { once: true })
+        });
+
+        // Handle artist comment form submission
+        artistCommentForm.addEventListener('submit', async (e) => {
+          e.preventDefault()
+          const data = new FormData(artistCommentForm)
+          const res = await fetch("{{ url_for('add_artist_comment', artist_id=artist.id) }}", { method: 'POST', body: data })
+          const json = await res.json()
+          if (json.success) {
+            const c = json.comment
+            const div = document.createElement('div')
+            div.className = 'comment'
+            div.dataset.id = c.id
+            div.dataset.type = 'artist'
+            div.innerHTML = `<div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
+                             <img alt="avatar" src="${c.author_avatar ? '/static/' + c.author_avatar : '/static/avatars/default.png'}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;" />
+                             <strong><a href="/author/${c.author_slug}">${c.author}</a></strong>
+                             <span style="color:#777; font-size:12px;">${c.timestamp}</span>
+                           </div>
+                           <div style="margin-bottom: 8px;">${c.content}</div>
+                           <div style="display: flex; gap: 8px;">
+                             <button class="button like-comment" style="padding: 4px 8px; font-size: 12px;">Like (${c.likes})</button>
+                             <button class="button delete-comment" style="padding: 4px 8px; font-size: 12px;">Delete</button>
+                           </div>`
+            document.getElementById('artistCommentList').prepend(div)
+            artistCommentForm.reset()
+          }
+        })
+      }
+
+      // Handle comment interactions (like/delete)
+      document.addEventListener('click', async (e) => {
+        const item = e.target.closest('.comment')
+        if (!item) return
+        const id = item.dataset.id
+        const type = item.dataset.type
+        
+        if (e.target.classList.contains('like-comment')) {
+          let url
+          if (type === 'artist') {
+            url = `{{ url_for('like_artist_comment', comment_id=0) }}`.replace('0', id)
+          } else if (type === 'track') {
+            url = `{{ url_for('like_track_comment', comment_id=0) }}`.replace('0', id)
+          }
+          
+          if (url) {
+            const res = await fetch(url, { method: 'POST' })
+            const json = await res.json()
+            if (json.success) e.target.textContent = `Like (${json.new_like_count})`
+          }
+        }
+        
+        if (e.target.classList.contains('delete-comment')) {
+          let url
+          if (type === 'artist') {
+            url = `{{ url_for('delete_artist_comment', comment_id=0) }}`.replace('0', id)
+          } else if (type === 'track') {
+            url = `{{ url_for('delete_track_comment', comment_id=0) }}`.replace('0', id)
+          }
+          
+          if (url) {
+            const res = await fetch(url, { method: 'POST' })
+            const json = await res.json()
+            if (json.success) item.remove()
+          }
+        }
+      })
     </script>
   </body>
 </html>

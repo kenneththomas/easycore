@@ -14,7 +14,7 @@ import string
 import unicodedata
 
 # Import models
-from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment, Track, TrackComment, Artist, TrackArtist, VideoArtist, AuthorProfile
+from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment, TagDescription, TagComment, Track, TrackComment, ArtistComment, Artist, TrackArtist, VideoArtist, AuthorProfile
 
 # Import blueprints
 from routes import video_bp, playlist_bp, comment_bp, filter_bp
@@ -309,6 +309,40 @@ def artist_detail(artist_id):
     total_plays = sum((t.view_count or 0) for t in tracks) + sum((v.view_count or 0) for v in videos)
     total_likes = sum((t.likes or 0) for t in tracks) + sum((v.likes or 0) for v in videos)
     
+    # Get artist comments
+    artist_comments = ArtistComment.query.filter_by(artist_id=artist_id).order_by(ArtistComment.timestamp.desc()).all()
+    
+    # Get track comments for this artist's tracks
+    track_comment_data = []
+    if tracks:
+        track_ids = [t.id for t in tracks]
+        track_comments = TrackComment.query.filter(TrackComment.track_id.in_(track_ids)).order_by(TrackComment.timestamp.desc()).all()
+        
+        # Create a mapping of track_id to track for easy lookup
+        track_map = {t.id: t for t in tracks}
+        
+        for comment in track_comments:
+            track = track_map.get(comment.track_id)
+            if track:
+                track_comment_data.append({
+                    'comment': comment,
+                    'track': track
+                })
+    
+    # Get author avatars for all comments
+    all_comment_authors = set()
+    for comment in artist_comments:
+        all_comment_authors.add(slugify_author(comment.author))
+    for data in track_comment_data:
+        all_comment_authors.add(slugify_author(data['comment'].author))
+    
+    author_avatars = {}
+    if all_comment_authors:
+        profiles = AuthorProfile.query.filter(AuthorProfile.slug.in_(all_comment_authors)).all()
+        for profile in profiles:
+            if profile.avatar_path:
+                author_avatars[profile.slug] = profile.avatar_path
+    
     # Get playlists that contain this artist's content (simplified)
     artist_playlists = []
     
@@ -324,7 +358,10 @@ def artist_detail(artist_id):
                          total_plays=total_plays,
                          total_likes=total_likes,
                          artist_playlists=artist_playlists,
-                         related_artists=related_artists)
+                         related_artists=related_artists,
+                         artist_comments=artist_comments,
+                         track_comment_data=track_comment_data,
+                         author_avatars=author_avatars)
 
 @app.route('/add_artist', methods=['GET', 'POST'])
 def add_artist():
@@ -549,6 +586,55 @@ def like_track_comment(comment_id):
 @app.route('/delete_track_comment/<int:comment_id>', methods=['POST'])
 def delete_track_comment(comment_id):
     comment = TrackComment.query.get_or_404(comment_id)
+    try:
+        db.session.delete(comment)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/add_artist_comment/<int:artist_id>', methods=['POST'])
+def add_artist_comment(artist_id):
+    artist = Artist.query.get_or_404(artist_id)
+    author = request.form.get('author', '').strip()
+    content = request.form.get('content', '').strip()
+    if not author or not content:
+        return jsonify({"error": "Name and comment are required"}), 400
+    try:
+        comment = ArtistComment(artist_id=artist_id, author=author, content=content, likes=0)
+        db.session.add(comment)
+        db.session.commit()
+        author_slug = slugify_author(comment.author)
+        profile = AuthorProfile.query.filter_by(slug=author_slug).first()
+        avatar_rel = profile.avatar_path if profile and profile.avatar_path else None
+
+        return jsonify({
+            "success": True,
+            "comment": {
+                "id": comment.id,
+                "author": comment.author,
+                "author_slug": author_slug,
+                "author_avatar": avatar_rel,
+                "content": comment.content,
+                "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
+                "likes": comment.likes
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/like_artist_comment/<int:comment_id>', methods=['POST'])
+def like_artist_comment(comment_id):
+    comment = ArtistComment.query.get_or_404(comment_id)
+    comment.likes = (comment.likes or 0) + 1
+    db.session.commit()
+    return jsonify({"success": True, "new_like_count": comment.likes})
+
+@app.route('/delete_artist_comment/<int:comment_id>', methods=['POST'])
+def delete_artist_comment(comment_id):
+    comment = ArtistComment.query.get_or_404(comment_id)
     try:
         db.session.delete(comment)
         db.session.commit()

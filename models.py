@@ -83,6 +83,15 @@ class TrackComment(db.Model):
     likes = db.Column(db.Integer, default=0)
 
 
+class ArtistComment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    artist_id = db.Column(db.Integer, db.ForeignKey('artist.id'), nullable=False)
+    author = db.Column(db.String(100), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    likes = db.Column(db.Integer, default=0)
+
+
 class Artist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False, unique=True)
