@@ -561,6 +561,50 @@ def track_detail(track_id):
     db.session.commit()
     return render_template('track_detail.html', track=track, related_tracks=related_tracks, comments=comments, artists=artists, author_avatars=avatars)
 
+@app.route('/update_track_photo/<int:track_id>', methods=['POST'])
+def update_track_photo(track_id):
+    track = Track.query.get_or_404(track_id)
+    
+    if 'photo' not in request.files:
+        return jsonify({"error": "No photo file provided"}), 400
+    
+    photo = request.files['photo']
+    if photo.filename == '':
+        return jsonify({"error": "No photo file selected"}), 400
+    
+    # Validate file type
+    cover_ext = os.path.splitext(photo.filename)[1].lower()
+    if cover_ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+        return jsonify({"error": "Invalid file type. Please upload a JPEG, PNG, or WebP image."}), 400
+    
+    try:
+        # Generate unique filename
+        cover_filename = secure_filename(f"cover_{track.id}_{os.path.splitext(photo.filename)[0]}{cover_ext}")
+        cover_path = os.path.join(app.config['COVER_FOLDER'], cover_filename)
+        
+        # Ensure cover directory exists
+        os.makedirs(app.config['COVER_FOLDER'], exist_ok=True)
+        
+        # Save the new photo
+        photo.save(cover_path)
+        
+        # Update track with new background image path
+        relative_cover_path = os.path.join('covers', cover_filename).replace('\\', '/')
+        track.background_image_path = relative_cover_path
+        db.session.commit()
+        
+        # Return success with the new photo path for frontend update
+        photo_url = url_for('static', filename=relative_cover_path)
+        return jsonify({
+            "success": True, 
+            "photo_path": photo_url,
+            "message": "Photo updated successfully"
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to update photo: {str(e)}"}), 500
+
 @app.route('/like_track/<int:track_id>', methods=['POST'])
 def like_track(track_id):
     track = Track.query.get_or_404(track_id)

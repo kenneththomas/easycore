@@ -54,6 +54,23 @@
         <div id="waveform"></div>
       </div>
 
+      <div class="photo-upload" style="margin-top: 16px; padding: 16px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee;">
+        <h3 style="margin: 0 0 12px 0; font-size: 16px;">Track Photo</h3>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <div style="flex: 1;">
+            <input type="file" id="photoUpload" accept="image/*" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+            <div style="font-size: 12px; color: #666; margin-top: 4px;">Upload a new background image for this track</div>
+          </div>
+          <button id="uploadPhotoBtn" class="button" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+            Upload Photo
+          </button>
+        </div>
+        <div id="photoPreview" style="margin-top: 12px; display: none;">
+          <img id="previewImage" style="max-width: 200px; max-height: 120px; border-radius: 4px; border: 1px solid #ddd;" />
+        </div>
+        <div id="uploadStatus" style="margin-top: 8px; font-size: 12px;"></div>
+      </div>
+
       <div class="comments">
         <h3>Comments</h3>
         <form id="commentForm" autocomplete="off">
@@ -232,6 +249,86 @@
       // Close dropdown
       closeAiDropdown.addEventListener('click', () => {
         aiCommentDropdown.style.display = 'none'
+      })
+
+      // Photo Upload Functionality
+      const photoUpload = document.getElementById('photoUpload')
+      const uploadPhotoBtn = document.getElementById('uploadPhotoBtn')
+      const photoPreview = document.getElementById('photoPreview')
+      const previewImage = document.getElementById('previewImage')
+      const uploadStatus = document.getElementById('uploadStatus')
+
+      // Show preview when file is selected
+      photoUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0]
+        if (file) {
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            previewImage.src = e.target.result
+            photoPreview.style.display = 'block'
+          }
+          reader.readAsDataURL(file)
+        }
+      })
+
+      // Handle photo upload
+      uploadPhotoBtn.addEventListener('click', async () => {
+        const file = photoUpload.files[0]
+        if (!file) {
+          uploadStatus.textContent = 'Please select a file first'
+          uploadStatus.style.color = '#dc3545'
+          return
+        }
+
+        // Validate file type
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        if (!validTypes.includes(file.type)) {
+          uploadStatus.textContent = 'Please select a valid image file (JPEG, PNG, WebP)'
+          uploadStatus.style.color = '#dc3545'
+          return
+        }
+
+        // Show loading state
+        uploadPhotoBtn.textContent = 'Uploading...'
+        uploadPhotoBtn.disabled = true
+        uploadStatus.textContent = 'Uploading photo...'
+        uploadStatus.style.color = '#666'
+
+        try {
+          const formData = new FormData()
+          formData.append('photo', file)
+
+          const response = await fetch(`{{ url_for('update_track_photo', track_id=track.id) }}`, {
+            method: 'POST',
+            body: formData
+          })
+
+          const result = await response.json()
+
+          if (result.success) {
+            uploadStatus.textContent = 'Photo uploaded successfully!'
+            uploadStatus.style.color = '#28a745'
+            
+            // Update the hero background image if it exists
+            const hero = document.querySelector('.hero')
+            if (hero && result.photo_path) {
+              hero.style.backgroundImage = `url('${result.photo_path}')`
+            }
+            
+            // Clear the form
+            photoUpload.value = ''
+            photoPreview.style.display = 'none'
+          } else {
+            uploadStatus.textContent = 'Error: ' + (result.error || 'Upload failed')
+            uploadStatus.style.color = '#dc3545'
+          }
+        } catch (error) {
+          uploadStatus.textContent = 'Error: ' + error.message
+          uploadStatus.style.color = '#dc3545'
+        } finally {
+          uploadPhotoBtn.textContent = 'Upload Photo'
+          uploadPhotoBtn.disabled = false
+        }
       })
 
       // Generate AI comment
