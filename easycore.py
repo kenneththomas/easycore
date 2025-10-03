@@ -920,12 +920,19 @@ def index():
     total_items = len(combined_content)
     total_pages = (total_items + per_page - 1) // per_page
     
+    # Get artists for each track in the paginated content
+    track_artists = {}
+    for item in paginated_content:
+        if item['type'] == 'track':
+            track_artists[item['id']] = db.session.query(Artist).join(TrackArtist).filter(TrackArtist.track_id == item['id']).all()
+    
     return render_template('index.html', 
                          content=paginated_content, 
                          page=page, 
                          total_pages=total_pages, 
                          tag=None,
-                         sort_by=sort_by)
+                         sort_by=sort_by,
+                         track_artists=track_artists)
 
 # Route moved to video_routes.py blueprint
 

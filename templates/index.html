@@ -102,6 +102,67 @@
             }
         }
 
+        /* Artist styling for tracks */
+        .track-artists {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        .artist-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+            color: #333;
+            font-size: 0.9em;
+            transition: color 0.2s ease;
+        }
+
+        .artist-link:hover {
+            color: #667eea;
+        }
+
+        .artist-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid #ddd;
+        }
+
+        .artist-avatar.default-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f0f0;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .artist-name {
+            font-weight: 500;
+        }
+
+        /* Mobile adjustments for artist styling */
+        @media screen and (max-width: 768px) {
+            .track-artists {
+                justify-content: center;
+                margin-bottom: 10px;
+            }
+
+            .artist-link {
+                font-size: 0.85em;
+            }
+
+            .artist-avatar {
+                width: 20px;
+                height: 20px;
+            }
+        }
+
 
     </style>
 </head>
@@ -175,6 +236,21 @@
                                 <div class="video-title">
                                     <a href="{{ url_for('track_detail', track_id=item.id) }}">{{ item.object.nickname or item.object.original_filepath }}</a>
                                 </div>
+                                {% if track_artists.get(item.id) %}
+                                    <div class="track-artists">
+                                        {% for artist in track_artists[item.id] %}
+                                            <a href="{{ url_for('artist_detail', artist_id=artist.id) }}" class="artist-link">
+                                                {% if artist.avatar_path %}
+                                                    <img src="{{ url_for('static', filename=artist.avatar_path) }}" alt="{{ artist.name }}" class="artist-avatar">
+                                                {% else %}
+                                                    <div class="artist-avatar default-avatar">👤</div>
+                                                {% endif %}
+                                                <span class="artist-name">{{ artist.name }}</span>
+                                            </a>
+                                            {% if not loop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                                 {% if item.object.description %}
                                     <p>{{ item.object.description }}</p>
                                 {% endif %}
