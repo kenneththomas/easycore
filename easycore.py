@@ -203,6 +203,45 @@ def artists_index():
     artists = Artist.query.order_by(desc(Artist.created_at)).paginate(page=page, per_page=per_page, error_out=False)
     return render_template('artists.html', artists=artists.items, page=page, total_pages=artists.pages)
 
+@app.route('/tracks')
+def tracks_index():
+    page = request.args.get('page', 1, type=int)
+    artist = request.args.get('artist')
+    sort_by = request.args.get('sort', 'newest')
+    per_page = 20
+    
+    # Base query for tracks
+    query = Track.query
+    
+    # Filter by artist if specified
+    if artist:
+        query = query.join(TrackArtist).join(Artist).filter(Artist.name.ilike(f'%{artist}%'))
+    
+    # Apply sorting
+    if sort_by == 'newest':
+        query = query.order_by(desc(Track.id))
+    elif sort_by == 'oldest':
+        query = query.order_by(Track.id)
+    elif sort_by == 'most_viewed':
+        query = query.order_by(desc(Track.view_count))
+    elif sort_by == 'most_liked':
+        query = query.order_by(desc(Track.likes))
+    
+    tracks = query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    # Get artists for each track
+    track_artists = {}
+    for track in tracks.items:
+        track_artists[track.id] = db.session.query(Artist).join(TrackArtist).filter(TrackArtist.track_id == track.id).all()
+    
+    return render_template('tracks.html', 
+                         tracks=tracks.items, 
+                         page=page, 
+                         total_pages=tracks.pages,
+                         artist=artist,
+                         sort_by=sort_by,
+                         track_artists=track_artists)
+
 @app.route('/artist/<int:artist_id>')
 def artist_detail(artist_id):
     artist = Artist.query.get_or_404(artist_id)
