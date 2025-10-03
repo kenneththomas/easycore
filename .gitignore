@@ -45,3 +45,6 @@ flask_debugtoolbar.db
 # Coverage reports
 htmlcov/
 .coverage
+
+#keys
+maricon.py

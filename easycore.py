@@ -20,6 +20,9 @@ from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment,
 # Import blueprints
 from routes import video_bp, playlist_bp, comment_bp, filter_bp
 
+# Import AI comment generator
+from ai_comment_generator import get_ai_generator
+
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
@@ -663,6 +666,109 @@ def update_artist_bio(artist_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+# AI Comment Generation Endpoints
+@app.route('/generate_track_comment/<int:track_id>', methods=['POST'])
+def generate_track_comment(track_id):
+    """Generate an AI comment for a track"""
+    try:
+        track = Track.query.get_or_404(track_id)
+        
+        # Get the prompt from the request
+        prompt = request.json.get('prompt', '') if request.is_json else request.form.get('prompt', '')
+        
+        # Get track artists
+        track_artists = [artist.name for artist in track.artists]
+        artist_name = track_artists[0] if track_artists else "Unknown Artist"
+        
+        # Generate the comment using AI
+        ai_generator = get_ai_generator()
+        result = ai_generator.generate_track_comment(
+            track_name=track.nickname or track.original_filepath,
+            artist_name=artist_name,
+            custom_prompt=prompt if prompt else None,
+            track_tags=track.tags
+        )
+        
+        # Debug logging
+        print(f"AI Generation Result: {result}")
+        
+        if result['success']:
+            response_data = {
+                "success": True,
+                "comment": result['comment'],
+                "prompt_used": result['prompt_used']
+            }
+            print(f"Returning success response: {response_data}")
+            return jsonify(response_data)
+        else:
+            error_response = {
+                "success": False,
+                "error": result['error']
+            }
+            print(f"Returning error response: {error_response}")
+            return jsonify(error_response), 500
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/generate_artist_comment/<int:artist_id>', methods=['POST'])
+def generate_artist_comment(artist_id):
+    """Generate an AI comment for an artist"""
+    try:
+        artist = Artist.query.get_or_404(artist_id)
+        
+        # Get the prompt from the request
+        prompt = request.json.get('prompt', '') if request.is_json else request.form.get('prompt', '')
+        
+        # Count tracks by this artist
+        track_count = Track.query.join(TrackArtist).filter(TrackArtist.c.artist_id == artist_id).count()
+        
+        # Generate the comment using AI
+        ai_generator = get_ai_generator()
+        result = ai_generator.generate_artist_comment(
+            artist_name=artist.name,
+            custom_prompt=prompt if prompt else None,
+            artist_bio=artist.bio,
+            track_count=track_count
+        )
+        
+        if result['success']:
+            return jsonify({
+                "success": True,
+                "comment": result['comment'],
+                "prompt_used": result['prompt_used']
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": result['error']
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/ai_comment_prompts')
+def get_ai_comment_prompts():
+    """Get available AI comment prompts"""
+    try:
+        ai_generator = get_ai_generator()
+        prompts = ai_generator.get_default_prompts()
+        return jsonify({
+            "success": True,
+            "prompts": prompts
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
 
 @app.route('/')
 def index():
