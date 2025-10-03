@@ -203,8 +203,46 @@ def get_related_tracks(current_track, limit=8):
 def artists_index():
     page = request.args.get('page', 1, type=int)
     per_page = 20
-    artists = Artist.query.order_by(desc(Artist.created_at)).paginate(page=page, per_page=per_page, error_out=False)
-    return render_template('artists.html', artists=artists.items, page=page, total_pages=artists.pages)
+    
+    # Get all artists with their statistics
+    artists_with_stats = []
+    all_artists = Artist.query.all()
+    
+    for artist in all_artists:
+        # Calculate total likes from tracks and videos
+        track_likes = db.session.query(db.func.sum(Track.likes)).join(TrackArtist).filter(TrackArtist.artist_id == artist.id).scalar() or 0
+        video_likes = db.session.query(db.func.sum(Video.likes)).join(VideoArtist).filter(VideoArtist.artist_id == artist.id).scalar() or 0
+        total_likes = track_likes + video_likes
+        
+        # Calculate total plays from tracks and videos
+        track_plays = db.session.query(db.func.sum(Track.view_count)).join(TrackArtist).filter(TrackArtist.artist_id == artist.id).scalar() or 0
+        video_plays = db.session.query(db.func.sum(Video.view_count)).join(VideoArtist).filter(VideoArtist.artist_id == artist.id).scalar() or 0
+        total_plays = track_plays + video_plays
+        
+        # Count tracks
+        track_count = db.session.query(db.func.count(Track.id)).join(TrackArtist).filter(TrackArtist.artist_id == artist.id).scalar() or 0
+        
+        # Check if artist has avatar
+        has_avatar = artist.avatar_path is not None and artist.avatar_path.strip() != ''
+        
+        artists_with_stats.append({
+            'artist': artist,
+            'total_likes': total_likes,
+            'total_plays': total_plays,
+            'track_count': track_count,
+            'has_avatar': has_avatar
+        })
+    
+    # Sort by: total_likes (desc), track_count (desc), has_avatar (desc), name (asc)
+    artists_with_stats.sort(key=lambda x: (-x['total_likes'], -x['track_count'], -x['has_avatar'], x['artist'].name))
+    
+    # Apply pagination manually
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_artists_with_stats = artists_with_stats[start_idx:end_idx]
+    total_pages = (len(artists_with_stats) + per_page - 1) // per_page
+    
+    return render_template('artists.html', artists_with_stats=paginated_artists_with_stats, page=page, total_pages=total_pages)
 
 @app.route('/tracks')
 def tracks_index():
