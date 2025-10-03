@@ -1668,7 +1668,7 @@
             div.dataset.type = 'artist'
             div.innerHTML = `<div style="display:flex; align-items:center; gap:8px; margin-bottom: 8px;">
                              <img alt="avatar" src="${c.author_avatar ? '/static/' + c.author_avatar : '/static/avatars/default.png'}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;" />
-                             <strong><a href="/author/${c.author_slug}">${c.author}</a></strong>
+                             <strong><a href="/artist/${c.author}">${c.author}</a></strong>
                              <span style="color:#777; font-size:12px;">${c.timestamp}</span>
                            </div>
                            <div style="margin-bottom: 8px;">${c.content}</div>

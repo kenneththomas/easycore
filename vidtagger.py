@@ -366,26 +366,6 @@ def add_artist():
             return jsonify({"error": str(e)}), 500
     return render_template('add_artist.html')
 
-@app.route('/tracks')
-def tracks_index():
-    page = request.args.get('page', 1, type=int)
-    sort_by = request.args.get('sort', 'newest')
-    per_page = 10
-    query = Track.query
-    if sort_by == 'newest':
-        query = query.order_by(desc(Track.id))
-    elif sort_by == 'oldest':
-        query = query.order_by(Track.id)
-    elif sort_by == 'most_viewed':
-        query = query.order_by(desc(Track.view_count))
-    elif sort_by == 'most_liked':
-        query = query.order_by(desc(Track.likes))
-    tracks = query.paginate(page=page, per_page=per_page, error_out=False)
-    return render_template('tracks.html',
-                           tracks=tracks.items,
-                           page=page,
-                           total_pages=tracks.pages,
-                           sort_by=sort_by)
 
 @app.route('/add_track', methods=['GET', 'POST'])
 def add_track():
@@ -651,24 +631,72 @@ def index():
     sort_by = request.args.get('sort', 'newest')  # Default sort by newest
     per_page = 10
 
-    # Create base query
-    query = Video.query
+    # Get both videos and tracks
+    video_query = Video.query
+    track_query = Track.query
 
-    # Apply sorting
+    # Apply sorting to videos
     if sort_by == 'newest':
-        query = query.order_by(desc(Video.id))
+        video_query = video_query.order_by(desc(Video.id))
+        track_query = track_query.order_by(desc(Track.id))
     elif sort_by == 'oldest':
-        query = query.order_by(Video.id)
+        video_query = video_query.order_by(Video.id)
+        track_query = track_query.order_by(Track.id)
     elif sort_by == 'most_viewed':
-        query = query.order_by(desc(Video.view_count))
+        video_query = video_query.order_by(desc(Video.view_count))
+        track_query = track_query.order_by(desc(Track.view_count))
     elif sort_by == 'most_liked':
-        query = query.order_by(desc(Video.likes))
+        video_query = video_query.order_by(desc(Video.likes))
+        track_query = track_query.order_by(desc(Track.likes))
 
-    videos = query.paginate(page=page, per_page=per_page, error_out=False)
+    # Get all videos and tracks
+    all_videos = video_query.all()
+    all_tracks = track_query.all()
+    
+    # Combine and sort by creation time (using id as proxy)
+    combined_content = []
+    
+    # Add videos with type indicator
+    for video in all_videos:
+        combined_content.append({
+            'type': 'video',
+            'id': video.id,
+            'object': video,
+            'sort_key': video.id
+        })
+    
+    # Add tracks with type indicator
+    for track in all_tracks:
+        combined_content.append({
+            'type': 'track',
+            'id': track.id,
+            'object': track,
+            'sort_key': track.id
+        })
+    
+    # Sort combined content by sort_key (id) in descending order for newest first
+    if sort_by == 'newest':
+        combined_content.sort(key=lambda x: x['sort_key'], reverse=True)
+    elif sort_by == 'oldest':
+        combined_content.sort(key=lambda x: x['sort_key'])
+    elif sort_by == 'most_viewed':
+        combined_content.sort(key=lambda x: x['object'].view_count or 0, reverse=True)
+    elif sort_by == 'most_liked':
+        combined_content.sort(key=lambda x: x['object'].likes or 0, reverse=True)
+    
+    # Manual pagination
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_content = combined_content[start_idx:end_idx]
+    
+    # Calculate total pages
+    total_items = len(combined_content)
+    total_pages = (total_items + per_page - 1) // per_page
+    
     return render_template('index.html', 
-                         videos=videos.items, 
+                         content=paginated_content, 
                          page=page, 
-                         total_pages=videos.pages, 
+                         total_pages=total_pages, 
                          tag=None,
                          sort_by=sort_by)
 
@@ -725,25 +753,72 @@ def filter_videos():
     sort_by = request.args.get('sort', 'newest')
     per_page = 10
 
-    # Create base query
-    query = Video.query
+    # Get both videos and tracks
+    video_query = Video.query
+    track_query = Track.query
 
-    # Apply sorting
+    # Apply sorting to videos
     if sort_by == 'newest':
-        query = query.order_by(desc(Video.id))
+        video_query = video_query.order_by(desc(Video.id))
+        track_query = track_query.order_by(desc(Track.id))
     elif sort_by == 'oldest':
-        query = query.order_by(Video.id)
+        video_query = video_query.order_by(Video.id)
+        track_query = track_query.order_by(Track.id)
     elif sort_by == 'most_viewed':
-        query = query.order_by(desc(Video.view_count))
+        video_query = video_query.order_by(desc(Video.view_count))
+        track_query = track_query.order_by(desc(Track.view_count))
     elif sort_by == 'most_liked':
-        query = query.order_by(desc(Video.likes))
+        video_query = video_query.order_by(desc(Video.likes))
+        track_query = track_query.order_by(desc(Track.likes))
 
-    paginated_videos = query.paginate(page=page, per_page=per_page, error_out=False)
+    # Get all videos and tracks
+    all_videos = video_query.all()
+    all_tracks = track_query.all()
+    
+    # Combine and sort by creation time (using id as proxy)
+    combined_content = []
+    
+    # Add videos with type indicator
+    for video in all_videos:
+        combined_content.append({
+            'type': 'video',
+            'id': video.id,
+            'object': video,
+            'sort_key': video.id
+        })
+    
+    # Add tracks with type indicator
+    for track in all_tracks:
+        combined_content.append({
+            'type': 'track',
+            'id': track.id,
+            'object': track,
+            'sort_key': track.id
+        })
+    
+    # Sort combined content by sort_key (id) in descending order for newest first
+    if sort_by == 'newest':
+        combined_content.sort(key=lambda x: x['sort_key'], reverse=True)
+    elif sort_by == 'oldest':
+        combined_content.sort(key=lambda x: x['sort_key'])
+    elif sort_by == 'most_viewed':
+        combined_content.sort(key=lambda x: x['object'].view_count or 0, reverse=True)
+    elif sort_by == 'most_liked':
+        combined_content.sort(key=lambda x: x['object'].likes or 0, reverse=True)
+    
+    # Manual pagination
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_content = combined_content[start_idx:end_idx]
+    
+    # Calculate total pages
+    total_items = len(combined_content)
+    total_pages = (total_items + per_page - 1) // per_page
     
     return render_template('index.html', 
-                         videos=paginated_videos.items, 
+                         content=paginated_content, 
                          page=page, 
-                         total_pages=paginated_videos.pages,
+                         total_pages=total_pages,
                          tag=tag,
                          sort_by=sort_by)
 
@@ -757,6 +832,22 @@ def delete_video(video_id):
         
         # Delete the database entry
         db.session.delete(video)
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/delete_track/<int:track_id>', methods=['POST'])
+def delete_track(track_id):
+    track = Track.query.get_or_404(track_id)
+    try:
+        # Delete the file
+        if os.path.exists(track.stored_filepath):
+            os.remove(track.stored_filepath)
+        
+        # Delete the database entry
+        db.session.delete(track)
         db.session.commit()
         return jsonify({"success": True}), 200
     except Exception as e:
@@ -1665,41 +1756,87 @@ def tag_detail(tag):
     sort_by = request.args.get('sort', 'newest')
     per_page = 10
 
-    # Create base query for videos with this tag
-    query = Video.query.filter(Video.tags.contains(tag))
+    # Create base queries for videos and tracks with this tag
+    video_query = Video.query.filter(Video.tags.contains(tag))
+    track_query = Track.query.filter(Track.tags.contains(tag))
 
     # Apply sorting
     if sort_by == 'newest':
-        query = query.order_by(desc(Video.id))
+        video_query = video_query.order_by(desc(Video.id))
+        track_query = track_query.order_by(desc(Track.id))
     elif sort_by == 'oldest':
-        query = query.order_by(Video.id)
+        video_query = video_query.order_by(Video.id)
+        track_query = track_query.order_by(Track.id)
     elif sort_by == 'most_viewed':
-        query = query.order_by(desc(Video.view_count))
+        video_query = video_query.order_by(desc(Video.view_count))
+        track_query = track_query.order_by(desc(Track.view_count))
     elif sort_by == 'most_liked':
-        query = query.order_by(desc(Video.likes))
+        video_query = video_query.order_by(desc(Video.likes))
+        track_query = track_query.order_by(desc(Track.likes))
 
-    # Get paginated videos
-    paginated_videos = query.paginate(page=page, per_page=per_page, error_out=False)
+    # Get all videos and tracks with this tag
+    all_videos = video_query.all()
+    all_tracks = track_query.all()
     
-    # Get all videos with this tag for the random player
-    all_tag_videos = query.all()
+    # Combine and sort by creation time (using id as proxy)
+    combined_content = []
     
-    # Get tag statistics
-    video_count = query.count()
-    total_views = query.with_entities(func.sum(Video.view_count)).scalar() or 0
-    total_likes = query.with_entities(func.sum(Video.likes)).scalar() or 0
+    # Add videos with type indicator
+    for video in all_videos:
+        combined_content.append({
+            'type': 'video',
+            'id': video.id,
+            'object': video,
+            'sort_key': video.id
+        })
+    
+    # Add tracks with type indicator
+    for track in all_tracks:
+        combined_content.append({
+            'type': 'track',
+            'id': track.id,
+            'object': track,
+            'sort_key': track.id
+        })
+    
+    # Sort combined content by sort_key (id) in descending order for newest first
+    if sort_by == 'newest':
+        combined_content.sort(key=lambda x: x['sort_key'], reverse=True)
+    elif sort_by == 'oldest':
+        combined_content.sort(key=lambda x: x['sort_key'])
+    elif sort_by == 'most_viewed':
+        combined_content.sort(key=lambda x: x['object'].view_count or 0, reverse=True)
+    elif sort_by == 'most_liked':
+        combined_content.sort(key=lambda x: x['object'].likes or 0, reverse=True)
+    
+    # Manual pagination
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_content = combined_content[start_idx:end_idx]
+    
+    # Calculate total pages
+    total_items = len(combined_content)
+    total_pages = (total_items + per_page - 1) // per_page
+    
+    # Get tag statistics (include both videos and tracks)
+    video_count = len(all_videos)
+    track_count = len(all_tracks)
+    total_content_count = video_count + track_count
+    
+    total_views = sum((v.view_count or 0) for v in all_videos) + sum((t.view_count or 0) for t in all_tracks)
+    total_likes = sum((v.likes or 0) for v in all_videos) + sum((t.likes or 0) for t in all_tracks)
     
     # Get related tags (tags that appear together with this tag)
     related_tags = []
-    videos_with_tag = query.all()
+    all_content_with_tag = all_videos + all_tracks
     tag_counts = {}
     
-    for video in videos_with_tag:
-        if video.tags:
-            video_tags = [t.strip() for t in video.tags.split(',')]
-            for vtag in video_tags:
-                if vtag.lower() != tag.lower() and vtag.strip():
-                    tag_counts[vtag] = tag_counts.get(vtag, 0) + 1
+    for content in all_content_with_tag:
+        if content.tags:
+            content_tags = [t.strip() for t in content.tags.split(',')]
+            for ctag in content_tags:
+                if ctag.lower() != tag.lower() and ctag.strip():
+                    tag_counts[ctag] = tag_counts.get(ctag, 0) + 1
     
     # Sort related tags by frequency and get top 10
     related_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:10]
@@ -1713,12 +1850,14 @@ def tag_detail(tag):
     return render_template(
         'tag_detail.html',
         tag=tag,
-        videos=paginated_videos.items,
-        all_videos=all_tag_videos,
+        content=paginated_content,
+        all_content=combined_content,
         page=page,
-        total_pages=paginated_videos.pages,
+        total_pages=total_pages,
         sort_by=sort_by,
         video_count=video_count,
+        track_count=track_count,
+        total_content_count=total_content_count,
         total_views=total_views,
         total_likes=total_likes,
         related_tags=related_tags,

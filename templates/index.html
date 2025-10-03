@@ -114,7 +114,6 @@
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom: 8px;">
             <a href="{{ url_for('video.add_video') }}" class="button">Add New Video</a>
             <a href="{{ url_for('bulk_upload') }}" class="button">Bulk Upload Videos</a>
-            <a href="{{ url_for('tracks_index') }}" class="button">Browse Tracks</a>
             <a href="{{ url_for('add_track') }}" class="button">Upload Track</a>
         </div>
         
@@ -139,28 +138,55 @@
 
         <div class="content-wrapper">
             <div class="video-list-container">
-                <h2>Recent Videos</h2>
+                <h2>Recent Content</h2>
                 <ul class="video-list">
-                {% for video in videos %}
+                {% for item in content %}
                     <li class="video-item">
-                        <button type="button" class="button delete-button" data-action="delete" data-video-id="{{ video.id }}">&times;</button>
-                        <div class="video-thumbnail">
-                            <img src="{{ url_for('static', filename=video.thumbnail_path) }}" alt="Video thumbnail">
-                        </div>
-                        <div class="video-details">
-                            <div class="video-title">
-                                <a href="{{ url_for('video.video_detail', video_id=video.id) }}">{{ video.nickname or video.original_filepath }}</a>
+                        {% if item.type == 'video' %}
+                            <button type="button" class="button delete-button" data-action="delete" data-video-id="{{ item.id }}">&times;</button>
+                            <div class="video-thumbnail">
+                                <img src="{{ url_for('static', filename=item.object.thumbnail_path) }}" alt="Video thumbnail">
                             </div>
-                            {% if video.description %}
-                                <p>{{ video.description }}</p>
-                            {% endif %}
-                            <p>Tags: <span id="tags-display-{{ video.id }}" data-tags="{{ video.tags }}"></span></p>
-                            <p class="stats">
-                                <span class="view-count">👁️ <span id="view-count-{{ video.id }}">{{ video.view_count }}</span></span>
-                                <span class="like-count">❤️ <span id="like-count-{{ video.id }}">{{ video.likes }}</span></span>
-                            </p>
-                            <button type="button" class="button" data-action="play" data-video-id="{{ video.id }}">Play</button>
-                        </div>
+                            <div class="video-details">
+                                <div class="video-title">
+                                    <a href="{{ url_for('video.video_detail', video_id=item.id) }}">{{ item.object.nickname or item.object.original_filepath }}</a>
+                                </div>
+                                {% if item.object.description %}
+                                    <p>{{ item.object.description }}</p>
+                                {% endif %}
+                                <p>Tags: <span id="tags-display-{{ item.id }}" data-tags="{{ item.object.tags }}"></span></p>
+                                <p class="stats">
+                                    <span class="view-count">👁️ <span id="view-count-{{ item.id }}">{{ item.object.view_count }}</span></span>
+                                    <span class="like-count">❤️ <span id="like-count-{{ item.id }}">{{ item.object.likes }}</span></span>
+                                </p>
+                                <button type="button" class="button" data-action="play" data-video-id="{{ item.id }}">Play</button>
+                            </div>
+                        {% elif item.type == 'track' %}
+                            <button type="button" class="button delete-button" data-action="delete-track" data-track-id="{{ item.id }}">&times;</button>
+                            <div class="video-thumbnail">
+                                {% if item.object.background_image_path %}
+                                    <img src="{{ url_for('static', filename=item.object.background_image_path) }}" alt="Track cover">
+                                {% else %}
+                                    <div style="background: #f0f0f0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #666;">
+                                        🎵
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="video-details">
+                                <div class="video-title">
+                                    <a href="{{ url_for('track_detail', track_id=item.id) }}">{{ item.object.nickname or item.object.original_filepath }}</a>
+                                </div>
+                                {% if item.object.description %}
+                                    <p>{{ item.object.description }}</p>
+                                {% endif %}
+                                <p>Tags: <span id="tags-display-{{ item.id }}" data-tags="{{ item.object.tags }}"></span></p>
+                                <p class="stats">
+                                    <span class="view-count">👁️ <span id="view-count-{{ item.id }}">{{ item.object.view_count }}</span></span>
+                                    <span class="like-count">❤️ <span id="like-count-{{ item.id }}">{{ item.object.likes }}</span></span>
+                                </p>
+                                <button type="button" class="button" data-action="play-track" data-track-id="{{ item.id }}">Play</button>
+                            </div>
+                        {% endif %}
                     </li>
                 {% endfor %}
                 </ul>
@@ -228,6 +254,17 @@
             .catch(err => alert('An unexpected error occurred. Please try again.'))
         }
 
+        function deleteTrack(trackId) {
+            if (!confirm('Are you sure you want to delete this track? This action cannot be undone.')) return;
+            fetch(`/delete_track/${trackId}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) location.reload();
+                else alert('Error deleting track: ' + data.error);
+            })
+            .catch(err => alert('An unexpected error occurred. Please try again.'))
+        }
+
         function editTags(videoId) {
             const newTags = document.getElementById(`tags-${videoId}`).value;
             fetch(`/edit_tags/${videoId}`, {
@@ -282,6 +319,17 @@
               .then(data => { if (data.success) document.getElementById(`view-count-${videoId}`).textContent = data.new_view_count; });
         }
 
+        function playTrack(trackId) {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const videoPlayerContainer = document.getElementById('videoPlayerContainer');
+            videoPlayer.src = `/stream_track/${trackId}`;
+            videoPlayerContainer.style.display = 'block';
+            videoPlayer.play();
+            fetch(`/increment_track_view/${trackId}`, { method: 'POST' })
+              .then(r => r.json())
+              .then(data => { if (data.success) document.getElementById(`view-count-${trackId}`).textContent = data.new_view_count; });
+        }
+
         // Delegate button actions to avoid inline JS lints
         document.addEventListener('click', (e) => {
             const btn = e.target.closest('button');
@@ -289,7 +337,9 @@
             const action = btn.dataset.action;
             if (!action) return;
             if (action === 'delete') deleteVideo(btn.dataset.videoId);
+            if (action === 'delete-track') deleteTrack(btn.dataset.trackId);
             if (action === 'play') playVideo(btn.dataset.videoId);
+            if (action === 'play-track') playTrack(btn.dataset.trackId);
         });
 
         function toggleLoop() {

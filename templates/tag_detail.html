@@ -202,6 +202,12 @@
                     <strong>{{ video_count }}</strong> videos
                 </div>
                 <div class="tag-stat">
+                    <strong>{{ track_count }}</strong> tracks
+                </div>
+                <div class="tag-stat">
+                    <strong>{{ total_content_count }}</strong> total
+                </div>
+                <div class="tag-stat">
                     <strong>{{ total_views }}</strong> views
                 </div>
                 <div class="tag-stat">
@@ -275,25 +281,51 @@
         <div class="content-wrapper">
             <div class="video-list-container">
                 <ul class="video-list">
-                {% for video in videos %}
+                {% for item in content %}
                     <li class="video-item">
-                        <div class="video-thumbnail">
-                            <img src="{{ url_for('static', filename=video.thumbnail_path) }}" alt="Video thumbnail">
-                        </div>
-                        <div class="video-details">
-                            <div class="video-title">
-                                <a href="{{ url_for('video.video_detail', video_id=video.id) }}">{{ video.nickname or video.original_filepath }}</a>
+                        {% if item.type == 'video' %}
+                            <div class="video-thumbnail">
+                                <img src="{{ url_for('static', filename=item.object.thumbnail_path) }}" alt="Video thumbnail">
                             </div>
-                            {% if video.description %}
-                                <p>{{ video.description }}</p>
-                            {% endif %}
-                            <p>Tags: <span id="tags-display-{{ video.id }}" data-tags="{{ video.tags }}"></span></p>
-                            <p class="stats">
-                                <span class="view-count">👁️ <span id="view-count-{{ video.id }}">{{ video.view_count }}</span></span>
-                                <span class="like-count">❤️ <span id="like-count-{{ video.id }}">{{ video.likes }}</span></span>
-                            </p>
-                            <button onclick="playVideo({{ video.id }})" class="button">Play</button>
-                        </div>
+                            <div class="video-details">
+                                <div class="video-title">
+                                    <a href="{{ url_for('video.video_detail', video_id=item.id) }}">{{ item.object.nickname or item.object.original_filepath }}</a>
+                                </div>
+                                {% if item.object.description %}
+                                    <p>{{ item.object.description }}</p>
+                                {% endif %}
+                                <p>Tags: <span id="tags-display-{{ item.id }}" data-tags="{{ item.object.tags }}"></span></p>
+                                <p class="stats">
+                                    <span class="view-count">👁️ <span id="view-count-{{ item.id }}">{{ item.object.view_count }}</span></span>
+                                    <span class="like-count">❤️ <span id="like-count-{{ item.id }}">{{ item.object.likes }}</span></span>
+                                </p>
+                                <button onclick="playVideo({{ item.id }})" class="button">Play</button>
+                            </div>
+                        {% elif item.type == 'track' %}
+                            <div class="video-thumbnail">
+                                {% if item.object.background_image_path %}
+                                    <img src="{{ url_for('static', filename=item.object.background_image_path) }}" alt="Track cover">
+                                {% else %}
+                                    <div style="background: #f0f0f0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #666;">
+                                        🎵
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="video-details">
+                                <div class="video-title">
+                                    <a href="{{ url_for('track_detail', track_id=item.id) }}">{{ item.object.nickname or item.object.original_filepath }}</a>
+                                </div>
+                                {% if item.object.description %}
+                                    <p>{{ item.object.description }}</p>
+                                {% endif %}
+                                <p>Tags: <span id="tags-display-{{ item.id }}" data-tags="{{ item.object.tags }}"></span></p>
+                                <p class="stats">
+                                    <span class="view-count">👁️ <span id="view-count-{{ item.id }}">{{ item.object.view_count }}</span></span>
+                                    <span class="like-count">❤️ <span id="like-count-{{ item.id }}">{{ item.object.likes }}</span></span>
+                                </p>
+                                <button onclick="playTrack({{ item.id }})" class="button">Play</button>
+                            </div>
+                        {% endif %}
                     </li>
                 {% endfor %}
                 </ul>
@@ -497,6 +529,32 @@
                 });
         }
 
+        function playTrack(trackId) {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const videoPlayerContainer = document.getElementById('videoPlayerContainer');
+            
+            // Pause and hide the random player
+            const randomPlayer = document.getElementById('randomVideoPlayer');
+            randomPlayer.pause();
+            const randomPlayerContainer = document.querySelector('.random-player');
+            if (randomPlayerContainer) {
+                randomPlayerContainer.style.display = 'none';
+            }
+            
+            videoPlayer.src = `/stream_track/${trackId}`;
+            videoPlayerContainer.style.display = 'block';
+            videoPlayer.play();
+            
+            // Increment view count
+            fetch(`/increment_track_view/${trackId}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById(`view-count-${trackId}`).textContent = data.new_view_count;
+                    }
+                });
+        }
+
         function toggleLoop() {
             const videoPlayer = document.getElementById('videoPlayer');
             videoPlayer.loop = document.getElementById('loopToggle').checked;
@@ -620,7 +678,7 @@
                     commentElement.id = `comment-${data.comment.id}`;
                     commentElement.innerHTML = `
                         <div class="comment-header">
-                            <strong><a href="/author/${data.comment.author_slug}">${data.comment.author}</a></strong>
+                            <strong><a href="/artist/${data.comment.author}">${data.comment.author}</a></strong>
                             <span class="comment-date">${data.comment.timestamp}</span>
                         </div>
                         <div class="comment-content">${data.comment.content}</div>
