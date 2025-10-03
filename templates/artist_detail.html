@@ -305,7 +305,7 @@
       }
       
       .hero-bio {
-        font-size: 1.1rem;
+        font-size: 0.9rem;
         line-height: 1.6;
         margin-bottom: 24px;
         opacity: 0.9;
@@ -1331,6 +1331,39 @@
           <form id="artistCommentForm" class="comment-form" autocomplete="off">
             <div class="comment-form-row">
               <input type="text" name="author" placeholder="Your name" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" readonly class="comment-author-input" />
+              <div class="ai-comment-dropdown" style="position: relative;">
+                <button type="button" id="aiCommentBtn" class="comment-submit-btn" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 8px;">
+                  🤖 AI Comment
+                </button>
+                <div id="aiCommentDropdown" class="ai-dropdown-content" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 300px; padding: 12px;">
+                  <div style="margin-bottom: 8px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #333;">Comment Style:</label>
+                    <select id="aiPromptSelect" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
+                      <option value="general">General fan comment</option>
+                      <option value="positive">Enthusiastic comment</option>
+                      <option value="critical">Thoughtful critique</option>
+                      <option value="discovery">Just discovered this artist</option>
+                      <option value="nostalgic">Nostalgic comment</option>
+                      <option value="technical">Technical analysis</option>
+                      <option value="emotional">Emotional response</option>
+                      <option value="comparison">Compare to other artists</option>
+                      <option value="custom">Custom prompt...</option>
+                    </select>
+                  </div>
+                  <div id="customPromptDiv" style="display: none; margin-bottom: 8px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #333;">Custom Prompt:</label>
+                    <textarea id="customPrompt" placeholder="Enter your custom prompt..." style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; resize: vertical; min-height: 60px;"></textarea>
+                  </div>
+                  <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button type="button" id="generateAiComment" class="comment-submit-btn" style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                      Generate
+                    </button>
+                    <button type="button" id="closeAiDropdown" class="comment-submit-btn" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
               <input type="text" name="content" placeholder="Share your thoughts about this artist..." required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" readonly class="comment-content-input" />
               <button class="comment-submit-btn" type="submit">
                 <span class="submit-icon">📝</span>
@@ -2027,6 +2060,103 @@
                            </div>`
             document.getElementById('artistCommentList').prepend(div)
             artistCommentForm.reset()
+          }
+        })
+      }
+
+      // AI Comment Generation for Artist
+      const aiCommentBtn = document.getElementById('aiCommentBtn')
+      const aiCommentDropdown = document.getElementById('aiCommentDropdown')
+      const aiPromptSelect = document.getElementById('aiPromptSelect')
+      const customPromptDiv = document.getElementById('customPromptDiv')
+      const customPrompt = document.getElementById('customPrompt')
+      const generateAiComment = document.getElementById('generateAiComment')
+      const closeAiDropdown = document.getElementById('closeAiDropdown')
+      const contentInput = document.querySelector('input[name="content"]')
+
+      if (aiCommentBtn) {
+        // Toggle AI dropdown
+        aiCommentBtn.addEventListener('click', (e) => {
+          e.stopPropagation()
+          aiCommentDropdown.style.display = aiCommentDropdown.style.display === 'none' ? 'block' : 'none'
+        })
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+          if (!aiCommentDropdown.contains(e.target) && !aiCommentBtn.contains(e.target)) {
+            aiCommentDropdown.style.display = 'none'
+          }
+        })
+
+        // Show/hide custom prompt field
+        aiPromptSelect.addEventListener('change', () => {
+          if (aiPromptSelect.value === 'custom') {
+            customPromptDiv.style.display = 'block'
+            customPrompt.focus()
+          } else {
+            customPromptDiv.style.display = 'none'
+            customPrompt.value = ''
+          }
+        })
+
+        // Close dropdown
+        closeAiDropdown.addEventListener('click', () => {
+          aiCommentDropdown.style.display = 'none'
+        })
+
+        // Generate AI comment
+        generateAiComment.addEventListener('click', async () => {
+          const selectedStyle = aiPromptSelect.value
+          let prompt = ''
+          
+          if (selectedStyle === 'custom') {
+            prompt = customPrompt.value.trim()
+            if (!prompt) {
+              alert('Please enter a custom prompt')
+              return
+            }
+          } else {
+            // Use predefined prompts for artist
+            const prompts = {
+              general: `What would a music fan think about {{ artist.name }} as an artist?`,
+              positive: `Write an enthusiastic comment about {{ artist.name }}`,
+              critical: `Write a thoughtful, slightly critical comment about {{ artist.name }}`,
+              discovery: `Write a comment from someone who just discovered {{ artist.name }}`,
+              nostalgic: `Write a nostalgic comment about {{ artist.name }}`,
+              technical: `Write a comment focusing on the technical aspects of {{ artist.name }}'s music`,
+              emotional: `Write an emotional comment about {{ artist.name }}`,
+              comparison: `Write a comment comparing {{ artist.name }} to other artists`
+            }
+            prompt = prompts[selectedStyle]
+          }
+
+          // Show loading state
+          generateAiComment.textContent = 'Generating...'
+          generateAiComment.disabled = true
+
+          try {
+            const response = await fetch(`{{ url_for('generate_artist_comment', artist_id=artist.id) }}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ prompt: prompt })
+            })
+
+            const result = await response.json()
+
+            if (result.success) {
+              contentInput.value = result.comment
+              contentInput.removeAttribute('readonly')
+              aiCommentDropdown.style.display = 'none'
+            } else {
+              alert('Error generating comment: ' + (result.error || 'Unknown error'))
+            }
+          } catch (error) {
+            alert('Error generating comment: ' + error.message)
+          } finally {
+            generateAiComment.textContent = 'Generate'
+            generateAiComment.disabled = false
           }
         })
       }

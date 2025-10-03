@@ -6,10 +6,11 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
     <style>
       .container { max-width: 960px; margin: 20px auto; padding: 0 12px; }
-      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
-      .card { background:#fff; border:1px solid #eee; border-radius:8px; padding:12px; display:flex; gap:10px; align-items:center; text-decoration:none; color:inherit; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(440px, 1fr)); gap: 16px; }
+      .card { background:#fff; border:1px solid #eee; border-radius:8px; padding:12px; display:flex; gap:10px; align-items:center; text-decoration:none; color:inherit; position:relative; }
       .avatar { width: 56px; height: 56px; border-radius: 50%; background:#f2f2f2; background-size: cover; background-position: center; }
       .name { font-weight: 600; }
+      .stats { position: absolute; bottom: 8px; right: 8px; font-size: 10px; color: #666; text-align: right; }
     </style>
   </head>
   <body>
@@ -21,11 +22,22 @@
         <a class="button" href="{{ url_for('add_artist') }}">Add Artist</a>
       </div>
       <div class="grid">
-        {% for a in artists %}
-          <a class="card" href="{{ url_for('artist_detail', artist_id=a.id) }}">
-            <div class="avatar" style="background-image:url('{% if a.avatar_path %}{{ url_for('static', filename=a.avatar_path) }}{% endif %}')"></div>
+        {% for artist_data in artists_with_stats %}
+          <a class="card" href="{{ url_for('artist_detail', artist_id=artist_data.artist.id) }}">
+            <div class="avatar"{% if artist_data.artist.avatar_path %} style="background-image:url('{{ url_for('static', filename=artist_data.artist.avatar_path) }}')"{% endif %}></div>
             <div>
-              <div class="name">{{ a.name }}</div>
+              <div class="name">{{ artist_data.artist.name }}</div>
+            </div>
+            <div class="stats">
+              {% if artist_data.track_count > 0 %}
+                {{ artist_data.track_count }} song{{ 's' if artist_data.track_count != 1 else '' }}<br>
+              {% endif %}
+              {% if artist_data.total_likes > 0 %}
+                {{ artist_data.total_likes }} like{{ 's' if artist_data.total_likes != 1 else '' }}<br>
+              {% endif %}
+              {% if artist_data.total_plays > 0 %}
+                {{ artist_data.total_plays }} play{{ 's' if artist_data.total_plays != 1 else '' }}
+              {% endif %}
             </div>
           </a>
         {% endfor %}

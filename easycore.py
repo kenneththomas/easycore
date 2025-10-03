@@ -20,6 +20,9 @@ from models import db, Video, Comment, Playlist, PlaylistVideo, PlaylistComment,
 # Import blueprints
 from routes import video_bp, playlist_bp, comment_bp, filter_bp
 
+# Import AI comment generator
+from ai_comment_generator import get_ai_generator
+
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
@@ -200,8 +203,46 @@ def get_related_tracks(current_track, limit=8):
 def artists_index():
     page = request.args.get('page', 1, type=int)
     per_page = 20
-    artists = Artist.query.order_by(desc(Artist.created_at)).paginate(page=page, per_page=per_page, error_out=False)
-    return render_template('artists.html', artists=artists.items, page=page, total_pages=artists.pages)
+    
+    # Get all artists with their statistics
+    artists_with_stats = []
+    all_artists = Artist.query.all()
+    
+    for artist in all_artists:
+        # Calculate total likes from tracks and videos
+        track_likes = db.session.query(db.func.sum(Track.likes)).join(TrackArtist).filter(TrackArtist.artist_id == artist.id).scalar() or 0
+        video_likes = db.session.query(db.func.sum(Video.likes)).join(VideoArtist).filter(VideoArtist.artist_id == artist.id).scalar() or 0
+        total_likes = track_likes + video_likes
+        
+        # Calculate total plays from tracks and videos
+        track_plays = db.session.query(db.func.sum(Track.view_count)).join(TrackArtist).filter(TrackArtist.artist_id == artist.id).scalar() or 0
+        video_plays = db.session.query(db.func.sum(Video.view_count)).join(VideoArtist).filter(VideoArtist.artist_id == artist.id).scalar() or 0
+        total_plays = track_plays + video_plays
+        
+        # Count tracks
+        track_count = db.session.query(db.func.count(Track.id)).join(TrackArtist).filter(TrackArtist.artist_id == artist.id).scalar() or 0
+        
+        # Check if artist has avatar
+        has_avatar = artist.avatar_path is not None and artist.avatar_path.strip() != ''
+        
+        artists_with_stats.append({
+            'artist': artist,
+            'total_likes': total_likes,
+            'total_plays': total_plays,
+            'track_count': track_count,
+            'has_avatar': has_avatar
+        })
+    
+    # Sort by: total_likes (desc), track_count (desc), has_avatar (desc), name (asc)
+    artists_with_stats.sort(key=lambda x: (-x['total_likes'], -x['track_count'], -x['has_avatar'], x['artist'].name))
+    
+    # Apply pagination manually
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_artists_with_stats = artists_with_stats[start_idx:end_idx]
+    total_pages = (len(artists_with_stats) + per_page - 1) // per_page
+    
+    return render_template('artists.html', artists_with_stats=paginated_artists_with_stats, page=page, total_pages=total_pages)
 
 @app.route('/tracks')
 def tracks_index():
@@ -520,6 +561,50 @@ def track_detail(track_id):
     db.session.commit()
     return render_template('track_detail.html', track=track, related_tracks=related_tracks, comments=comments, artists=artists, author_avatars=avatars)
 
+@app.route('/update_track_photo/<int:track_id>', methods=['POST'])
+def update_track_photo(track_id):
+    track = Track.query.get_or_404(track_id)
+    
+    if 'photo' not in request.files:
+        return jsonify({"error": "No photo file provided"}), 400
+    
+    photo = request.files['photo']
+    if photo.filename == '':
+        return jsonify({"error": "No photo file selected"}), 400
+    
+    # Validate file type
+    cover_ext = os.path.splitext(photo.filename)[1].lower()
+    if cover_ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+        return jsonify({"error": "Invalid file type. Please upload a JPEG, PNG, or WebP image."}), 400
+    
+    try:
+        # Generate unique filename
+        cover_filename = secure_filename(f"cover_{track.id}_{os.path.splitext(photo.filename)[0]}{cover_ext}")
+        cover_path = os.path.join(app.config['COVER_FOLDER'], cover_filename)
+        
+        # Ensure cover directory exists
+        os.makedirs(app.config['COVER_FOLDER'], exist_ok=True)
+        
+        # Save the new photo
+        photo.save(cover_path)
+        
+        # Update track with new background image path
+        relative_cover_path = os.path.join('covers', cover_filename).replace('\\', '/')
+        track.background_image_path = relative_cover_path
+        db.session.commit()
+        
+        # Return success with the new photo path for frontend update
+        photo_url = url_for('static', filename=relative_cover_path)
+        return jsonify({
+            "success": True, 
+            "photo_path": photo_url,
+            "message": "Photo updated successfully"
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to update photo: {str(e)}"}), 500
+
 @app.route('/like_track/<int:track_id>', methods=['POST'])
 def like_track(track_id):
     track = Track.query.get_or_404(track_id)
@@ -664,6 +749,109 @@ def update_artist_bio(artist_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+# AI Comment Generation Endpoints
+@app.route('/generate_track_comment/<int:track_id>', methods=['POST'])
+def generate_track_comment(track_id):
+    """Generate an AI comment for a track"""
+    try:
+        track = Track.query.get_or_404(track_id)
+        
+        # Get the prompt from the request
+        prompt = request.json.get('prompt', '') if request.is_json else request.form.get('prompt', '')
+        
+        # Get track artists
+        track_artists = [artist.name for artist in track.artists]
+        artist_name = track_artists[0] if track_artists else "Unknown Artist"
+        
+        # Generate the comment using AI
+        ai_generator = get_ai_generator()
+        result = ai_generator.generate_track_comment(
+            track_name=track.nickname or track.original_filepath,
+            artist_name=artist_name,
+            custom_prompt=prompt if prompt else None,
+            track_tags=track.tags
+        )
+        
+        # Debug logging
+        print(f"AI Generation Result: {result}")
+        
+        if result['success']:
+            response_data = {
+                "success": True,
+                "comment": result['comment'],
+                "prompt_used": result['prompt_used']
+            }
+            print(f"Returning success response: {response_data}")
+            return jsonify(response_data)
+        else:
+            error_response = {
+                "success": False,
+                "error": result['error']
+            }
+            print(f"Returning error response: {error_response}")
+            return jsonify(error_response), 500
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/generate_artist_comment/<int:artist_id>', methods=['POST'])
+def generate_artist_comment(artist_id):
+    """Generate an AI comment for an artist"""
+    try:
+        artist = Artist.query.get_or_404(artist_id)
+        
+        # Get the prompt from the request
+        prompt = request.json.get('prompt', '') if request.is_json else request.form.get('prompt', '')
+        
+        # Count tracks by this artist
+        track_count = Track.query.join(TrackArtist).filter(TrackArtist.c.artist_id == artist_id).count()
+        
+        # Generate the comment using AI
+        ai_generator = get_ai_generator()
+        result = ai_generator.generate_artist_comment(
+            artist_name=artist.name,
+            custom_prompt=prompt if prompt else None,
+            artist_bio=artist.bio,
+            track_count=track_count
+        )
+        
+        if result['success']:
+            return jsonify({
+                "success": True,
+                "comment": result['comment'],
+                "prompt_used": result['prompt_used']
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": result['error']
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@app.route('/ai_comment_prompts')
+def get_ai_comment_prompts():
+    """Get available AI comment prompts"""
+    try:
+        ai_generator = get_ai_generator()
+        prompts = ai_generator.get_default_prompts()
+        return jsonify({
+            "success": True,
+            "prompts": prompts
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 @app.route('/')
 def index():
     page = request.args.get('page', 1, type=int)
@@ -732,12 +920,19 @@ def index():
     total_items = len(combined_content)
     total_pages = (total_items + per_page - 1) // per_page
     
+    # Get artists for each track in the paginated content
+    track_artists = {}
+    for item in paginated_content:
+        if item['type'] == 'track':
+            track_artists[item['id']] = db.session.query(Artist).join(TrackArtist).filter(TrackArtist.track_id == item['id']).all()
+    
     return render_template('index.html', 
                          content=paginated_content, 
                          page=page, 
                          total_pages=total_pages, 
                          tag=None,
-                         sort_by=sort_by)
+                         sort_by=sort_by,
+                         track_artists=track_artists)
 
 # Route moved to video_routes.py blueprint
 
