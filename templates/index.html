@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>breeztube</title>
+    <title>easycore</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
@@ -110,7 +110,6 @@
     {{ render_navbar() }}
 
     <div class="container" style="margin-top: 20px;">
-        <h1>breeztube</h1>
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom: 8px;">
             <a href="{{ url_for('video.add_video') }}" class="button">Add New Video</a>
             <a href="{{ url_for('bulk_upload') }}" class="button">Bulk Upload Videos</a>
