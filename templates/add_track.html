@@ -8,9 +8,30 @@
       .form-group { margin: 12px 0; }
       .container { max-width: 700px; margin: 20px auto; }
       .help { color: #777; font-size: 12px; }
+      .drag-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 123, 255, 0.1);
+        border: 3px dashed #007bff;
+        display: none;
+        z-index: 1000;
+        pointer-events: none;
+      }
+      .drag-overlay.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: #007bff;
+        font-weight: bold;
+      }
     </style>
   </head>
   <body>
+    <div class="drag-overlay" id="dragOverlay">Drop audio file here</div>
     <div class="container">
       <h2>Upload Audio Track</h2>
       <form id="trackForm" enctype="multipart/form-data" method="post">
@@ -49,6 +70,10 @@
 
     <script>
     const form = document.getElementById('trackForm');
+    const fileInput = document.querySelector('input[name="file"]');
+    const dragOverlay = document.getElementById('dragOverlay');
+    
+    // Form submission handler
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const data = new FormData(form);
@@ -61,6 +86,60 @@
       } else {
         result.textContent = json.error || 'Upload failed';
       }
+    });
+
+    // Drag and drop functionality
+    function isValidAudioFile(file) {
+      const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac', 'audio/mp4', 'audio/x-m4a'];
+      const validExtensions = ['.mp3', '.wav', '.ogg', '.flac', '.m4a'];
+      
+      return audioTypes.includes(file.type) || 
+             validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    }
+
+    function handleFiles(files) {
+      if (files.length > 0) {
+        const file = files[0];
+        if (isValidAudioFile(file)) {
+          // Create a new FileList with the dropped file
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          fileInput.files = dataTransfer.files;
+          
+          // Trigger change event to update any file display
+          fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          alert('Please drop a valid audio file (.mp3, .wav, .ogg, .flac, .m4a)');
+        }
+      }
+    }
+
+    // Prevent default drag behaviors on the entire document
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      document.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      });
+    });
+
+    // Show drag overlay when dragging over the window
+    ['dragenter', 'dragover'].forEach(eventName => {
+      document.addEventListener(eventName, (e) => {
+        dragOverlay.classList.add('active');
+      });
+    });
+
+    // Hide drag overlay when leaving the window
+    ['dragleave', 'drop'].forEach(eventName => {
+      document.addEventListener(eventName, (e) => {
+        dragOverlay.classList.remove('active');
+      });
+    });
+
+    // Handle file drop
+    document.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      handleFiles(files);
     });
     </script>
   </body>
