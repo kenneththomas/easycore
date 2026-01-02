@@ -51,6 +51,21 @@ def generate_unique_filename(original_filename, upload_folder):
     
     return filename, filepath
 
+def generate_video_filename(extension, upload_folder):
+    """Generate a unique video filename using yyyymmdd format + random characters"""
+    date_str = datetime.now().strftime('%Y%m%d')
+    random_string = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+    filename = secure_filename(f"{date_str}_{random_string}{extension}")
+    filepath = os.path.join(upload_folder, filename)
+    
+    # If file already exists, add more random characters to ensure uniqueness
+    while os.path.exists(filepath):
+        random_string = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+        filename = secure_filename(f"{date_str}_{random_string}{extension}")
+        filepath = os.path.join(upload_folder, filename)
+    
+    return filename, filepath
+
 def convert_webm_to_mp4(input_path):
     """Convert WebM file to MP4 and return the new filepath"""
     output_path = os.path.splitext(input_path)[0] + '.mp4'
@@ -135,14 +150,9 @@ def add_video():
         original_filepath = file.filename
         original_extension = os.path.splitext(original_filepath)[1]
         
-        if nickname:
-            base_filename = secure_filename(nickname + original_extension)
-        else:
-            base_filename = secure_filename(original_filepath)
-        
         # Get upload folder from app config
         upload_folder = current_app.config['STEALTH_UPLOAD_FOLDER'] if stealth else current_app.config['UPLOAD_FOLDER']
-        new_filename, stored_filepath = generate_unique_filename(base_filename, upload_folder)
+        new_filename, stored_filepath = generate_video_filename(original_extension, upload_folder)
         
         try:
             os.makedirs(upload_folder, exist_ok=True)

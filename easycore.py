@@ -170,6 +170,21 @@ def generate_unique_filename(original_filename, upload_folder):
     
     return filename, filepath
 
+def generate_video_filename(extension, upload_folder):
+    """Generate a unique video filename using yyyymmdd format + random characters"""
+    date_str = datetime.now().strftime('%Y%m%d')
+    random_string = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+    filename = secure_filename(f"{date_str}_{random_string}{extension}")
+    filepath = os.path.join(upload_folder, filename)
+    
+    # If file already exists, add more random characters to ensure uniqueness
+    while os.path.exists(filepath):
+        random_string = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+        filename = secure_filename(f"{date_str}_{random_string}{extension}")
+        filepath = os.path.join(upload_folder, filename)
+    
+    return filename, filepath
+
 def get_mime_type_for_audio(file_path):
     ext = os.path.splitext(file_path)[1].lower()
     if ext in ['.mp3']:  # default and most common
@@ -1190,14 +1205,15 @@ def bulk_upload():
 
         for file in uploaded_files:
             if isinstance(file, FileStorage) and file.filename != '':
-                original_extension = os.path.splitext(file.filename)[1].lower()
-                if original_extension not in ['.mp4', '.webm']:
+                original_extension_lower = os.path.splitext(file.filename)[1].lower()
+                if original_extension_lower not in ['.mp4', '.webm']:
                     errors.append(f"Skipped {file.filename}: Only MP4 and WebM files are allowed")
                     continue
 
                 try:
-                    new_filename, stored_filepath = generate_unique_filename(
-                        file.filename, 
+                    original_extension = os.path.splitext(file.filename)[1]
+                    new_filename, stored_filepath = generate_video_filename(
+                        original_extension,
                         app.config['STEALTH_UPLOAD_FOLDER']
                     )
                     
@@ -1205,7 +1221,7 @@ def bulk_upload():
                     file.save(stored_filepath)
                     
                     # Convert WebM to MP4 if necessary
-                    if original_extension == '.webm':
+                    if original_extension_lower == '.webm':
                         stored_filepath = convert_webm_to_mp4(stored_filepath)
                         new_filename = os.path.basename(stored_filepath)
 
@@ -1713,13 +1729,8 @@ def add_multiple_videos():
                 original_filepath = file.filename
                 original_extension = os.path.splitext(original_filepath)[1]
                 
-                if video_nickname:
-                    base_filename = secure_filename(video_nickname + original_extension)
-                else:
-                    base_filename = secure_filename(original_filepath)
-                
                 upload_folder = app.config['STEALTH_UPLOAD_FOLDER'] if stealth else app.config['UPLOAD_FOLDER']
-                new_filename, stored_filepath = generate_unique_filename(base_filename, upload_folder)
+                new_filename, stored_filepath = generate_video_filename(original_extension, upload_folder)
                 
                 # Save and process video file (similar to add_video route)
                 os.makedirs(upload_folder, exist_ok=True)
