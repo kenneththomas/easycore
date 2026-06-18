@@ -53,18 +53,98 @@
             background-color: #d0d0d0;
         }
         
-        .random-player {
-            margin: 20px 0;
-            padding: 20px;
-            background-color: #f9f9f9;
-            border-radius: 8px;
+        /* TikTok-like vertical feed */
+        .tiktok-feed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background-color: #000;
+            overflow: hidden;
+            z-index: 1000;
+            display: none;
         }
         
-        .random-player-controls {
+        .tiktok-feed.active {
+            display: block;
+        }
+        
+        .tiktok-video-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             display: flex;
+            align-items: center;
             justify-content: center;
-            gap: 10px;
-            margin-top: 15px;
+            transition: transform 0.3s ease-out;
+        }
+        
+        .tiktok-video-container.prev {
+            transform: translateY(-100%);
+        }
+        
+        .tiktok-video-container.next {
+            transform: translateY(100%);
+        }
+        
+        .tiktok-video-container.current {
+            transform: translateY(0);
+        }
+        
+        .tiktok-video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background-color: #000;
+        }
+        
+        .tiktok-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .tiktok-close:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+        
+        .tiktok-video-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            color: white;
+            z-index: 1001;
+            pointer-events: none;
+        }
+        
+        .tiktok-video-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .tiktok-video-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
         }
         
         .video-player-container {
@@ -80,19 +160,6 @@
             border-radius: 8px;
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
             display: none;
-        }
-        
-        .random-video-container {
-            width: 100%;
-            margin: 15px 0;
-            display: block;
-        }
-        
-        #randomVideoPlayer {
-            width: 100%;
-            max-width: 100%;
-            display: block;
-            border-radius: 8px;
         }
         
         .video-player-header {
@@ -114,7 +181,7 @@
             cursor: pointer;
         }
         
-        #videoPlayer, #randomVideoPlayer {
+        #videoPlayer {
             width: 100%;
             border-radius: 0 0 8px 8px;
         }
@@ -140,19 +207,28 @@
                 gap: 10px;
             }
             
-            .random-player-controls {
-                flex-wrap: wrap;
-            }
-            
             .video-player-container {
                 width: 95%;
                 height: auto;
                 max-height: 90vh;
             }
             
-            #videoPlayer, #randomVideoPlayer {
+            #videoPlayer {
                 width: 100%;
                 height: auto;
+            }
+            
+            .tiktok-video-info {
+                padding: 15px;
+            }
+            
+            .tiktok-video-title {
+                font-size: 14px;
+            }
+            
+            .tiktok-video-stats {
+                font-size: 12px;
+                gap: 10px;
             }
             
             .nav-content {
@@ -246,23 +322,14 @@
             {% endif %}
         </div>
         
-        <div class="random-player">
-            <h2>Random Player</h2>
-            <p>Play random videos with the "{{ tag }}" tag</p>
-            
-            <div class="random-video-container">
-                <video id="randomVideoPlayer" controls>
-                    Your browser does not support the video tag.
-                </video>
-            </div>
-            
-            <div class="random-player-controls">
-                <button class="button" onclick="playRandomVideo()">Play Random</button>
-                <button class="button" onclick="playNextRandom()">Next Video</button>
-                <label>
-                    <input type="checkbox" id="autoplayToggle"> Autoplay next
-                </label>
-            </div>
+        <div class="tiktok-feed" id="tiktokFeed">
+            <button class="tiktok-close" onclick="closeTikTokFeed()">&times;</button>
+        </div>
+        
+        <div style="margin: 20px 0; text-align: center;">
+            <button class="button" onclick="openTikTokFeed()" style="font-size: 18px; padding: 15px 30px;">
+                🎬 Start TikTok Feed
+            </button>
         </div>
         
         <h2 class="section-title">All "{{ tag }}" Videos</h2>
@@ -400,19 +467,28 @@
     </div>
     
     <script>
-        // Store all videos with this tag for random playback
-        const tagVideos = [
-            {% for video in all_videos %}
+        // Store all videos with this tag for TikTok feed
+        const allContentData = [
+            {% for item in all_content %}
                 {
-                    id: {{ video.id }},
-                    title: "{{ video.nickname or video.original_filepath|replace('"', '\\"') }}",
-                    views: {{ video.view_count or 0 }}
+                    type: '{{ item.type }}',
+                    id: {{ item.id }},
+                    title: "{{ item.object.nickname or item.object.original_filepath|replace('"', '\\"') }}",
+                    views: {{ item.object.view_count or 0 }},
+                    likes: {{ item.object.likes or 0 }},
+                    description: "{{ (item.object.description or '')|replace('"', '\\"')|replace('\n', ' ') }}"
                 }{% if not loop.last %},{% endif %}
             {% endfor %}
         ];
         
-        let currentRandomIndex = -1;
-        const randomPlayer = document.getElementById('randomVideoPlayer');
+        // Filter to only videos
+        const tagVideos = allContentData.filter(item => item.type === 'video');
+        
+        let currentVideoIndex = -1;
+        let tiktokFeed = null;
+        let touchStartY = 0;
+        let touchEndY = 0;
+        let isTransitioning = false;
         let lastClickTime = 0;
         
         // Add event listener for clicks on the document - fixed implementation
@@ -436,84 +512,225 @@
             }
         });
         
-        // Play a random video from the tag videos
-        function playRandomVideo() {
-            if (tagVideos.length === 0) return;
+        // TikTok Feed Functions
+        function openTikTokFeed() {
+            if (tagVideos.length === 0) {
+                alert('No videos available for this tag.');
+                return;
+            }
             
-            const randomIndex = Math.floor(Math.random() * tagVideos.length);
-            currentRandomIndex = randomIndex;
+            tiktokFeed = document.getElementById('tiktokFeed');
+            tiktokFeed.classList.add('active');
+            document.body.style.overflow = 'hidden';
             
-            const videoId = tagVideos[randomIndex].id;
-            randomPlayer.src = `/stream/${videoId}`;
-            randomPlayer.play();
+            // Start with first video
+            currentVideoIndex = 0;
+            loadVideo(currentVideoIndex);
+            
+            // Set up touch and mouse wheel events
+            setupSwipeHandlers();
+        }
+        
+        function closeTikTokFeed() {
+            if (tiktokFeed) {
+                // Pause all videos
+                const videos = tiktokFeed.querySelectorAll('video');
+                videos.forEach(video => {
+                    video.pause();
+                    video.src = '';
+                });
+                
+                tiktokFeed.innerHTML = '<button class="tiktok-close" onclick="closeTikTokFeed()">&times;</button>';
+                tiktokFeed.classList.remove('active');
+                document.body.style.overflow = '';
+                currentVideoIndex = -1;
+                isTransitioning = false;
+            }
+        }
+        
+        function loadVideo(index) {
+            if (index < 0 || index >= tagVideos.length || isTransitioning) return;
+            
+            isTransitioning = true;
+            const video = tagVideos[index];
+            
+            // Remove existing video containers
+            const existingContainers = tiktokFeed.querySelectorAll('.tiktok-video-container');
+            existingContainers.forEach(container => {
+                if (!container.classList.contains('current')) {
+                    container.remove();
+                }
+            });
+            
+            // Create new video container
+            const container = document.createElement('div');
+            container.className = 'tiktok-video-container current';
+            
+            const videoElement = document.createElement('video');
+            videoElement.className = 'tiktok-video';
+            videoElement.controls = true;
+            videoElement.autoplay = true;
+            videoElement.playsinline = true;
+            videoElement.muted = false;
+            videoElement.loop = true;
+            
+            // Video info overlay
+            const info = document.createElement('div');
+            info.className = 'tiktok-video-info';
+            info.innerHTML = `
+                <div class="tiktok-video-title">${escapeHtml(video.title)}</div>
+                <div class="tiktok-video-stats">
+                    <span>👁️ ${video.views}</span>
+                    <span>❤️ ${video.likes}</span>
+                </div>
+            `;
+            
+            container.appendChild(videoElement);
+            container.appendChild(info);
+            tiktokFeed.appendChild(container);
+            
+            // Load and play video
+            videoElement.src = `/stream/${video.id}`;
+            videoElement.play().catch(err => {
+                console.error('Error playing video:', err);
+            });
             
             // Increment view count
-            fetch(`/increment_view/${videoId}`, { method: 'POST' })
+            fetch(`/increment_view/${video.id}`, { method: 'POST' })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        const viewCountElement = document.getElementById(`view-count-${videoId}`);
+                        video.views = data.new_view_count;
+                        const viewCountElement = document.getElementById(`view-count-${video.id}`);
                         if (viewCountElement) {
                             viewCountElement.textContent = data.new_view_count;
                         }
-                        // Update the view count in our local array too
-                        tagVideos[randomIndex].views = data.new_view_count;
-                    }
-                });
-        }
-        
-        // Play the next random video
-        function playNextRandom() {
-            if (tagVideos.length === 0) return;
-            
-            // Get a different video than the current one
-            let nextIndex;
-            if (tagVideos.length > 1) {
-                do {
-                    nextIndex = Math.floor(Math.random() * tagVideos.length);
-                } while (nextIndex === currentRandomIndex);
-            } else {
-                nextIndex = 0;
-            }
-            
-            currentRandomIndex = nextIndex;
-            const videoId = tagVideos[nextIndex].id;
-            randomPlayer.src = `/stream/${videoId}`;
-            randomPlayer.play();
-            
-            // Increment view count
-            fetch(`/increment_view/${videoId}`, { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const viewCountElement = document.getElementById(`view-count-${videoId}`);
-                        if (viewCountElement) {
-                            viewCountElement.textContent = data.new_view_count;
+                        // Update display
+                        const statsElement = info.querySelector('.tiktok-video-stats');
+                        if (statsElement) {
+                            statsElement.innerHTML = `
+                                <span>👁️ ${data.new_view_count}</span>
+                                <span>❤️ ${video.likes}</span>
+                            `;
                         }
-                        tagVideos[nextIndex].views = data.new_view_count;
                     }
                 });
+            
+            // Videos will loop automatically via the loop attribute
+            
+            // Reset transition flag after animation
+            setTimeout(() => {
+                isTransitioning = false;
+            }, 300);
         }
         
-        // Set up autoplay for the random player
-        randomPlayer.addEventListener('ended', function() {
-            if (document.getElementById('autoplayToggle').checked) {
-                playNextRandom();
+        function goToNextVideo() {
+            if (currentVideoIndex < tagVideos.length - 1 && !isTransitioning) {
+                const currentContainer = tiktokFeed.querySelector('.tiktok-video-container.current');
+                if (currentContainer) {
+                    const video = currentContainer.querySelector('video');
+                    if (video) {
+                        video.pause();
+                    }
+                    currentContainer.classList.remove('current');
+                    currentContainer.classList.add('prev');
+                }
+                
+                currentVideoIndex++;
+                loadVideo(currentVideoIndex);
             }
-        });
+        }
+        
+        function goToPreviousVideo() {
+            if (currentVideoIndex > 0 && !isTransitioning) {
+                const currentContainer = tiktokFeed.querySelector('.tiktok-video-container.current');
+                if (currentContainer) {
+                    const video = currentContainer.querySelector('video');
+                    if (video) {
+                        video.pause();
+                    }
+                    currentContainer.classList.remove('current');
+                    currentContainer.classList.add('next');
+                }
+                
+                currentVideoIndex--;
+                loadVideo(currentVideoIndex);
+            }
+        }
+        
+        function setupSwipeHandlers() {
+            let touchStartY = 0;
+            let touchEndY = 0;
+            let minSwipeDistance = 50;
+            
+            // Touch events for mobile
+            tiktokFeed.addEventListener('touchstart', function(e) {
+                touchStartY = e.changedTouches[0].screenY;
+            }, { passive: true });
+            
+            tiktokFeed.addEventListener('touchend', function(e) {
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipe();
+            }, { passive: true });
+            
+            // Mouse wheel for desktop
+            let wheelTimeout;
+            tiktokFeed.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                
+                clearTimeout(wheelTimeout);
+                wheelTimeout = setTimeout(() => {
+                    if (e.deltaY > 0) {
+                        // Scrolled down - next video
+                        goToNextVideo();
+                    } else if (e.deltaY < 0) {
+                        // Scrolled up - previous video
+                        goToPreviousVideo();
+                    }
+                }, 100);
+            }, { passive: false });
+            
+            // Keyboard navigation
+            document.addEventListener('keydown', function(e) {
+                if (!tiktokFeed.classList.contains('active')) return;
+                
+                if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+                    e.preventDefault();
+                    goToNextVideo();
+                } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+                    e.preventDefault();
+                    goToPreviousVideo();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeTikTokFeed();
+                }
+            });
+            
+            function handleSwipe() {
+                const swipeDistance = touchStartY - touchEndY;
+                
+                if (Math.abs(swipeDistance) > minSwipeDistance) {
+                    if (swipeDistance > 0) {
+                        // Swiped up - previous video
+                        goToPreviousVideo();
+                    } else {
+                        // Swiped down - next video
+                        goToNextVideo();
+                    }
+                }
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
         
         // Regular video player functions
         function playVideo(videoId) {
             const videoPlayer = document.getElementById('videoPlayer');
             const videoPlayerContainer = document.getElementById('videoPlayerContainer');
-            
-            // Pause and hide the random player
-            const randomPlayer = document.getElementById('randomVideoPlayer');
-            randomPlayer.pause();
-            const randomPlayerContainer = document.querySelector('.random-player');
-            if (randomPlayerContainer) {
-                randomPlayerContainer.style.display = 'none';
-            }
             
             videoPlayer.src = `/stream/${videoId}`;
             videoPlayerContainer.style.display = 'block';
@@ -532,14 +749,6 @@
         function playTrack(trackId) {
             const videoPlayer = document.getElementById('videoPlayer');
             const videoPlayerContainer = document.getElementById('videoPlayerContainer');
-            
-            // Pause and hide the random player
-            const randomPlayer = document.getElementById('randomVideoPlayer');
-            randomPlayer.pause();
-            const randomPlayerContainer = document.querySelector('.random-player');
-            if (randomPlayerContainer) {
-                randomPlayerContainer.style.display = 'none';
-            }
             
             videoPlayer.src = `/stream_track/${trackId}`;
             videoPlayerContainer.style.display = 'block';
@@ -566,12 +775,6 @@
             videoPlayer.pause();
             videoPlayer.src = '';
             videoPlayerContainer.style.display = 'none';
-            
-            // Show the random player section again
-            const randomPlayerContainer = document.querySelector('.random-player');
-            if (randomPlayerContainer) {
-                randomPlayerContainer.style.display = 'block';
-            }
         }
         
         function filterByTag(tag) {
@@ -598,11 +801,6 @@
                 const videoId = container.id.split('-')[2];
                 displayTags(videoId, container.dataset.tags);
             });
-            
-            // If we have videos, set up the random player with the first one
-            if (tagVideos.length > 0) {
-                playRandomVideo();
-            }
         });
 
         // Tag description functionality
