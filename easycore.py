@@ -527,8 +527,8 @@ def add_track():
             db.session.rollback()
             return jsonify({"error": str(e)}), 500
 
-    # GET: show upload form
-    return render_template('add_track.html')
+    # GET: use the unified content upload page.
+    return redirect(url_for('video.add_video'))
 
 @app.route('/stream_track/<int:track_id>')
 def stream_track(track_id):

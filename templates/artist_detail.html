@@ -1032,9 +1032,8 @@
             <button class="dropbtn">Upload</button>
             <div class="dropdown-content">
               <a href="{{ url_for('video.add_video') }}">Add Video</a>
-              <a href="{{ url_for('add_multiple_videos') }}">Add Multiple Videos</a>
               <a href="{{ url_for('bulk_upload') }}">Bulk Upload Videos</a>
-              <a href="{{ url_for('add_track') }}">Add Track</a>
+              <a href="{{ url_for('video.add_video') }}">Add Content</a>
             </div>
           </div>
           <div class="dropdown">
@@ -1081,7 +1080,7 @@
               {% if tracks %}
                 <button class="btn-primary" onclick="playAllTracks()">🎵 Play All Tracks</button>
               {% endif %}
-              <a href="{{ url_for('add_track') }}" class="btn-primary">Add Track</a>
+              <a href="{{ url_for('video.add_video') }}" class="btn-primary">Add Content</a>
               <a href="{{ url_for('video.add_video') }}" class="btn-primary">Add Video</a>
             </div>
             
@@ -1206,7 +1205,7 @@
               <h3>No Content Yet</h3>
               <p>This artist doesn't have any tracks or videos yet.</p>
               <div style="margin-top: 20px;">
-                <a href="{{ url_for('add_track') }}" class="btn-primary">Add First Track</a>
+                <a href="{{ url_for('video.add_video') }}" class="btn-primary">Add First Track</a>
                 <a href="{{ url_for('video.add_video') }}" class="btn-primary">Add First Video</a>
               </div>
             </div>

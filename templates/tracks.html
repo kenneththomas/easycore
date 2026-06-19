@@ -122,7 +122,7 @@
             <option value="most_viewed" {% if sort_by == 'most_viewed' %}selected{% endif %}>Most Viewed</option>
             <option value="most_liked" {% if sort_by == 'most_liked' %}selected{% endif %}>Most Liked</option>
           </select>
-          <a class="button" href="{{ url_for('add_track') }}">Add Track</a>
+          <a class="button" href="{{ url_for('video.add_video') }}">Add Content</a>
         </div>
       </div>
       
@@ -189,7 +189,7 @@
             <p>No tracks have been uploaded yet.</p>
           {% endif %}
           <div style="margin-top: 20px;">
-            <a href="{{ url_for('add_track') }}" class="button">Add First Track</a>
+            <a href="{{ url_for('video.add_video') }}" class="button">Add First Track</a>
           </div>
         </div>
       {% endif %}

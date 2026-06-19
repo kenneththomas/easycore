@@ -3,315 +3,277 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add Video - Video Tagger</title>
+    <title>Add content - easycore</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        #tag-input-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            margin-bottom: 10px;
-        }
-        .tag-pill {
-            background-color: #e0e0e0;
-            padding: 5px 10px;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-        }
-        .tag-pill button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            margin-left: 5px;
-        }
-        #tag-suggestions {
-            position: absolute;
-            background-color: white;
-            border: 1px solid #ccc;
-            max-height: 150px;
-            overflow-y: auto;
-            display: none;
-        }
-        #tag-suggestions div {
-            padding: 5px;
-            cursor: pointer;
-        }
-        #tag-suggestions div:hover {
-            background-color: #f0f0f0;
-        }
-        #drop-zone {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .drop-zone-text {
-            color: white;
-            font-size: 24px;
-            padding: 20px;
-            border: 2px dashed white;
-            border-radius: 10px;
-            background: rgba(0, 0, 0, 0.5);
-        }
-        #drop-zone.active {
-            display: flex;
-            opacity: 1;
-        }
-        .hidden {
-            display: none !important;
-        }
-        .submit-button {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 30px;
-            margin-bottom: 20px;
-            transition: background-color 0.3s ease;
-        }
-        .submit-button:hover {
-            background-color: #45a049;
-        }
-        #existing-tags {
-            margin-top: 20px;
-            margin-bottom: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #ddd;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: white;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-        }
-        body {
-            background-color: #f5f5f5;
-            padding: 20px;
-            margin: 0;
-            min-height: 100vh;
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/upload.css') }}">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-content">
-            <a href="{{ url_for('index') }}" class="nav-logo">Video Tagger</a>
-            <div class="nav-links">
-                <a href="{{ url_for('index') }}">Home</a>
-                <a href="{{ url_for('video.add_video') }}">Add Video</a>
-                <a href="{{ url_for('bulk_upload') }}">Bulk Upload</a>
+    {% from 'navbar.html' import render_navbar %}
+    {{ render_navbar() }}
+
+    <main class="upload-page">
+        <div class="upload-shell">
+            <header class="upload-header">
+                <h1>Add content</h1>
+                <p>Choose an audio or video file. Easycore will recognize it and show the right options automatically.</p>
+            </header>
+
+            <div class="upload-card">
+                <form id="content-upload-form" class="upload-form" method="post" enctype="multipart/form-data">
+                    <section class="upload-section">
+                        <h2 class="upload-section-heading">Media</h2>
+                        <label class="file-picker" id="file-picker" for="media-file">
+                            <span class="file-picker-icon" id="file-icon" aria-hidden="true">+</span>
+                            <span class="file-picker-title">Choose a file or drop it here</span>
+                            <span class="file-picker-copy">Video, MP3, WAV, OGG, FLAC, M4A, or AAC</span>
+                            <span class="file-name" id="file-name"></span>
+                            <span class="detected-type" id="detected-type"></span>
+                            <input type="file" name="file" id="media-file" accept="video/*,audio/*,.mp3,.wav,.ogg,.oga,.flac,.m4a,.aac" required>
+                        </label>
+                    </section>
+
+                    <section class="upload-section conditional-section" id="details-section" hidden>
+                        <h2 class="upload-section-heading">Details</h2>
+
+                        <div class="upload-grid">
+                            <div class="upload-field">
+                                <label class="upload-label" for="nickname">Title</label>
+                                <input class="upload-control" type="text" name="nickname" id="nickname" placeholder="Give it a memorable title">
+                            </div>
+                            <div class="upload-field conditional-section" id="artist-field" hidden>
+                                <label class="upload-label" for="artist-name">Artist</label>
+                                <input class="upload-control" type="text" name="artist_name" id="artist-name" placeholder="Artist name">
+                            </div>
+                        </div>
+
+                        <div class="upload-field conditional-section" id="cover-field" hidden>
+                            <label class="upload-label" for="background">Cover image <span class="upload-help">(optional)</span></label>
+                            <input class="upload-control" type="file" name="background" id="background" accept="image/*">
+                            <p class="upload-help">Used as the track artwork and page background.</p>
+                        </div>
+
+                        <div class="upload-field">
+                            <label class="upload-label" for="description">Description</label>
+                            <textarea class="upload-control" name="description" id="description" placeholder="Add context, notes, or credits"></textarea>
+                        </div>
+
+                        <div class="upload-field tag-editor">
+                            <label class="upload-label" for="tag-input">Tags</label>
+                            <div class="tag-pill-list" id="tag-input-container"></div>
+                            <input class="upload-control" type="text" id="tag-input" placeholder="Type a tag and press Enter" autocomplete="off">
+                            <div class="tag-suggestions" id="tag-suggestions"></div>
+                            <input type="hidden" name="tags" id="tags">
+                            <p class="upload-help">Up to 10 tags.</p>
+                        </div>
+
+                        {% if recent_tags %}
+                        <div class="upload-field">
+                            <span class="upload-label">Recently used</span>
+                            <div class="recent-tags">
+                                {% for tag in recent_tags %}
+                                <button type="button" class="recent-tag" data-tag="{{ tag }}">{{ tag }}</button>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <label class="checkbox-row" for="stealth">
+                            <input type="checkbox" name="stealth" id="stealth">
+                            <span><strong>Stealth upload</strong><br><span class="upload-help">Save the file outside the visible library.</span></span>
+                        </label>
+                    </section>
+
+                    <div class="progress-track" aria-hidden="true">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    <div class="upload-status" id="upload-status" role="status" aria-live="polite">Choose a file to continue.</div>
+
+                    <div class="upload-actions">
+                        <a href="{{ url_for('index') }}" class="button button-secondary">Cancel</a>
+                        <button type="submit" class="button" id="submit-button" disabled>Add content</button>
+                    </div>
+                </form>
             </div>
         </div>
-    </nav>
-    <div class="container">
-        <h1>Add New Video</h1>
-        <div id="drop-zone" class="hidden">
-            <div class="drop-zone-text">Drop video file here</div>
-        </div>
-        <form action="{{ url_for('video.add_video') }}" method="post" enctype="multipart/form-data">
-            <label for="file">Select Video File:</label>
-            <input type="file" name="file" id="file" accept="video/*" required>
-            
-            <label for="nickname">Nickname (optional):</label>
-            <input type="text" name="nickname" id="nickname" placeholder="Enter a nickname for the video">
-            
-            <label for="description">Description (optional):</label>
-            <textarea name="description" id="description" placeholder="Enter a description for the video"></textarea>
-            
-            <label for="tag-input">Tags:</label>
-            <div id="tag-input-container"></div>
-            <input type="text" id="tag-input" placeholder="Type to add tags">
-            <div id="tag-suggestions"></div>
-            <input type="hidden" name="tags" id="tags">
-            
-            <label for="stealth">
-                <input type="checkbox" name="stealth" id="stealth">
-                Stealth Upload (will not be added to database)
-            </label>
-            
-            <div id="existing-tags">
-                <h3>Recently Used Tags:</h3>
-                {% for tag in recent_tags %}
-                    <button type="button" class="tag-button" data-tag="{{ tag }}">
-                        {{ tag }}
-                    </button>
-                {% endfor %}
-            </div>
-            
-            <input type="submit" value="Add Video" class="submit-button">
-        </form>
-        <div id="progress-bar"></div>
-        <a href="{{ url_for('index') }}" class="back-link">Back to Video List</a>
-    </div>
+    </main>
+
     <script>
+        const VIDEO_UPLOAD_URL = {{ url_for('video.add_video') | tojson }};
+        const TRACK_UPLOAD_URL = {{ url_for('add_track') | tojson }};
+        const TRACK_DETAIL_URL = {{ url_for('track_detail', track_id=0) | tojson }};
+        const AUDIO_EXTENSIONS = ['mp3', 'wav', 'ogg', 'oga', 'flac', 'm4a', 'aac'];
+        const VIDEO_EXTENSIONS = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v'];
+
+        const form = document.getElementById('content-upload-form');
+        const fileInput = document.getElementById('media-file');
+        const filePicker = document.getElementById('file-picker');
+        const fileName = document.getElementById('file-name');
+        const fileIcon = document.getElementById('file-icon');
+        const detectedType = document.getElementById('detected-type');
+        const detailsSection = document.getElementById('details-section');
+        const artistField = document.getElementById('artist-field');
+        const coverField = document.getElementById('cover-field');
         const tagInput = document.getElementById('tag-input');
         const tagContainer = document.getElementById('tag-input-container');
         const tagSuggestions = document.getElementById('tag-suggestions');
         const hiddenTagInput = document.getElementById('tags');
+        const status = document.getElementById('upload-status');
+        const progressBar = document.getElementById('progress-bar');
+        const submitButton = document.getElementById('submit-button');
+        let contentType = null;
         let tags = [];
 
+        function extensionOf(fileNameValue) {
+            return fileNameValue.includes('.') ? fileNameValue.split('.').pop().toLowerCase() : '';
+        }
+
+        function detectContentType(file) {
+            const extension = extensionOf(file.name);
+            if (file.type.startsWith('audio/') || AUDIO_EXTENSIONS.includes(extension)) return 'track';
+            if (file.type.startsWith('video/') || VIDEO_EXTENSIONS.includes(extension)) return 'video';
+            return null;
+        }
+
+        function configureForFile() {
+            const file = fileInput.files[0];
+            contentType = file ? detectContentType(file) : null;
+            fileName.textContent = file?.name || '';
+            detailsSection.hidden = !contentType;
+            artistField.hidden = contentType !== 'track';
+            coverField.hidden = contentType !== 'track';
+            submitButton.disabled = !contentType;
+            detectedType.classList.toggle('is-visible', Boolean(contentType));
+
+            if (!file) {
+                detectedType.textContent = '';
+                fileIcon.textContent = '+';
+                status.textContent = 'Choose a file to continue.';
+                return;
+            }
+
+            if (!contentType) {
+                detectedType.textContent = 'Unsupported file';
+                detectedType.classList.add('is-visible');
+                fileIcon.textContent = '!';
+                status.textContent = 'This file type is not supported.';
+                return;
+            }
+
+            detectedType.textContent = contentType === 'track' ? 'Audio track detected' : 'Video detected';
+            fileIcon.textContent = contentType === 'track' ? '♪' : '>';
+            submitButton.textContent = contentType === 'track' ? 'Add track' : 'Add video';
+            status.textContent = contentType === 'track'
+                ? 'Audio detected. Track options are ready.'
+                : 'Video detected. Video options are ready.';
+        }
+
         function updateTags() {
-            tagContainer.innerHTML = '';
-            tags.slice(0, 10).forEach(tag => {
-                const tagPill = document.createElement('span');
-                tagPill.className = 'tag-pill';
-                tagPill.innerHTML = `${tag}<button type="button" onclick="removeTag('${tag}')">&times;</button>`;
-                tagContainer.appendChild(tagPill);
+            tagContainer.replaceChildren();
+            tags.forEach(tag => {
+                const pill = document.createElement('span');
+                pill.className = 'tag-pill';
+                pill.append(document.createTextNode(tag));
+                const removeButton = document.createElement('button');
+                removeButton.type = 'button';
+                removeButton.setAttribute('aria-label', `Remove ${tag}`);
+                removeButton.textContent = 'x';
+                removeButton.addEventListener('click', () => {
+                    tags = tags.filter(existingTag => existingTag !== tag);
+                    updateTags();
+                });
+                pill.append(removeButton);
+                tagContainer.append(pill);
             });
             hiddenTagInput.value = tags.join(',');
         }
 
-        function addTag(tag) {
+        function addTag(rawTag) {
+            const tag = rawTag.trim();
             if (tag && !tags.includes(tag) && tags.length < 10) {
                 tags.push(tag);
                 updateTags();
-                tagInput.value = '';
             }
+            tagInput.value = '';
         }
 
-        function removeTag(tag) {
-            tags = tags.filter(t => t !== tag);
-            updateTags();
+        function hideSuggestions() {
+            tagSuggestions.style.display = 'none';
         }
 
-        tagInput.addEventListener('input', function() {
-            const input = this.value.toLowerCase();
-            if (input) {
-                fetch(`/get_tag_suggestions?q=${input}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        tagSuggestions.innerHTML = '';
-                        data.forEach(tag => {
-                            const div = document.createElement('div');
-                            div.textContent = tag;
-                            div.onclick = function() {
-                                addTag(tag);
-                                tagSuggestions.style.display = 'none';
-                            };
-                            tagSuggestions.appendChild(div);
-                        });
-                        tagSuggestions.style.display = 'block';
-                    });
-            } else {
-                tagSuggestions.style.display = 'none';
-            }
+        fileInput.addEventListener('change', configureForFile);
+        ['dragenter', 'dragover'].forEach(eventName => {
+            filePicker.addEventListener(eventName, () => filePicker.classList.add('is-dragging'));
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            filePicker.addEventListener(eventName, () => filePicker.classList.remove('is-dragging'));
         });
 
-        tagInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addTag(this.value.trim());
+        tagInput.addEventListener('input', async () => {
+            const query = tagInput.value.trim().toLowerCase();
+            if (!query) {
+                hideSuggestions();
+                return;
             }
-        });
-
-        document.addEventListener('click', function(e) {
-            if (e.target !== tagInput && e.target !== tagSuggestions) {
-                tagSuggestions.style.display = 'none';
-            }
-        });
-
-        // Add functionality for tag buttons
-        document.querySelectorAll('.tag-button').forEach(button => {
-            button.addEventListener('click', function() {
-                const newTag = this.getAttribute('data-tag');
-                addTag(newTag);
+            const response = await fetch(`/get_tag_suggestions?q=${encodeURIComponent(query)}`);
+            const suggestions = await response.json();
+            tagSuggestions.replaceChildren();
+            suggestions.forEach(tag => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = tag;
+                button.addEventListener('click', () => {
+                    addTag(tag);
+                    hideSuggestions();
+                });
+                tagSuggestions.append(button);
             });
+            tagSuggestions.style.display = suggestions.length ? 'block' : 'none';
         });
 
-        document.querySelector('form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            var form = new FormData(this);
-            var progressBar = document.getElementById('progress-bar');
-            
-            fetch(this.action, {
-                method: 'POST',
-                body: form
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = `/video/video/${data.video_id}`;
-                } else {
-                    alert('Error adding video: ' + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An unexpected error occurred. Please try again.');
-            });
-
-            // Simulated progress bar (since we can't get real-time progress)
-            let progress = 0;
-            let interval = setInterval(() => {
-                progress += 10;
-                progressBar.style.width = progress + '%';
-                if (progress >= 90) clearInterval(interval);
-            }, 500);
-        });
-
-        // Add this new code for drag and drop
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file');
-        let dragCounter = 0;
-
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            document.body.addEventListener(eventName, preventDefaults, false);
-        });
-
-        function preventDefaults (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        // Handle drag enter
-        document.body.addEventListener('dragenter', (e) => {
-            dragCounter++;
-            if (e.dataTransfer.types.includes('Files')) {
-                dropZone.classList.add('active');
+        tagInput.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ',') {
+                event.preventDefault();
+                addTag(tagInput.value.replace(',', ''));
+                hideSuggestions();
             }
         });
 
-        // Handle drag leave
-        document.body.addEventListener('dragleave', (e) => {
-            dragCounter--;
-            if (dragCounter === 0) {
-                dropZone.classList.remove('active');
-            }
+        document.querySelectorAll('.recent-tag').forEach(button => {
+            button.addEventListener('click', () => addTag(button.dataset.tag));
         });
 
-        // Handle drop
-        document.body.addEventListener('drop', (e) => {
-            dragCounter = 0;
-            dropZone.classList.remove('active');
-            
-            const dt = e.dataTransfer;
-            const files = dt.files;
+        document.addEventListener('click', event => {
+            if (!event.target.closest('.tag-editor')) hideSuggestions();
+        });
 
-            if (files.length > 0 && files[0].type.startsWith('video/')) {
-                fileInput.files = files;
-                fileInput.dispatchEvent(new Event('change'));
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (!contentType) return;
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Uploading...';
+            status.textContent = `Uploading and processing your ${contentType === 'track' ? 'track' : 'video'}...`;
+            progressBar.style.width = '55%';
+
+            try {
+                const uploadUrl = contentType === 'track' ? TRACK_UPLOAD_URL : VIDEO_UPLOAD_URL;
+                const response = await fetch(uploadUrl, { method: 'POST', body: new FormData(form) });
+                const data = await response.json();
+                if (!response.ok || !data.success) throw new Error(data.error || 'Upload failed');
+
+                progressBar.style.width = '100%';
+                status.textContent = 'Upload complete. Opening content...';
+                window.location.href = contentType === 'track'
+                    ? TRACK_DETAIL_URL.replace('0', data.track_id)
+                    : `/video/video/${data.video_id}`;
+            } catch (error) {
+                progressBar.style.width = '0';
+                status.textContent = error.message;
+                submitButton.disabled = false;
+                submitButton.textContent = contentType === 'track' ? 'Add track' : 'Add video';
             }
         });
     </script>
