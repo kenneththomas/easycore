@@ -268,7 +268,7 @@
                 status.textContent = 'Upload complete. Opening content...';
                 window.location.href = contentType === 'track'
                     ? TRACK_DETAIL_URL.replace('0', data.track_id)
-                    : `/video/video/${data.video_id}`;
+                    : `/video/${data.video_id}`;
             } catch (error) {
                 progressBar.style.width = '0';
                 status.textContent = error.message;

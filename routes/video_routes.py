@@ -1,4 +1,4 @@
-from flask import request, jsonify, send_file, make_response, render_template, current_app
+from flask import request, jsonify, send_file, make_response, render_template, current_app, redirect, url_for
 from . import video_bp
 from models import db, Video, Comment, AuthorProfile
 from sqlalchemy import desc
@@ -235,7 +235,7 @@ def add_video():
     
     return render_template('add.html', recent_tags=processed_tags[:20])
 
-@video_bp.route('/video/<int:video_id>')
+@video_bp.route('/<int:video_id>')
 def video_detail(video_id):
     video = Video.query.get_or_404(video_id)
     if video.view_count is None:
@@ -254,4 +254,8 @@ def video_detail(video_id):
             if p.avatar_path:
                 avatars[p.slug] = p.avatar_path
     db.session.commit()
-    return render_template('video_detail.html', video=video, related_videos=related_videos, comments=comments, author_avatars=avatars) 
+    return render_template('video_detail.html', video=video, related_videos=related_videos, comments=comments, author_avatars=avatars)
+
+@video_bp.route('/video/<int:video_id>')
+def legacy_video_detail(video_id):
+    return redirect(url_for('video.video_detail', video_id=video_id), code=301)

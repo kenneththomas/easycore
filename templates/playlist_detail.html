@@ -147,7 +147,7 @@
             // Update video title
             const videoTitle = currentVideo.nickname || currentVideo.original_filepath;
             titleText.textContent = videoTitle;
-            videoDetailLink.href = `/video/video/${videoId}`;
+            videoDetailLink.href = `/video/${videoId}`;
             
             // Show title container and player
             titleContainer.style.display = 'block';
@@ -950,4 +950,4 @@
         }
     </style>
 </body>
-</html> 
+</html>
