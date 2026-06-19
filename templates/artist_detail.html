@@ -1,2215 +1,345 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ artist.name }} - Artist Profile</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
-    <script src="https://unpkg.com/wavesurfer.js@7"></script>
-    <style>
-      /* Enhanced Artist Detail Styles */
-      .container { 
-        max-width: 1200px; 
-        margin: 0 auto; 
-        padding: 0 20px; 
-      }
-      
-      /* Enhanced Hero Section */
-      .hero-section {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 60px 0 40px;
-        margin-bottom: 40px;
-        position: relative;
-        overflow: hidden;
-      }
-      
-      /* Music Player Styles */
-      .music-player {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-        color: white;
-        padding: 16px 20px;
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
-        z-index: 1000;
-        transform: translateY(100%);
-        transition: transform 0.3s ease;
-        backdrop-filter: blur(10px);
-        border-top: 1px solid rgba(255,255,255,0.1);
-      }
-      
-      .music-player.active {
-        transform: translateY(0);
-      }
-      
-      /* Add bottom padding when music player is active */
-      body.music-player-active {
-        padding-bottom: 200px; /* Adjust based on player height */
-      }
-      
-      .player-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 12px;
-      }
-      
-      .player-title {
-        font-weight: 600;
-        font-size: 1rem;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      
-      .player-title .artist-name {
-        opacity: 0.8;
-        font-size: 0.9rem;
-      }
-      
-      .player-close {
-        background: none;
-        border: none;
-        color: white;
-        font-size: 1.5rem;
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
-        transition: background 0.3s ease;
-      }
-      
-      .player-close:hover {
-        background: rgba(255,255,255,0.1);
-      }
-      
-      .player-controls {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        margin-bottom: 12px;
-      }
-      
-      .player-btn {
-        background: rgba(255,255,255,0.2);
-        border: 1px solid rgba(255,255,255,0.3);
-        color: white;
-        padding: 8px 12px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.9rem;
-        transition: all 0.3s ease;
-        backdrop-filter: blur(10px);
-      }
-      
-      .player-btn:hover {
-        background: rgba(255,255,255,0.3);
-        transform: translateY(-1px);
-      }
-      
-      .player-btn:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        transform: none;
-      }
-      
-      .player-progress {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.8rem;
-        opacity: 0.8;
-      }
-      
-      .progress-bar {
-        flex: 1;
-        height: 4px;
-        background: rgba(255,255,255,0.2);
-        border-radius: 2px;
-        overflow: hidden;
-        cursor: pointer;
-      }
-      
-      .progress-fill {
-        height: 100%;
-        background: #667eea;
-        width: 0%;
-        transition: width 0.1s ease;
-      }
-      
-      .player-waveform {
-        height: 60px;
-        margin-bottom: 8px;
-      }
-      
-      .player-track-info {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 0.8rem;
-        opacity: 0.8;
-      }
-      
-      .track-number {
-        font-weight: 600;
-      }
-      
-      .track-duration {
-        font-family: monospace;
-      }
-      
-      /* Play Button on Track Cards */
-      .play-track-btn {
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        background: rgba(0,0,0,0.7);
-        color: white;
-        border: none;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-        transition: all 0.3s ease;
-        opacity: 0;
-        z-index: 10;
-      }
-      
-      .media-card:hover .play-track-btn {
-        opacity: 1;
-      }
-      
-      .play-track-btn:hover {
-        background: rgba(0,0,0,0.9);
-        transform: scale(1.1);
-      }
-      
-      .play-track-btn.playing {
-        background: #667eea;
-        animation: pulse 2s infinite;
-      }
-      
-      @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
-      }
-      
-      /* Modal/Lightbox Styles */
-      .modal {
-        display: none;
-        position: fixed;
-        z-index: 2000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.9);
-        backdrop-filter: blur(5px);
-      }
-      
-      .modal-content {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        max-width: 90%;
-        max-height: 90%;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-      }
-      
-      .modal-image {
-        width: 100%;
-        height: auto;
-        display: block;
-      }
-      
-      .close-modal {
-        position: absolute;
-        top: 20px;
-        right: 30px;
-        color: #f1f1f1;
-        font-size: 40px;
-        font-weight: bold;
-        cursor: pointer;
-        z-index: 2001;
-        background: rgba(0,0,0,0.5);
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s ease;
-      }
-      
-      .close-modal:hover {
-        background: rgba(0,0,0,0.8);
-        transform: scale(1.1);
-      }
-      
-      .clickable-avatar {
-        cursor: pointer;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-      }
-      
-      .clickable-avatar:hover {
-        transform: scale(1.05);
-        box-shadow: 0 12px 40px rgba(0,0,0,0.4);
-      }
-      
-      .hero-section::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-        opacity: 0.3;
-      }
-      
-      .hero-content {
-        position: relative;
-        z-index: 2;
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 40px;
-        align-items: center;
-      }
-      
-      .hero-avatar {
-        width: 160px;
-        height: 160px;
-        border-radius: 50%;
-        background: #f2f2f2 center/cover no-repeat;
-        border: 4px solid rgba(255,255,255,0.3);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-        flex-shrink: 0;
-      }
-      
-      .hero-info h1 {
-        font-size: 3rem;
-        font-weight: 700;
-        margin: 0 0 16px 0;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      }
-      
-      .hero-bio {
-        font-size: 0.9rem;
-        line-height: 1.6;
-        margin-bottom: 24px;
-        opacity: 0.9;
-      }
-      
-      .hero-stats {
-        display: flex;
-        gap: 32px;
-        margin-bottom: 24px;
-      }
-      
-      .stat-item {
-        text-align: center;
-      }
-      
-      .stat-number {
-        font-size: 1.8rem;
-        font-weight: 700;
-        display: block;
-      }
-      
-      .stat-label {
-        font-size: 0.9rem;
-        opacity: 0.8;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      
-      .hero-actions {
-        display: flex;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-      
-      .btn-primary {
-        background: rgba(255,255,255,0.2);
-        color: white;
-        border: 2px solid rgba(255,255,255,0.3);
-        padding: 12px 24px;
-        border-radius: 8px;
-        text-decoration: none;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        backdrop-filter: blur(10px);
-      }
-      
-      .btn-primary:hover {
-        background: rgba(255,255,255,0.3);
-        border-color: rgba(255,255,255,0.5);
-        transform: translateY(-2px);
-      }
-      
-      /* Avatar Upload Form */
-      .avatar-upload {
-        background: rgba(255,255,255,0.1);
-        padding: 16px;
-        border-radius: 8px;
-        backdrop-filter: blur(10px);
-        margin-top: 16px;
-      }
-      
-      .avatar-upload label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: 600;
-      }
-      
-      .avatar-upload input[type="file"] {
-        margin-bottom: 12px;
-      }
-      
-      /* Content Sections */
-      .content-grid {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 40px;
-        margin-bottom: 40px;
-      }
-      
-      .main-content {
-        display: flex;
-        flex-direction: column;
-        gap: 40px;
-      }
-      
-      .sidebar {
-        display: flex;
-        flex-direction: column;
-        gap: 32px;
-      }
-      
-      .section {
-        background: white;
-        border-radius: 12px;
-        padding: 24px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        border: 1px solid #f0f0f0;
-      }
-      
-      .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-        padding-bottom: 12px;
-        border-bottom: 2px solid #f5f5f5;
-      }
-      
-      .section-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #333;
-        margin: 0;
-      }
-      
-      .section-count {
-        background: #667eea;
-        color: white;
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        font-weight: 600;
-      }
-      
-      /* Grid Layouts */
-      .media-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 20px;
-      }
-      
-      .media-card {
-        background: white;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-        text-decoration: none;
-        color: inherit;
-        border: 1px solid #f0f0f0;
-        position: relative;
-      }
-      
-      .media-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-      }
-      
-      .media-thumbnail {
-        width: 100%;
-        height: 160px;
-        background: #f5f5f5 center/cover no-repeat;
-        position: relative;
-      }
-      
-      
-      .media-info {
-        padding: 16px;
-      }
-      
-      .media-title {
-        font-weight: 600;
-        font-size: 1rem;
-        margin-bottom: 8px;
-        line-height: 1.4;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
-      
-      .media-meta {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 0.85rem;
-        color: #666;
-      }
-      
-      .media-stats {
-        display: flex;
-        gap: 12px;
-      }
-      
-      .media-stat {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-      }
-      
-      /* Related Artists */
-      .related-artists {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-        gap: 16px;
-      }
-      
-      .artist-card {
-        text-align: center;
-        text-decoration: none;
-        color: inherit;
-        transition: transform 0.3s ease;
-      }
-      
-      .artist-card:hover {
-        transform: translateY(-2px);
-      }
-      
-      .artist-avatar {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        background: #f2f2f2 center/cover no-repeat;
-        margin: 0 auto 8px;
-        border: 2px solid #f0f0f0;
-      }
-      
-      .artist-name {
-        font-size: 0.9rem;
-        font-weight: 600;
-        line-height: 1.3;
-      }
-      
-      /* Playlists */
-      .playlist-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-      }
-      
-      .playlist-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        text-decoration: none;
-        color: inherit;
-        transition: background 0.3s ease;
-      }
-      
-      .playlist-item:hover {
-        background: #e9ecef;
-      }
-      
-      .playlist-icon {
-        width: 40px;
-        height: 40px;
-        background: #667eea;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: 600;
-      }
-      
-      /* Responsive Design */
-      @media (max-width: 768px) {
-        .hero-content {
-          grid-template-columns: 1fr;
-          text-align: center;
-          gap: 24px;
-        }
-        
-        .hero-avatar {
-          width: 120px;
-          height: 120px;
-          margin: 0 auto;
-        }
-        
-        .hero-info h1 {
-          font-size: 2rem;
-        }
-        
-        .hero-stats {
-          justify-content: center;
-        }
-        
-        .content-grid {
-          grid-template-columns: 1fr;
-          gap: 24px;
-        }
-        
-        .media-grid {
-          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-        }
-        
-        .related-artists {
-          grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-        }
-        
-        .music-player {
-          padding: 12px 16px;
-        }
-        
-        .player-controls {
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-        
-        .player-btn {
-          padding: 6px 10px;
-          font-size: 0.8rem;
-        }
-      }
-      
-      @media (max-width: 480px) {
-        .container {
-          padding: 0 16px;
-        }
-        
-        .hero-section {
-          padding: 40px 0 30px;
-        }
-        
-        .hero-stats {
-          flex-direction: column;
-          gap: 16px;
-        }
-        
-        .media-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-      
-      /* Empty States */
-      .empty-state {
-        text-align: center;
-        padding: 40px 20px;
-        color: #666;
-      }
-      
-      .empty-state-icon {
-        font-size: 3rem;
-        margin-bottom: 16px;
-        opacity: 0.5;
-      }
-      
-      /* Loading States */
-      .loading {
-        opacity: 0.6;
-        pointer-events: none;
-      }
-      
-      /* Activity Feed Styles */
-      .activity-feed {
-        display: grid;
-        gap: 12px;
-      }
-      
-      .activity-item {
-        background: #fff;
-        border: 1px solid #eee;
-        border-radius: 8px;
-        padding: 12px;
-        transition: all 0.3s ease;
-      }
-      
-      .activity-item:hover {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        transform: translateY(-1px);
-      }
-      
-      .activity-header {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        color: #555;
-        font-size: 13px;
-        margin-bottom: 8px;
-      }
-      
-      .activity-kind {
-        text-transform: uppercase;
-        font-weight: 700;
-        color: #667eea;
-        font-size: 11px;
-        background: #f0f4ff;
-        padding: 2px 6px;
-        border-radius: 4px;
-      }
-      
-      .activity-title a {
-        color: inherit;
-        text-decoration: none;
-        font-weight: 600;
-      }
-      
-      .activity-title a:hover {
-        color: #667eea;
-        text-decoration: underline;
-      }
-      
-      .activity-content {
-        margin-top: 6px;
-        font-size: 14px;
-        line-height: 1.4;
-        color: #333;
-      }
+    <title>{{ artist.name }} - easycore</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/artist_detail.css') }}">
+</head>
+<body class="artist-detail-page">
+    {% from 'navbar.html' import render_navbar %}
+    {{ render_navbar() }}
 
-      /* Dropdown menu for compact nav */
-      .dropdown { position: relative; display: inline-block; }
-      .dropbtn { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.25); padding: 6px 10px; border-radius: 4px; cursor: pointer; }
-      .dropdown-content { display: none; position: absolute; right: 0; background-color: #fff; min-width: 200px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); border-radius: 6px; overflow: hidden; z-index: 1001; }
-      .dropdown-content a { color: #333; padding: 10px 12px; text-decoration: none; display: block; border-bottom: 1px solid #f0f0f0; }
-      .dropdown-content a:last-child { border-bottom: none; }
-      .dropdown:hover .dropdown-content { display: block; }
-      .nav-links .dropdown { margin-left: 0.25rem; }
+    <main class="artist-page">
+        <div class="artist-shell">
+            <a href="{{ url_for('artists_index') }}" class="artist-back">&larr; Back to artists</a>
 
-      /* Enhanced Comments Section - Full Width */
-      .comments-section-full-width {
-        margin-top: 40px;
-        background: #f8f9fa;
-        padding: 40px 0;
-      }
-
-      .comments-section {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 20px;
-      }
-
-      .comment-form {
-        margin-bottom: 24px;
-        padding: 20px;
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border-radius: 12px;
-        border: 1px solid #dee2e6;
-      }
-
-      .comment-form-row {
-        display: grid;
-        grid-template-columns: 200px 1fr auto;
-        gap: 16px;
-        align-items: center;
-      }
-
-      .comment-author-input,
-      .comment-content-input {
-        padding: 12px 16px;
-        border: 2px solid #e9ecef;
-        border-radius: 8px;
-        font-size: 14px;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        transition: all 0.3s ease;
-        background: white;
-      }
-
-      .comment-author-input:focus,
-      .comment-content-input:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-      }
-
-      .comment-submit-btn {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px 20px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-      }
-
-      .comment-submit-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-      }
-
-      .submit-icon {
-        font-size: 16px;
-      }
-
-      .comments-list {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-
-      .comment-card {
-        background: white;
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
-        padding: 20px;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      }
-
-      .comment-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        border-color: #667eea;
-      }
-
-      .comment-header {
-        display: flex;
-        align-items: flex-start;
-        gap: 16px;
-        margin-bottom: 12px;
-      }
-
-      .comment-avatar {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 3px solid #f8f9fa;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        flex-shrink: 0;
-      }
-
-      .comment-meta {
-        flex: 1;
-        min-width: 0;
-      }
-
-      .comment-author {
-        margin-bottom: 4px;
-      }
-
-      .comment-author a {
-        color: #333;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 15px;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      }
-
-      .comment-author a:hover {
-        color: #667eea;
-        text-decoration: underline;
-      }
-
-      .comment-timestamp {
-        color: #6c757d;
-        font-size: 13px;
-        font-weight: 500;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      }
-
-      .comment-content {
-        font-size: 15px;
-        line-height: 1.6;
-        color: #333;
-        margin-bottom: 16px;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        word-wrap: break-word;
-      }
-
-      .comment-context {
-        margin-bottom: 16px;
-        padding: 8px 12px;
-        background: #f8f9fa;
-        border-radius: 6px;
-        border-left: 3px solid #667eea;
-      }
-
-      .context-label {
-        color: #6c757d;
-        font-size: 13px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      .context-link {
-        color: #667eea;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 13px;
-      }
-
-      .context-link:hover {
-        text-decoration: underline;
-      }
-
-      .comment-actions {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-      }
-
-      .comment-action-btn {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        background: #f8f9fa;
-        border: 1px solid #e9ecef;
-        border-radius: 20px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        font-size: 13px;
-        font-weight: 500;
-        color: #6c757d;
-      }
-
-      .comment-action-btn:hover {
-        background: #e9ecef;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      }
-
-      .comment-action-btn.like-comment:hover {
-        background: #fff5f5;
-        border-color: #ff6b6b;
-        color: #ff6b6b;
-      }
-
-      .comment-action-btn.delete-comment:hover {
-        background: #fff5f5;
-        border-color: #dc3545;
-        color: #dc3545;
-      }
-
-      .action-icon {
-        font-size: 14px;
-      }
-
-      .action-count {
-        font-size: 12px;
-        font-weight: 600;
-      }
-
-      .track-comments-section {
-        margin-top: 32px;
-        padding-top: 24px;
-        border-top: 2px solid #f8f9fa;
-      }
-
-      .track-comments-title {
-        color: #495057;
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 20px;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      }
-
-      .track-comment {
-        background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
-        border-left: 4px solid #28a745;
-      }
-
-      /* Responsive Comments */
-      @media (max-width: 768px) {
-        .comments-section-full-width {
-          padding: 30px 0;
-        }
-
-        .comments-section {
-          padding: 0 16px;
-        }
-
-        .comment-form-row {
-          grid-template-columns: 1fr;
-          gap: 12px;
-        }
-
-        .comment-header {
-          gap: 12px;
-        }
-
-        .comment-avatar {
-          width: 40px;
-          height: 40px;
-        }
-
-        .comment-card {
-          padding: 16px;
-        }
-
-        .comment-content {
-          font-size: 14px;
-        }
-      }
-
-      @media (max-width: 480px) {
-        .comments-section-full-width {
-          padding: 20px 0;
-        }
-
-        .comments-section {
-          padding: 0 12px;
-        }
-
-        .comment-form {
-          padding: 16px;
-        }
-
-        .comment-card {
-          padding: 12px;
-        }
-
-        .comment-actions {
-          flex-wrap: wrap;
-        }
-
-        .comment-action-btn {
-          padding: 6px 10px;
-          font-size: 12px;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <nav class="navbar">
-      <div class="nav-content">
-        <a href="{{ url_for('index') }}" class="nav-logo">easycore</a>
-        <div class="nav-links">
-          <a href="{{ url_for('index') }}">Home</a>
-          <a href="{{ url_for('playlists') }}">Playlists</a>
-          <a href="{{ url_for('tracks_index') }}">Tracks</a>
-          <a href="{{ url_for('artists_index') }}">Artists</a>
-          <div class="dropdown">
-            <button class="dropbtn">Upload</button>
-            <div class="dropdown-content">
-              <a href="{{ url_for('video.add_video') }}">Add Video</a>
-              <a href="{{ url_for('bulk_upload') }}">Bulk Upload Videos</a>
-              <a href="{{ url_for('video.add_video') }}">Add Content</a>
-            </div>
-          </div>
-          <div class="dropdown">
-            <button class="dropbtn">Tools</button>
-            <div class="dropdown-content">
-              <a href="{{ url_for('extract_mp3') }}">Extract MP3</a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </nav>
-
-    <!-- Enhanced Hero Section -->
-    <section class="hero-section">
-      <div class="container">
-        <div class="hero-content">
-          <div class="hero-avatar clickable-avatar" style="background-image:url('{% if artist.avatar_path %}{{ url_for('static', filename=artist.avatar_path) }}{% endif %}')" data-avatar-url="{% if artist.avatar_path %}{{ url_for('static', filename=artist.avatar_path) }}{% endif %}"></div>
-          <div class="hero-info">
-            <h1>{{ artist.name }}</h1>
-            
-            <div class="hero-stats">
-              <div class="stat-item">
-                <span class="stat-number">{{ total_tracks }}</span>
-                <span class="stat-label">Tracks</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-number">{{ total_videos }}</span>
-                <span class="stat-label">Videos</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-number">{{ total_plays }}</span>
-                <span class="stat-label">Plays</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-number">{{ total_likes }}</span>
-                <span class="stat-label">Likes</span>
-              </div>
-            </div>
-            
-            <div class="hero-actions">
-              {% if tracks or videos %}
-                <a href="#content" class="btn-primary">View All Content</a>
-              {% endif %}
-              {% if tracks %}
-                <button class="btn-primary" onclick="playAllTracks()">🎵 Play All Tracks</button>
-              {% endif %}
-              <a href="{{ url_for('video.add_video') }}" class="btn-primary">Add Content</a>
-              <a href="{{ url_for('video.add_video') }}" class="btn-primary">Add Video</a>
-            </div>
-            
-            <div class="avatar-upload">
-              <form action="{{ url_for('upload_artist_avatar', artist_id=artist.id) }}" method="post" enctype="multipart/form-data">
-                <label>Update Artist Avatar:</label>
-                <input type="file" name="avatar" accept="image/*" />
-                <button class="button" type="submit">Upload</button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <div class="container" id="content">
-      <!-- Biography Section -->
-      <div class="section" style="margin-bottom: 40px;">
-        <div class="section-header">
-          <h2 class="section-title">Biography</h2>
-        </div>
-        <div class="hero-bio-container">
-          <div id="bio-display" class="hero-bio" style="display: none;">
-            <div id="bio-content"></div>
-            <button id="edit-bio-btn" class="btn-edit-bio" style="margin-top: 12px; padding: 8px 16px; font-size: 0.9rem; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; transition: all 0.3s ease;">Edit Biography</button>
-          </div>
-          <div id="bio-edit" class="bio-edit-form" style="display: none;">
-            <textarea id="bio-textarea" placeholder="Write your biography in Markdown format..." style="width: 100%; min-height: 150px; padding: 16px; border: 2px solid #e0e0e0; border-radius: 8px; background: #fafafa; color: #333; font-family: inherit; resize: vertical; font-size: 14px; line-height: 1.5;">{{ artist.bio or '' }}</textarea>
-            <div class="bio-edit-actions" style="margin-top: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-              <button id="save-bio-btn" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem; background: #667eea; border: none; border-radius: 6px; color: white; cursor: pointer;">Save Biography</button>
-              <button id="cancel-bio-btn" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem; background: #6c757d; border: none; border-radius: 6px; color: white; cursor: pointer;">Cancel</button>
-              <button id="preview-bio-btn" class="btn-primary" style="padding: 10px 20px; font-size: 0.9rem; background: #28a745; border: none; border-radius: 6px; color: white; cursor: pointer;">Preview</button>
-            </div>
-            <div id="bio-preview" class="bio-preview" style="margin-top: 16px; padding: 16px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; display: none; line-height: 1.6;"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="content-grid">
-        <div class="main-content">
-          <!-- Tracks Section -->
-          {% if tracks %}
-          <div class="section">
-            <div class="section-header">
-              <h2 class="section-title">Latest Tracks</h2>
-              <span class="section-count">{{ tracks|length }}</span>
-            </div>
-            <div class="media-grid">
-              {% for track in tracks %}
-              <div class="media-card">
-                <div class="media-thumbnail" style="background-image:url('{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}')">
-                  <button class="play-track-btn" data-track-id="{{ track.id }}" data-track-title="{{ track.nickname or track.original_filepath }}" data-track-url="{{ url_for('stream_track', track_id=track.id) }}">
-                    ▶
-                  </button>
-                </div>
-                <div class="media-info">
-                  <div class="media-title">
-                    <a href="{{ url_for('track_detail', track_id=track.id) }}" style="text-decoration: none; color: inherit;">{{ track.nickname or track.original_filepath }}</a>
-                  </div>
-                  <div class="media-meta">
-                    <div class="media-stats">
-                      <span class="media-stat">🎵 Track</span>
-                      <span class="media-stat">👁️ {{ track.view_count or 0 }}</span>
-                      <span class="media-stat">❤️ {{ track.likes or 0 }}</span>
+            <section class="artist-hero">
+                <div class="artist-avatar-wrap">
+                    <div class="artist-avatar-large">
+                        {% if artist.avatar_path %}
+                        <img src="{{ url_for('static', filename=artist.avatar_path) }}" alt="{{ artist.name }}">
+                        {% else %}
+                        <span aria-hidden="true">{{ artist.name[:1]|upper }}</span>
+                        {% endif %}
                     </div>
-                    {% if track.tags %}
-                      <span class="media-tags">{{ track.tags[:20] }}{% if track.tags|length > 20 %}...{% endif %}</span>
+                    <details class="artist-edit-menu">
+                        <summary class="artist-control artist-control-quiet">Edit profile</summary>
+                        <div class="artist-edit-panel">
+                            <form action="{{ url_for('upload_artist_avatar', artist_id=artist.id) }}" method="post" enctype="multipart/form-data">
+                                <label for="artist-avatar-upload">Profile image</label>
+                                <input id="artist-avatar-upload" type="file" name="avatar" accept="image/jpeg,image/png,image/webp">
+                                <button class="artist-control artist-control-primary" type="submit">Upload image</button>
+                            </form>
+                            <hr>
+                            <label for="bio-textarea">Biography</label>
+                            <textarea id="bio-textarea" placeholder="Write a short biography. Markdown is supported.">{{ artist.bio or '' }}</textarea>
+                            <div class="artist-edit-actions">
+                                <button id="cancel-bio" class="artist-control" type="button">Cancel</button>
+                                <button id="save-bio" class="artist-control artist-control-primary" type="button">Save biography</button>
+                            </div>
+                            <p id="bio-status" class="artist-status" role="status"></p>
+                        </div>
+                    </details>
+                </div>
+
+                <div class="artist-identity">
+                    <p class="artist-kicker">Artist</p>
+                    <h1>{{ artist.name }}</h1>
+                    <div class="artist-stats">
+                        <span><strong>{{ total_tracks }}</strong> tracks</span>
+                        <span><strong>{{ total_videos }}</strong> videos</span>
+                        <span><strong>{{ total_plays }}</strong> plays</span>
+                        <span><strong>{{ total_likes }}</strong> likes</span>
+                    </div>
+                    <div class="artist-actions">
+                        {% if tracks %}
+                        <button id="play-all" class="artist-control artist-control-primary" type="button">Play all tracks</button>
+                        {% endif %}
+                        <a href="{{ url_for('video.add_video') }}" class="artist-control">Add content</a>
+                    </div>
+                </div>
+            </section>
+
+            <div class="artist-layout">
+                <div class="artist-main">
+                    <section class="artist-card artist-bio-card">
+                        <div class="artist-section-heading">
+                            <div>
+                                <p class="artist-eyebrow">About</p>
+                                <h2>Biography</h2>
+                            </div>
+                        </div>
+                        <div id="bio-content" class="artist-bio{% if not artist.bio %} is-empty{% endif %}">
+                            {% if artist.bio %}
+                                {{ artist.bio|replace('\n', '<br>')|safe }}
+                            {% else %}
+                                No biography has been added yet.
+                            {% endif %}
+                        </div>
+                    </section>
+
+                    {% if tracks %}
+                    <section class="artist-card">
+                        <div class="artist-section-heading">
+                            <div>
+                                <p class="artist-eyebrow">Discography</p>
+                                <h2>Tracks</h2>
+                            </div>
+                            <span class="artist-count">{{ tracks|length }}</span>
+                        </div>
+                        <div class="artist-track-list">
+                            {% for track in tracks %}
+                            <article class="artist-track-row" data-track-id="{{ track.id }}">
+                                <button class="track-play" type="button"
+                                    data-global-track
+                                    data-track-id="{{ track.id }}"
+                                    data-track-title="{{ track.nickname or track.original_filepath }}"
+                                    data-track-artist="{{ artist.name }}"
+                                    data-track-artwork="{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+                                    data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
+                                    data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
+                                    aria-label="Play {{ track.nickname or track.original_filepath }}">▶</button>
+                                <a class="track-cover" href="{{ url_for('track_detail', track_id=track.id) }}">
+                                    {% if track.background_image_path %}
+                                    <img src="{{ url_for('static', filename=track.background_image_path) }}" alt="">
+                                    {% else %}
+                                    <span aria-hidden="true">♪</span>
+                                    {% endif %}
+                                </a>
+                                <div class="track-copy">
+                                    <a href="{{ url_for('track_detail', track_id=track.id) }}">{{ track.nickname or track.original_filepath }}</a>
+                                    {% if track.tags %}<span>{{ track.tags }}</span>{% endif %}
+                                </div>
+                                <div class="media-metrics">
+                                    <span>{{ track.view_count or 0 }} plays</span>
+                                    <span>{{ track.likes or 0 }} likes</span>
+                                    <button type="button" class="queue-track"
+                                        data-global-track data-queue="add"
+                                        data-track-id="{{ track.id }}"
+                                        data-track-title="{{ track.nickname or track.original_filepath }}"
+                                        data-track-artist="{{ artist.name }}"
+                                        data-track-artwork="{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+                                        data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
+                                        data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
+                                        aria-label="Add to queue">+</button>
+                                </div>
+                            </article>
+                            {% endfor %}
+                        </div>
+                    </section>
                     {% endif %}
-                  </div>
-                </div>
-              </div>
-              {% endfor %}
-            </div>
-            {% if tracks|length > 6 %}
-            <div style="text-align: center; margin-top: 20px;">
-              <a href="{{ url_for('tracks_index') }}?artist={{ artist.name }}" class="btn-primary">View All Tracks</a>
-            </div>
-            {% endif %}
-          </div>
-          {% endif %}
 
-          <!-- Videos Section -->
-          {% if videos %}
-          <div class="section">
-            <div class="section-header">
-              <h2 class="section-title">Latest Videos</h2>
-              <span class="section-count">{{ videos|length }}</span>
-            </div>
-            <div class="media-grid">
-              {% for video in videos %}
-              <a href="{{ url_for('video.video_detail', video_id=video.id) }}" class="media-card">
-                <div class="media-thumbnail" style="background-image:url('{% if video.thumbnail_path %}{{ url_for('static', filename=video.thumbnail_path) }}{% endif %}')"></div>
-                <div class="media-info">
-                  <div class="media-title">{{ video.nickname or video.original_filepath }}</div>
-                  <div class="media-meta">
-                    <div class="media-stats">
-                      <span class="media-stat">🎥 Video</span>
-                      <span class="media-stat">👁️ {{ video.view_count or 0 }}</span>
-                      <span class="media-stat">❤️ {{ video.likes or 0 }}</span>
-                    </div>
-                    {% if video.tags %}
-                      <span class="media-tags">{{ video.tags[:20] }}{% if video.tags|length > 20 %}...{% endif %}</span>
+                    {% if videos %}
+                    <section class="artist-card">
+                        <div class="artist-section-heading">
+                            <div>
+                                <p class="artist-eyebrow">Visuals</p>
+                                <h2>Videos</h2>
+                            </div>
+                            <span class="artist-count">{{ videos|length }}</span>
+                        </div>
+                        <div class="artist-video-grid">
+                            {% for video in videos %}
+                            <a class="artist-video-card" href="{{ url_for('video.video_detail', video_id=video.id) }}">
+                                <div class="video-thumb">
+                                    {% if video.thumbnail_path %}
+                                    <img src="{{ url_for('static', filename=video.thumbnail_path) }}" alt="">
+                                    {% else %}
+                                    <span aria-hidden="true">▶</span>
+                                    {% endif %}
+                                </div>
+                                <strong>{{ video.nickname or video.original_filepath }}</strong>
+                                <span>{{ video.view_count or 0 }} views · {{ video.likes or 0 }} likes</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </section>
                     {% endif %}
-                  </div>
-                </div>
-              </a>
-              {% endfor %}
-            </div>
-            {% if videos|length > 6 %}
-            <div style="text-align: center; margin-top: 20px;">
-              <a href="{{ url_for('index') }}?artist={{ artist.name }}" class="btn-primary">View All Videos</a>
-            </div>
-            {% endif %}
-          </div>
-          {% endif %}
 
-          <!-- Empty State -->
-          {% if not tracks and not videos %}
-          <div class="section">
-            <div class="empty-state">
-              <div class="empty-state-icon">🎵</div>
-              <h3>No Content Yet</h3>
-              <p>This artist doesn't have any tracks or videos yet.</p>
-              <div style="margin-top: 20px;">
-                <a href="{{ url_for('video.add_video') }}" class="btn-primary">Add First Track</a>
-                <a href="{{ url_for('video.add_video') }}" class="btn-primary">Add First Video</a>
-              </div>
-            </div>
-          </div>
-          {% endif %}
-        </div>
-
-        <div class="sidebar">
-          <!-- Quick Stats -->
-          <div class="section">
-            <div class="section-header">
-              <h3 class="section-title">Quick Stats</h3>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; text-align: center;">
-              <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">{{ total_tracks }}</div>
-                <div style="font-size: 0.8rem; color: #666;">Tracks</div>
-              </div>
-              <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                <div style="font-size: 1.5rem; font-weight: 700; color: #667eea;">{{ total_videos }}</div>
-                <div style="font-size: 0.8rem; color: #666;">Videos</div>
-              </div>
-              <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                <div style="font-size: 1.5rem; font-weight: 700; color: #28a745;">{{ total_plays }}</div>
-                <div style="font-size: 0.8rem; color: #666;">Plays</div>
-              </div>
-              <div style="padding: 12px; background: #f8f9fa; border-radius: 8px;">
-                <div style="font-size: 1.5rem; font-weight: 700; color: #dc3545;">{{ total_likes }}</div>
-                <div style="font-size: 0.8rem; color: #666;">Likes</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Related Artists -->
-          {% if related_artists %}
-          <div class="section">
-            <div class="section-header">
-              <h3 class="section-title">Related Artists</h3>
-            </div>
-            <div class="related-artists">
-              {% for related in related_artists %}
-              <a href="{{ url_for('artist_detail', artist_id=related.id) }}" class="artist-card">
-                <div class="artist-avatar" style="background-image:url('{% if related.avatar_path %}{{ url_for('static', filename=related.avatar_path) }}{% endif %}')"></div>
-                <div class="artist-name">{{ related.name }}</div>
-              </a>
-              {% endfor %}
-            </div>
-          </div>
-          {% endif %}
-
-          <!-- Playlists -->
-          {% if artist_playlists %}
-          <div class="section">
-            <div class="section-header">
-              <h3 class="section-title">Featured In</h3>
-              <span class="section-count">{{ artist_playlists|length }}</span>
-            </div>
-            <div class="playlist-list">
-              {% for playlist in artist_playlists %}
-              <a href="{{ url_for('playlist_detail', playlist_id=playlist.id) }}" class="playlist-item">
-                <div class="playlist-icon">📁</div>
-                <div>
-                  <div style="font-weight: 600;">{{ playlist.name }}</div>
-                  <div style="font-size: 0.8rem; color: #666;">{{ playlist.description[:50] }}{% if playlist.description and playlist.description|length > 50 %}...{% endif %}</div>
-                </div>
-              </a>
-              {% endfor %}
-            </div>
-          </div>
-          {% endif %}
-
-          <!-- Recent Activity Section -->
-          <div class="section">
-            <div class="section-header">
-              <h3 class="section-title">Recent Activity</h3>
-            </div>
-            
-            <div class="activity-feed">
-              {% for activity in recent_activity %}
-              <div class="activity-item">
-                <div class="activity-header">
-                  <span class="activity-kind">{{ activity.kind }}</span>
-                  <span>on</span>
-                  <span class="activity-title"><a href="{{ activity.context_url }}">{{ activity.context_title }}</a></span>
-                  <span>·</span>
-                  <span>{{ activity.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span>
-                  <span>· ❤️ {{ activity.likes }}</span>
-                </div>
-                <div class="activity-content">{{ activity.content }}</div>
-              </div>
-              {% endfor %}
-              {% if not recent_activity %}
-                <p style="color: #666; text-align: center; padding: 20px;">No recent activity yet.</p>
-              {% endif %}
-            </div>
-          </div>
-
-
-          <!-- Artist Info -->
-          <div class="section">
-            <div class="section-header">
-              <h3 class="section-title">About</h3>
-            </div>
-            <div>
-              <p><strong>Joined:</strong> {{ artist.created_at.strftime('%B %Y') if artist.created_at else 'Unknown' }}</p>
-              <p><strong>Total Content:</strong> {{ total_tracks + total_videos }} items</p>
-              <p><strong>Total Plays:</strong> {{ total_plays }}</p>
-              <p><strong>Total Likes:</strong> {{ total_likes }}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Comments Section - Full Width -->
-      <div class="comments-section-full-width">
-        <div class="section comments-section">
-          <div class="section-header">
-            <h3 class="section-title">💬 Comments & Discussion</h3>
-          </div>
-          
-          <!-- Add Comment Form -->
-          <form id="artistCommentForm" class="comment-form" autocomplete="off">
-            <div class="comment-form-row">
-              <input type="text" name="author" placeholder="Your name" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" readonly class="comment-author-input" />
-              <div class="ai-comment-dropdown" style="position: relative;">
-                <button type="button" id="aiCommentBtn" class="comment-submit-btn" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 8px;">
-                  🤖 AI Comment
-                </button>
-                <div id="aiCommentDropdown" class="ai-dropdown-content" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 300px; padding: 12px;">
-                  <div style="margin-bottom: 8px;">
-                    <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #333;">Comment Style:</label>
-                    <select id="aiPromptSelect" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
-                      <option value="general">General fan comment</option>
-                      <option value="positive">Enthusiastic comment</option>
-                      <option value="critical">Thoughtful critique</option>
-                      <option value="discovery">Just discovered this artist</option>
-                      <option value="nostalgic">Nostalgic comment</option>
-                      <option value="technical">Technical analysis</option>
-                      <option value="emotional">Emotional response</option>
-                      <option value="comparison">Compare to other artists</option>
-                      <option value="custom">Custom prompt...</option>
-                    </select>
-                  </div>
-                  <div id="customPromptDiv" style="display: none; margin-bottom: 8px;">
-                    <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #333;">Custom Prompt:</label>
-                    <textarea id="customPrompt" placeholder="Enter your custom prompt..." style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; resize: vertical; min-height: 60px;"></textarea>
-                  </div>
-                  <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                    <button type="button" id="generateAiComment" class="comment-submit-btn" style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                      Generate
-                    </button>
-                    <button type="button" id="closeAiDropdown" class="comment-submit-btn" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <input type="text" name="content" placeholder="Share your thoughts about this artist..." required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" readonly class="comment-content-input" />
-              <button class="comment-submit-btn" type="submit">
-                <span class="submit-icon">📝</span>
-                <span class="submit-text">Post Comment</span>
-              </button>
-            </div>
-          </form>
-          
-
-          <!-- Artist Comments -->
-          <div id="artistCommentList" class="comments-list">
-            {% for comment in artist_comments %}
-              <div class="comment comment-card" data-id="{{ comment.id }}" data-type="artist">
-                <div class="comment-header">
-                  {% set author_slug = comment.author|slugify %}
-                  {% set av = None %}
-                  {% if comment.author == artist.name and artist.avatar_path %}
-                    {% set av = artist.avatar_path %}
-                  {% else %}
-                    {% set av = author_avatars.get(author_slug) %}
-                  {% endif %}
-                  {% set avatar_url = url_for('static', filename=av) if av else url_for('static', filename='avatars/default.png') %}
-                  <img alt="avatar" src="{{ avatar_url }}" class="comment-avatar" title="Avatar URL: {{ avatar_url }}" />
-                  <div class="comment-meta">
-                    <div class="comment-author">
-                      <strong><a href="{{ url_for('artist_detail', artist_id=comment.author_artist_id) if comment.author_artist_id else '#' }}">{{ comment.author }}</a></strong>
-                    </div>
-                    <div class="comment-timestamp">{{ comment.timestamp.strftime('%b %d, %Y at %I:%M %p') }}</div>
-                  </div>
-                </div>
-                <div class="comment-content">{{ comment.content }}</div>
-                <div class="comment-actions">
-                  <button class="comment-action-btn like-comment" title="Like this comment">
-                    <span class="action-icon">❤️</span>
-                    <span class="action-count">{{ comment.likes or 0 }}</span>
-                  </button>
-                  <button class="comment-action-btn delete-comment" title="Delete this comment">
-                    <span class="action-icon">🗑️</span>
-                  </button>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-          
-          <!-- Track Comments -->
-          {% if track_comment_data %}
-          <div class="track-comments-section">
-            <h4 class="track-comments-title">🎵 Comments on Tracks</h4>
-            <div id="trackCommentList" class="comments-list">
-              {% for data in track_comment_data %}
-                <div class="comment comment-card track-comment" data-id="{{ data.comment.id }}" data-type="track">
-                  <div class="comment-header">
-                    {% set author_slug = data.comment.author|slugify %}
-                    {% set av = None %}
-                    {% if data.comment.author == artist.name and artist.avatar_path %}
-                      {% set av = artist.avatar_path %}
-                    {% else %}
-                      {% set av = author_avatars.get(author_slug) %}
+                    {% if not tracks and not videos %}
+                    <section class="artist-card artist-empty">
+                        <span aria-hidden="true">♪</span>
+                        <h2>No releases yet</h2>
+                        <p>Add an audio or video file and connect it to {{ artist.name }}.</p>
+                        <a href="{{ url_for('video.add_video') }}" class="artist-control artist-control-primary">Add first release</a>
+                    </section>
                     {% endif %}
-                    <img alt="avatar" src="{% if av %}{{ url_for('static', filename=av) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}" class="comment-avatar" />
-                    <div class="comment-meta">
-                      <div class="comment-author">
-                        <strong><a href="{{ url_for('artist_detail', artist_id=data.comment.author_artist_id) if data.comment.author_artist_id else '#' }}">{{ data.comment.author }}</a></strong>
-                      </div>
-                      <div class="comment-timestamp">{{ data.comment.timestamp.strftime('%b %d, %Y at %I:%M %p') }}</div>
-                    </div>
-                  </div>
-                  <div class="comment-content">{{ data.comment.content }}</div>
-                  <div class="comment-context">
-                    <span class="context-label">on track:</span> 
-                    <a href="{{ url_for('track_detail', track_id=data.track.id) }}" class="context-link">{{ data.track.nickname or data.track.original_filepath }}</a>
-                  </div>
-                  <div class="comment-actions">
-                    <button class="comment-action-btn like-comment" title="Like this comment">
-                      <span class="action-icon">❤️</span>
-                      <span class="action-count">{{ data.comment.likes or 0 }}</span>
-                    </button>
-                    <button class="comment-action-btn delete-comment" title="Delete this comment">
-                      <span class="action-icon">🗑️</span>
-                    </button>
-                  </div>
+
+                    <section class="artist-card artist-comments-card">
+                        <div class="artist-section-heading">
+                            <div>
+                                <p class="artist-eyebrow">Community</p>
+                                <h2>Discussion <span id="artist-comment-count" class="artist-count">{{ artist_comments|length }}</span></h2>
+                            </div>
+                        </div>
+
+                        <form id="artist-comment-form" class="artist-comment-form">
+                            <input name="author" placeholder="Your name" maxlength="100" required>
+                            <textarea name="content" placeholder="Share your thoughts about {{ artist.name }}..." required></textarea>
+                            <div class="artist-form-actions">
+                                <details class="artist-ai-menu">
+                                    <summary class="artist-control artist-control-quiet">AI assist</summary>
+                                    <div class="artist-ai-panel">
+                                        <label for="artist-ai-style">Comment style</label>
+                                        <select id="artist-ai-style">
+                                            <option value="general">General fan comment</option>
+                                            <option value="positive">Enthusiastic</option>
+                                            <option value="critical">Thoughtful critique</option>
+                                            <option value="discovery">Just discovered this artist</option>
+                                            <option value="technical">Technical perspective</option>
+                                            <option value="custom">Custom prompt</option>
+                                        </select>
+                                        <textarea id="artist-custom-prompt" placeholder="Describe the comment you want" hidden></textarea>
+                                        <button id="generate-artist-comment" class="artist-control" type="button">Generate</button>
+                                    </div>
+                                </details>
+                                <button class="artist-control artist-control-primary" type="submit">Post comment</button>
+                            </div>
+                            <p id="artist-comment-status" class="artist-status" role="status"></p>
+                        </form>
+
+                        <div id="artist-comment-list" class="artist-comments">
+                            {% for comment in artist_comments %}
+                            <article class="artist-comment" data-id="{{ comment.id }}" data-type="artist">
+                                {% set author_slug = comment.author|slugify %}
+                                {% set avatar = artist.avatar_path if comment.author == artist.name and artist.avatar_path else author_avatars.get(author_slug) %}
+                                <img src="{% if avatar %}{{ url_for('static', filename=avatar) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}" alt="">
+                                <div>
+                                    <div class="artist-comment-meta">
+                                        <a href="{{ url_for('artist_detail', artist_id=comment.author_artist_id) if comment.author_artist_id else '#' }}">{{ comment.author }}</a>
+                                        <time>{{ comment.timestamp.strftime('%b %d, %Y at %I:%M %p') }}</time>
+                                    </div>
+                                    <p>{{ comment.content }}</p>
+                                    <div class="artist-comment-actions">
+                                        <button class="artist-control artist-control-quiet like-comment" type="button">♥ <span>{{ comment.likes or 0 }}</span></button>
+                                        <details class="artist-comment-menu">
+                                            <summary class="artist-control artist-control-quiet" aria-label="Comment options">•••</summary>
+                                            <div><button class="delete-comment" type="button">Delete comment</button></div>
+                                        </details>
+                                    </div>
+                                </div>
+                            </article>
+                            {% endfor %}
+                        </div>
+
+                        {% if track_comment_data %}
+                        <div class="artist-track-comments">
+                            <h3>Comments on releases</h3>
+                            {% for data in track_comment_data %}
+                            <article class="artist-comment" data-id="{{ data.comment.id }}" data-type="track">
+                                {% set author_slug = data.comment.author|slugify %}
+                                {% set avatar = artist.avatar_path if data.comment.author == artist.name and artist.avatar_path else author_avatars.get(author_slug) %}
+                                <img src="{% if avatar %}{{ url_for('static', filename=avatar) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}" alt="">
+                                <div>
+                                    <div class="artist-comment-meta">
+                                        <a href="{{ url_for('artist_detail', artist_id=data.comment.author_artist_id) if data.comment.author_artist_id else '#' }}">{{ data.comment.author }}</a>
+                                        <time>{{ data.comment.timestamp.strftime('%b %d, %Y at %I:%M %p') }}</time>
+                                    </div>
+                                    <p>{{ data.comment.content }}</p>
+                                    <a class="comment-context" href="{{ url_for('track_detail', track_id=data.track.id) }}">on {{ data.track.nickname or data.track.original_filepath }}</a>
+                                    <div class="artist-comment-actions">
+                                        <button class="artist-control artist-control-quiet like-comment" type="button">♥ <span>{{ data.comment.likes or 0 }}</span></button>
+                                        <details class="artist-comment-menu">
+                                            <summary class="artist-control artist-control-quiet" aria-label="Comment options">•••</summary>
+                                            <div><button class="delete-comment" type="button">Delete comment</button></div>
+                                        </details>
+                                    </div>
+                                </div>
+                            </article>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </section>
                 </div>
-              {% endfor %}
+
+                <aside class="artist-sidebar">
+                    {% if recent_activity %}
+                    <section class="artist-card">
+                        <div class="artist-section-heading">
+                            <div>
+                                <p class="artist-eyebrow">Across easycore</p>
+                                <h2>Recent activity</h2>
+                            </div>
+                        </div>
+                        <div class="activity-list">
+                            {% for activity in recent_activity[:8] %}
+                            <a href="{{ activity.context_url }}" class="activity-item">
+                                <span>{{ activity.kind }}</span>
+                                <strong>{{ activity.context_title }}</strong>
+                                <p>{{ activity.content }}</p>
+                                <time>{{ activity.timestamp.strftime('%b %d') }}</time>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </section>
+                    {% endif %}
+
+                    {% if related_artists %}
+                    <section class="artist-card">
+                        <div class="artist-section-heading">
+                            <div>
+                                <p class="artist-eyebrow">Explore</p>
+                                <h2>Other artists</h2>
+                            </div>
+                        </div>
+                        <div class="related-artist-list">
+                            {% for related in related_artists %}
+                            <a href="{{ url_for('artist_detail', artist_id=related.id) }}">
+                                <div>
+                                    {% if related.avatar_path %}<img src="{{ url_for('static', filename=related.avatar_path) }}" alt="">{% else %}<span>{{ related.name[:1]|upper }}</span>{% endif %}
+                                </div>
+                                <strong>{{ related.name }}</strong>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </section>
+                    {% endif %}
+
+                    <section class="artist-card artist-facts">
+                        <p class="artist-eyebrow">Profile</p>
+                        <h2>Artist details</h2>
+                        <dl>
+                            <div><dt>Joined</dt><dd>{{ artist.created_at.strftime('%B %Y') if artist.created_at else 'Unknown' }}</dd></div>
+                            <div><dt>Catalog</dt><dd>{{ total_tracks + total_videos }} releases</dd></div>
+                            <div><dt>Artist ID</dt><dd>{{ artist.id }}</dd></div>
+                        </dl>
+                    </section>
+                </aside>
             </div>
-          </div>
-          {% endif %}
         </div>
-      </div>
-    </div>
-
-    <!-- Music Player -->
-    <div class="music-player" id="musicPlayer">
-      <div class="player-header">
-        <h3 class="player-title">
-          🎵 <span id="currentTrackTitle">No track selected</span>
-          <span class="artist-name">by {{ artist.name }}</span>
-        </h3>
-        <button class="player-close" onclick="closeMusicPlayer()">&times;</button>
-      </div>
-      
-      <div class="player-controls">
-        <button class="player-btn" id="prevBtn" onclick="playPrevious()">⏮</button>
-        <button class="player-btn" id="playPauseBtn" onclick="togglePlayPause()">▶</button>
-        <button class="player-btn" id="nextBtn" onclick="playNext()">⏭</button>
-        <button class="player-btn" id="shuffleBtn" onclick="toggleShuffle()">🔀</button>
-        <button class="player-btn" id="repeatBtn" onclick="toggleRepeat()">🔁</button>
-      </div>
-      
-      <div class="player-waveform" id="waveform"></div>
-      
-      <div class="player-progress">
-        <span id="currentTime">0:00</span>
-        <div class="progress-bar" onclick="seekTo(event)">
-          <div class="progress-fill" id="progressFill"></div>
-        </div>
-        <span id="totalTime">0:00</span>
-      </div>
-      
-      <div class="player-track-info">
-        <span class="track-number" id="trackNumber">0 / 0</span>
-        <span class="track-duration" id="trackDuration">0:00</span>
-      </div>
-    </div>
-
-    <!-- Avatar Modal -->
-    <div id="avatarModal" class="modal">
-      <span class="close-modal" onclick="closeAvatarModal()">&times;</span>
-      <div class="modal-content">
-        <img id="modalAvatarImage" class="modal-image" src="" alt="Artist Avatar">
-      </div>
-    </div>
+    </main>
 
     <script>
-      // Music Player Variables
-      let wavesurfer = null;
-      let currentTrackIndex = 0;
-      let isPlaying = false;
-      let isShuffled = false;
-      let repeatMode = 'none'; // none, one, all
-      let originalTrackOrder = [];
-      let shuffledTrackOrder = [];
-      
-      // Track data from server
-      const tracks = [
-        {% for track in tracks %}
-        {
-          id: {{ track.id }},
-          title: {{ (track.nickname or track.original_filepath)|tojson }},
-          url: {{ url_for('stream_track', track_id=track.id)|tojson }},
-          backgroundImage: {{ (track.background_image_path and url_for('static', filename=track.background_image_path))|tojson }}
-        }{% if not loop.last %},{% endif %}
-        {% endfor %}
-      ];
-      
-      // Initialize music player
-      function initMusicPlayer() {
-        if (tracks.length === 0) return;
-        
-        // Initialize WaveSurfer
-        wavesurfer = WaveSurfer.create({
-          container: '#waveform',
-          waveColor: 'rgba(255,255,255,0.3)',
-          progressColor: '#667eea',
-          height: 60,
-          barWidth: 2,
-          barGap: 1,
-          cursorColor: 'rgba(255,255,255,0.5)',
-          responsive: true
-        });
-        
-        // Set up event listeners
-        wavesurfer.on('ready', () => {
-          updateTrackInfo();
-          updatePlayPauseButton();
-        });
-        
-        wavesurfer.on('audioprocess', () => {
-          updateProgress();
-        });
-        
-        wavesurfer.on('finish', () => {
-          handleTrackEnd();
-        });
-        
-        // Initialize track order
-        originalTrackOrder = [...Array(tracks.length).keys()];
-        shuffledTrackOrder = [...originalTrackOrder];
-        
-        // Load first track
-        loadTrack(0);
-      }
-      
-      // Load a specific track
-      function loadTrack(index) {
-        if (index < 0 || index >= tracks.length) return;
-        
-        currentTrackIndex = index;
-        const track = tracks[index];
-        
-        // Update UI
-        document.getElementById('currentTrackTitle').textContent = track.title;
-        document.getElementById('trackNumber').textContent = `${index + 1} / ${tracks.length}`;
-        
-        // Load audio
-        wavesurfer.load(track.url);
-        
-        // Update play buttons
-        updatePlayButtons();
-        
-        // Increment view count
-        fetch(`/increment_track_view/${track.id}`, { method: 'POST' })
-          .catch(err => console.log('Could not increment view count'));
-      }
-      
-      // Play/Pause toggle
-      function togglePlayPause() {
-        if (!wavesurfer) return;
-        
-        wavesurfer.playPause();
-        updatePlayPauseButton();
-      }
-      
-      // Update play/pause button
-      function updatePlayPauseButton() {
-        const btn = document.getElementById('playPauseBtn');
-        if (wavesurfer && wavesurfer.isPlaying()) {
-          btn.textContent = '⏸';
-          isPlaying = true;
-        } else {
-          btn.textContent = '▶';
-          isPlaying = false;
-        }
-      }
-      
-      // Play next track
-      function playNext() {
-        if (tracks.length === 0) return;
-        
-        let nextIndex = currentTrackIndex + 1;
-        if (nextIndex >= tracks.length) {
-          if (repeatMode === 'all') {
-            nextIndex = 0;
-          } else {
-            return; // End of playlist
-          }
-        }
-        
-        loadTrack(nextIndex);
-        if (isPlaying) {
-          wavesurfer.play();
-        }
-      }
-      
-      // Play previous track
-      function playPrevious() {
-        if (tracks.length === 0) return;
-        
-        let prevIndex = currentTrackIndex - 1;
-        if (prevIndex < 0) {
-          if (repeatMode === 'all') {
-            prevIndex = tracks.length - 1;
-          } else {
-            return; // Beginning of playlist
-          }
-        }
-        
-        loadTrack(prevIndex);
-        if (isPlaying) {
-          wavesurfer.play();
-        }
-      }
-      
-      // Handle track end
-      function handleTrackEnd() {
-        if (repeatMode === 'one') {
-          wavesurfer.play();
-        } else {
-          playNext();
-        }
-      }
-      
-      // Toggle shuffle
-      function toggleShuffle() {
-        isShuffled = !isShuffled;
-        const btn = document.getElementById('shuffleBtn');
-        
-        if (isShuffled) {
-          btn.textContent = '🔀';
-          btn.style.background = '#667eea';
-          // Create shuffled order
-          shuffledTrackOrder = [...originalTrackOrder].sort(() => Math.random() - 0.5);
-        } else {
-          btn.textContent = '🔀';
-          btn.style.background = 'rgba(255,255,255,0.2)';
-          // Restore original order
-          shuffledTrackOrder = [...originalTrackOrder];
-        }
-      }
-      
-      // Toggle repeat
-      function toggleRepeat() {
-        const btn = document.getElementById('repeatBtn');
-        
-        switch (repeatMode) {
-          case 'none':
-            repeatMode = 'all';
-            btn.textContent = '🔁';
-            btn.style.background = '#667eea';
-            break;
-          case 'all':
-            repeatMode = 'one';
-            btn.textContent = '🔂';
-            btn.style.background = '#667eea';
-            break;
-          case 'one':
-            repeatMode = 'none';
-            btn.textContent = '🔁';
-            btn.style.background = 'rgba(255,255,255,0.2)';
-            break;
-        }
-      }
-      
-      // Update progress bar
-      function updateProgress() {
-        if (!wavesurfer) return;
-        
-        const currentTime = wavesurfer.getCurrentTime();
-        const duration = wavesurfer.getDuration();
-        
-        if (duration > 0) {
-          const progress = (currentTime / duration) * 100;
-          document.getElementById('progressFill').style.width = progress + '%';
-          
-          document.getElementById('currentTime').textContent = formatTime(currentTime);
-          document.getElementById('totalTime').textContent = formatTime(duration);
-        }
-      }
-      
-      // Update track info
-      function updateTrackInfo() {
-        if (!wavesurfer) return;
-        
-        const duration = wavesurfer.getDuration();
-        document.getElementById('trackDuration').textContent = formatTime(duration);
-      }
-      
-      // Format time as MM:SS
-      function formatTime(seconds) {
-        if (isNaN(seconds)) return '0:00';
-        
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-      }
-      
-      // Seek to position in track
-      function seekTo(event) {
-        if (!wavesurfer) return;
-        
-        const progressBar = event.currentTarget;
-        const rect = progressBar.getBoundingClientRect();
-        const clickX = event.clientX - rect.left;
-        const progressBarWidth = rect.width;
-        const seekPercent = clickX / progressBarWidth;
-        
-        const duration = wavesurfer.getDuration();
-        const seekTime = seekPercent * duration;
-        
-        wavesurfer.setTime(seekTime);
-      }
-      
-      // Update play buttons on track cards
-      function updatePlayButtons() {
-        document.querySelectorAll('.play-track-btn').forEach((btn, index) => {
-          btn.classList.remove('playing');
-          if (index === currentTrackIndex) {
-            btn.classList.add('playing');
-          }
-        });
-      }
-      
-      // Play all tracks
-      function playAllTracks() {
-        if (tracks.length === 0) return;
-        
-        showMusicPlayer();
-        loadTrack(0);
-        wavesurfer.play();
-      }
-      
-      // Play specific track
-      function playTrack(trackId) {
-        const trackIndex = tracks.findIndex(t => t.id === trackId);
-        if (trackIndex === -1) return;
-        
-        showMusicPlayer();
-        loadTrack(trackIndex);
-        wavesurfer.play();
-      }
-      
-      // Show music player
-      function showMusicPlayer() {
-        document.getElementById('musicPlayer').classList.add('active');
-        document.body.classList.add('music-player-active');
-      }
-      
-      // Close music player
-      function closeMusicPlayer() {
-        document.getElementById('musicPlayer').classList.remove('active');
-        document.body.classList.remove('music-player-active');
-        if (wavesurfer) {
-          wavesurfer.pause();
-        }
-      }
-      
-      // Avatar Modal Functions
-      function openAvatarModal(imageSrc) {
-        if (imageSrc && imageSrc.trim() !== '') {
-          document.getElementById('modalAvatarImage').src = imageSrc;
-          document.getElementById('avatarModal').style.display = 'block';
-          document.body.style.overflow = 'hidden'; // Prevent background scrolling
-        }
-      }
-      
-      function closeAvatarModal() {
-        document.getElementById('avatarModal').style.display = 'none';
-        document.body.style.overflow = 'auto'; // Restore scrolling
-      }
-      
-      // Event Listeners
-      document.addEventListener('DOMContentLoaded', function() {
-        // Initialize music player if tracks exist
-        if (tracks.length > 0) {
-          initMusicPlayer();
-        }
-        
-        // Add click event to avatar
-        const avatar = document.querySelector('.clickable-avatar');
-        if (avatar) {
-          avatar.addEventListener('click', function() {
-            const avatarUrl = this.getAttribute('data-avatar-url');
-            if (avatarUrl && avatarUrl.trim() !== '') {
-              openAvatarModal(avatarUrl);
-            }
-          });
-        }
-        
-        // Add click events to play buttons
-        document.querySelectorAll('.play-track-btn').forEach(btn => {
-          btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const trackId = parseInt(this.getAttribute('data-track-id'));
-            playTrack(trackId);
-          });
-        });
-      });
-      
-      // Close modal when clicking outside the image
-      document.getElementById('avatarModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-          closeAvatarModal();
-        }
-      });
-      
-      // Close modal with Escape key
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-          closeAvatarModal();
-        }
-      });
-
-      // Smooth scrolling for anchor links
-      document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-          e.preventDefault();
-          const target = document.querySelector(this.getAttribute('href'));
-          if (target) {
-            target.scrollIntoView({
-              behavior: 'smooth',
-              block: 'start'
-            });
-          }
-        });
-      });
-
-      // Add loading states to forms
-      document.querySelectorAll('form').forEach(form => {
-        form.addEventListener('submit', function() {
-          const submitBtn = this.querySelector('button[type="submit"]');
-          if (submitBtn) {
-            submitBtn.textContent = 'Uploading...';
-            submitBtn.disabled = true;
-          }
-        });
-      });
-
-      // Artist Biography Functionality
-      let originalBio = '';
-      let isEditingBio = false;
-      
-      function initializeBio() {
-        const bioDisplay = document.getElementById('bio-display');
-        const bioEdit = document.getElementById('bio-edit');
-        const bioContent = document.getElementById('bio-content');
-        const bioTextarea = document.getElementById('bio-textarea');
-        
-        // Initialize with current bio
-        const currentBio = {{ (artist.bio or '')|tojson }};
-        if (currentBio.trim()) {
-          // Convert markdown to HTML for display
-          const html = currentBio
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/`(.*?)`/g, '<code>$1</code>')
-            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-            .replace(/^\* (.*$)/gim, '<li>$1</li>')
-            .replace(/^- (.*$)/gim, '<li>$1</li>')
-            .replace(/\n/g, '<br>');
-          bioContent.innerHTML = html;
-          bioDisplay.style.display = 'block';
-        } else {
-          // Show edit form if no bio exists
-          showBioEdit();
-        }
-      }
-      
-      function showBioEdit() {
-        const bioDisplay = document.getElementById('bio-display');
-        const bioEdit = document.getElementById('bio-edit');
-        const bioTextarea = document.getElementById('bio-textarea');
-        
-        bioDisplay.style.display = 'none';
-        bioEdit.style.display = 'block';
-        bioTextarea.focus();
-        isEditingBio = true;
-      }
-      
-      function showBioDisplay() {
-        const bioDisplay = document.getElementById('bio-display');
-        const bioEdit = document.getElementById('bio-edit');
-        const bioPreview = document.getElementById('bio-preview');
-        
-        bioEdit.style.display = 'none';
-        bioPreview.style.display = 'none';
-        bioDisplay.style.display = 'block';
-        isEditingBio = false;
-      }
-      
-      function saveBio() {
-        const bioTextarea = document.getElementById('bio-textarea');
-        const bioContent = document.getElementById('bio-content');
-        const bio = bioTextarea.value.trim();
-        
-        if (bio === originalBio) {
-          showBioDisplay();
-          return;
-        }
-        
-        // Save to server
-        const formData = new FormData();
-        formData.append('bio', bio);
-        
-        fetch(`/artist/{{ artist.id }}/bio`, {
-          method: 'POST',
-          body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            bioContent.innerHTML = data.bio_html || bio;
-            showBioDisplay();
-            originalBio = bio;
-          } else {
-            alert('Error saving biography: ' + (data.error || 'Unknown error'));
-          }
-        })
-        .catch(error => {
-          console.error('Error:', error);
-          alert('Error saving biography');
-        });
-      }
-      
-      function previewBio() {
-        const bioTextarea = document.getElementById('bio-textarea');
-        const bioPreview = document.getElementById('bio-preview');
-        const bio = bioTextarea.value.trim();
-        
-        if (!bio) {
-          bioPreview.style.display = 'none';
-          return;
-        }
-        
-        // Convert markdown to HTML (client-side preview)
-        const html = bio
-          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-          .replace(/\*(.*?)\*/g, '<em>$1</em>')
-          .replace(/`(.*?)`/g, '<code>$1</code>')
-          .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-          .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-          .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-          .replace(/^\* (.*$)/gim, '<li>$1</li>')
-          .replace(/^- (.*$)/gim, '<li>$1</li>')
-          .replace(/\n/g, '<br>');
-        
-        bioPreview.innerHTML = html;
-        bioPreview.style.display = 'block';
-      }
-      
-      function cancelBioEdit() {
-        const bioTextarea = document.getElementById('bio-textarea');
-        bioTextarea.value = originalBio;
-        showBioDisplay();
-      }
-      
-      // Event listeners for bio editing
-      document.addEventListener('DOMContentLoaded', function() {
-        // Initialize bio
-        initializeBio();
-        
-        // Store original bio
-        originalBio = {{ (artist.bio or '')|tojson }};
-        
-        // Edit bio button
-        document.getElementById('edit-bio-btn').addEventListener('click', showBioEdit);
-        
-        // Save bio button
-        document.getElementById('save-bio-btn').addEventListener('click', saveBio);
-        
-        // Cancel bio button
-        document.getElementById('cancel-bio-btn').addEventListener('click', cancelBioEdit);
-        
-        // Preview bio button
-        document.getElementById('preview-bio-btn').addEventListener('click', previewBio);
-        
-        // Auto-preview on typing
-        document.getElementById('bio-textarea').addEventListener('input', function() {
-          clearTimeout(this.previewTimeout);
-          this.previewTimeout = setTimeout(previewBio, 500);
-        });
-        
-        // Save on Ctrl+S
-        document.getElementById('bio-textarea').addEventListener('keydown', function(e) {
-          if (e.ctrlKey && e.key === 's') {
-            e.preventDefault();
-            saveBio();
-          }
-        });
-      });
-
-      // Artist Comments Functionality
-      const artistCommentForm = document.getElementById('artistCommentForm');
-      if (artistCommentForm) {
-        // Disable browser autofill by making fields readonly until user interacts
-        document.querySelectorAll('#artistCommentForm input[type="text"]').forEach((el) => {
-          const unlock = () => el.removeAttribute('readonly')
-          el.addEventListener('focus', unlock, { once: true })
-          el.addEventListener('mousedown', unlock, { once: true })
-          el.addEventListener('touchstart', unlock, { once: true })
-        });
-
-        // Handle artist comment form submission
-        artistCommentForm.addEventListener('submit', async (e) => {
-          e.preventDefault()
-          const data = new FormData(artistCommentForm)
-          const res = await fetch("{{ url_for('add_artist_comment', artist_id=artist.id) }}", { method: 'POST', body: data })
-          const json = await res.json()
-          if (json.success) {
-            const c = json.comment
-            const div = document.createElement('div')
-            div.className = 'comment comment-card'
-            div.dataset.id = c.id
-            div.dataset.type = 'artist'
-            div.innerHTML = `<div class="comment-header">
-                             <img alt="avatar" src="${c.author_avatar ? '/static/' + c.author_avatar : '/static/avatars/default.png'}" class="comment-avatar" />
-                             <div class="comment-meta">
-                               <div class="comment-author">
-                                 <strong><a href="/artist/${c.author_artist_id || '#'}">${c.author}</a></strong>
-                               </div>
-                               <div class="comment-timestamp">${c.timestamp}</div>
-                             </div>
-                           </div>
-                           <div class="comment-content">${c.content}</div>
-                           <div class="comment-actions">
-                             <button class="comment-action-btn like-comment" title="Like this comment">
-                               <span class="action-icon">❤️</span>
-                               <span class="action-count">${c.likes}</span>
-                             </button>
-                             <button class="comment-action-btn delete-comment" title="Delete this comment">
-                               <span class="action-icon">🗑️</span>
-                             </button>
-                           </div>`
-            document.getElementById('artistCommentList').prepend(div)
-            artistCommentForm.reset()
-          }
-        })
-      }
-
-      // AI Comment Generation for Artist
-      const aiCommentBtn = document.getElementById('aiCommentBtn')
-      const aiCommentDropdown = document.getElementById('aiCommentDropdown')
-      const aiPromptSelect = document.getElementById('aiPromptSelect')
-      const customPromptDiv = document.getElementById('customPromptDiv')
-      const customPrompt = document.getElementById('customPrompt')
-      const generateAiComment = document.getElementById('generateAiComment')
-      const closeAiDropdown = document.getElementById('closeAiDropdown')
-      const contentInput = document.querySelector('input[name="content"]')
-
-      if (aiCommentBtn) {
-        // Toggle AI dropdown
-        aiCommentBtn.addEventListener('click', (e) => {
-          e.stopPropagation()
-          aiCommentDropdown.style.display = aiCommentDropdown.style.display === 'none' ? 'block' : 'none'
-        })
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-          if (!aiCommentDropdown.contains(e.target) && !aiCommentBtn.contains(e.target)) {
-            aiCommentDropdown.style.display = 'none'
-          }
-        })
-
-        // Show/hide custom prompt field
-        aiPromptSelect.addEventListener('change', () => {
-          if (aiPromptSelect.value === 'custom') {
-            customPromptDiv.style.display = 'block'
-            customPrompt.focus()
-          } else {
-            customPromptDiv.style.display = 'none'
-            customPrompt.value = ''
-          }
-        })
-
-        // Close dropdown
-        closeAiDropdown.addEventListener('click', () => {
-          aiCommentDropdown.style.display = 'none'
-        })
-
-        // Generate AI comment
-        generateAiComment.addEventListener('click', async () => {
-          const selectedStyle = aiPromptSelect.value
-          let prompt = ''
-          
-          if (selectedStyle === 'custom') {
-            prompt = customPrompt.value.trim()
-            if (!prompt) {
-              alert('Please enter a custom prompt')
-              return
-            }
-          } else {
-            // Use predefined prompts for artist
-            const prompts = {
-              general: `What would a music fan think about {{ artist.name }} as an artist?`,
-              positive: `Write an enthusiastic comment about {{ artist.name }}`,
-              critical: `Write a thoughtful, slightly critical comment about {{ artist.name }}`,
-              discovery: `Write a comment from someone who just discovered {{ artist.name }}`,
-              nostalgic: `Write a nostalgic comment about {{ artist.name }}`,
-              technical: `Write a comment focusing on the technical aspects of {{ artist.name }}'s music`,
-              emotional: `Write an emotional comment about {{ artist.name }}`,
-              comparison: `Write a comment comparing {{ artist.name }} to other artists`
-            }
-            prompt = prompts[selectedStyle]
-          }
-
-          // Show loading state
-          generateAiComment.textContent = 'Generating...'
-          generateAiComment.disabled = true
-
-          try {
-            const response = await fetch(`{{ url_for('generate_artist_comment', artist_id=artist.id) }}`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ prompt: prompt })
-            })
-
-            const result = await response.json()
-
-            if (result.success) {
-              contentInput.value = result.comment
-              contentInput.removeAttribute('readonly')
-              aiCommentDropdown.style.display = 'none'
-            } else {
-              alert('Error generating comment: ' + (result.error || 'Unknown error'))
-            }
-          } catch (error) {
-            alert('Error generating comment: ' + error.message)
-          } finally {
-            generateAiComment.textContent = 'Generate'
-            generateAiComment.disabled = false
-          }
-        })
-      }
-
-      // Handle comment interactions (like/delete)
-      document.addEventListener('click', async (e) => {
-        const item = e.target.closest('.comment')
-        if (!item) return
-        const id = item.dataset.id
-        const type = item.dataset.type
-        
-        if (e.target.closest('.like-comment')) {
-          let url
-          if (type === 'artist') {
-            url = `{{ url_for('like_artist_comment', comment_id=0) }}`.replace('0', id)
-          } else if (type === 'track') {
-            url = `{{ url_for('like_track_comment', comment_id=0) }}`.replace('0', id)
-          }
-          
-          if (url) {
-            const res = await fetch(url, { method: 'POST' })
-            const json = await res.json()
-            if (json.success) {
-              const countElement = item.querySelector('.action-count')
-              if (countElement) {
-                countElement.textContent = json.new_like_count
-              }
-            }
-          }
-        }
-        
-        if (e.target.closest('.delete-comment')) {
-          let url
-          if (type === 'artist') {
-            url = `{{ url_for('delete_artist_comment', comment_id=0) }}`.replace('0', id)
-          } else if (type === 'track') {
-            url = `{{ url_for('delete_track_comment', comment_id=0) }}`.replace('0', id)
-          }
-          
-          if (url) {
-            const res = await fetch(url, { method: 'POST' })
-            const json = await res.json()
-            if (json.success) {
-              // Add fade out animation before removing
-              item.style.transition = 'all 0.3s ease'
-              item.style.opacity = '0'
-              item.style.transform = 'translateY(-20px)'
-              setTimeout(() => item.remove(), 300)
-            }
-          }
-        }
-      })
+        window.artistDetailConfig = {
+            artistId: {{ artist.id }},
+            artistName: {{ artist.name|tojson }},
+            bioUrl: {{ url_for('update_artist_bio', artist_id=artist.id)|tojson }},
+            addCommentUrl: {{ url_for('add_artist_comment', artist_id=artist.id)|tojson }},
+            generateCommentUrl: {{ url_for('generate_artist_comment', artist_id=artist.id)|tojson }},
+            likeArtistCommentUrl: {{ url_for('like_artist_comment', comment_id=0)|tojson }},
+            deleteArtistCommentUrl: {{ url_for('delete_artist_comment', comment_id=0)|tojson }},
+            likeTrackCommentUrl: {{ url_for('like_track_comment', comment_id=0)|tojson }},
+            deleteTrackCommentUrl: {{ url_for('delete_track_comment', comment_id=0)|tojson }},
+            defaultAvatar: {{ url_for('static', filename='avatars/default.png')|tojson }},
+            tracks: [
+                {% for track in tracks %}
+                {
+                    id: {{ track.id }},
+                    title: {{ (track.nickname or track.original_filepath)|tojson }},
+                    artist: {{ artist.name|tojson }},
+                    artwork: {{ (url_for('static', filename=track.background_image_path) if track.background_image_path else '')|tojson }},
+                    url: {{ url_for('stream_track', track_id=track.id)|tojson }},
+                    detailUrl: {{ url_for('track_detail', track_id=track.id)|tojson }}
+                }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ]
+        };
     </script>
-  </body>
+    <script src="{{ url_for('static', filename='js/artist_detail.js') }}"></script>
+</body>
 </html>
-
-

@@ -620,6 +620,47 @@ def update_track_photo(track_id):
         db.session.rollback()
         return jsonify({"error": f"Failed to update photo: {str(e)}"}), 500
 
+@app.route('/update_track/<int:track_id>', methods=['POST'])
+def update_track(track_id):
+    track = Track.query.get_or_404(track_id)
+    title = request.form.get('nickname', '').strip()
+    description = request.form.get('description', '').strip()
+    tags = request.form.get('tags', '').strip()
+    artist_names = [
+        name.strip() for name in request.form.get('artist_names', '').split(',')
+        if name.strip()
+    ]
+
+    if not title:
+        return jsonify({"error": "Track title is required"}), 400
+
+    try:
+        track.nickname = title
+        track.description = description
+        track.tags = tags
+
+        TrackArtist.query.filter_by(track_id=track.id).delete()
+        artists = []
+        for artist_name in dict.fromkeys(artist_names):
+            artist = get_or_create_artist_by_name(artist_name)
+            if artist:
+                db.session.add(TrackArtist(track_id=track.id, artist_id=artist.id))
+                artists.append({"id": artist.id, "name": artist.name})
+
+        db.session.commit()
+        return jsonify({
+            "success": True,
+            "track": {
+                "title": track.nickname,
+                "description": track.description,
+                "tags": [tag.strip() for tag in track.tags.split(',') if tag.strip()],
+                "artists": artists
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/like_track/<int:track_id>', methods=['POST'])
 def like_track(track_id):
     track = Track.query.get_or_404(track_id)

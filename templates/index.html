@@ -110,7 +110,28 @@
                         </div>
 
                         <div class="card-actions">
-                            <button type="button" class="button button-secondary" data-action="{{ 'play' if item.type == 'video' else 'play-track' }}" data-{{ item.type }}-id="{{ item.id }}">
+                            {% if item.type == 'track' %}
+                            <button type="button" class="button button-secondary"
+                                data-global-track data-queue="add"
+                                data-track-id="{{ item.id }}"
+                                data-track-title="{{ item.object.nickname or item.object.original_filepath }}"
+                                data-track-artist="{% if track_artists.get(item.id) %}{{ track_artists[item.id]|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
+                                data-track-artwork="{% if item.object.background_image_path %}{{ url_for('static', filename=item.object.background_image_path) }}{% endif %}"
+                                data-track-url="{{ url_for('stream_track', track_id=item.id) }}"
+                                data-track-detail-url="{{ url_for('track_detail', track_id=item.id) }}">Queue</button>
+                            {% endif %}
+                            <button type="button" class="button button-secondary"
+                                {% if item.type == 'video' %}
+                                data-action="play" data-video-id="{{ item.id }}"
+                                {% else %}
+                                data-global-track
+                                data-track-id="{{ item.id }}"
+                                data-track-title="{{ item.object.nickname or item.object.original_filepath }}"
+                                data-track-artist="{% if track_artists.get(item.id) %}{{ track_artists[item.id]|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
+                                data-track-artwork="{% if item.object.background_image_path %}{{ url_for('static', filename=item.object.background_image_path) }}{% endif %}"
+                                data-track-url="{{ url_for('stream_track', track_id=item.id) }}"
+                                data-track-detail-url="{{ url_for('track_detail', track_id=item.id) }}"
+                                {% endif %}>
                                 Play
                             </button>
                             <button type="button" class="button button-secondary delete-button" data-action="{{ 'delete' if item.type == 'video' else 'delete-track' }}" data-{{ item.type }}-id="{{ item.id }}" aria-label="Delete {{ item.object.nickname or item.object.original_filepath }}" title="Delete">
@@ -217,15 +238,6 @@
                 });
         }
 
-        function playTrack(trackId) {
-            openPlayer(`/stream_track/${trackId}`, trackId);
-            fetch(`/increment_track_view/${trackId}`, { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) document.getElementById(`view-count-${trackId}`).textContent = data.new_view_count;
-                });
-        }
-
         function closePlayer() {
             const player = document.getElementById('videoPlayer');
             player.pause();
@@ -241,7 +253,6 @@
             if (action === 'delete') deleteVideo(button.dataset.videoId);
             if (action === 'delete-track') deleteTrack(button.dataset.trackId);
             if (action === 'play') playVideo(button.dataset.videoId);
-            if (action === 'play-track') playTrack(button.dataset.trackId);
             if (action === 'close-player') closePlayer();
         });
 

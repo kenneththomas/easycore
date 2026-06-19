@@ -1,395 +1,268 @@
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>{{ track.nickname or track.original_filepath }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
-    <style>
-      .hero {
-        position: relative; height: 260px;
-        background: #111 center/cover no-repeat;
-        color: #fff; display:flex; align-items:flex-end;
-      }
-      .hero::after { content:''; position:absolute; inset:0; background: linear-gradient(180deg,rgba(0,0,0,0.0),rgba(0,0,0,0.6)); }
-      .hero-content { position: relative; padding: 16px; z-index: 1; }
-      .title { font-size: 24px; font-weight: 700; margin: 0 0 4px; }
-      .meta { color: #ddd; font-size: 12px; }
-      .container { max-width: 960px; margin: 0 auto; padding: 16px; }
-      .player { background: #fff; border:1px solid #eee; border-radius: 8px; padding: 12px; margin-top: -40px; position: relative; z-index: 2; }
-      .controls { display:flex; align-items:center; gap:10px; margin-bottom: 8px; }
-      .comments { margin-top: 16px; }
-      .comment { border-top: 1px solid #eee; padding: 10px 0; }
-      .related { margin-top: 24px; }
-      .button { padding: 6px 10px; border:1px solid #ccc; border-radius: 6px; background:#fafafa; cursor:pointer; }
-      #waveform { height: 120px; }
-    </style>
-    <script src="https://unpkg.com/wavesurfer.js@7"></script>
-  </head>
-  <body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ track.nickname or track.original_filepath }} - easycore</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/track_detail.css') }}">
+</head>
+<body class="track-detail-page">
     {% from 'navbar.html' import render_navbar %}
     {{ render_navbar() }}
 
-    <div class="hero" {% if track.background_image_path %}style="background-image:url('{{ url_for('static', filename=track.background_image_path) }}')"{% endif %}>
-      <div class="hero-content">
-        <h1 class="title">{{ track.nickname or track.original_filepath }}</h1>
-        <div class="meta">
-          {% if artists and artists|length %}
-            by
-            {% for a in artists %}
-              <a href="{{ url_for('artist_detail', artist_id=a.id) }}" style="color:#fff; text-decoration: underline;">{{ a.name }}</a>{% if not loop.last %}, {% endif %}
-            {% endfor %}
-            ·
-          {% endif %}
-          {{ track.tags }} · {{ track.view_count or 0 }} plays · {{ track.likes or 0 }} likes
-        </div>
-      </div>
-    </div>
+    <main class="track-page">
+        <div class="track-shell">
+            <a href="{{ url_for('tracks_index') }}" class="track-back">&larr; Back to tracks</a>
 
-    <div class="container">
-      <div class="player">
-        <div class="controls">
-          <button id="playPause" class="button">Play</button>
-          <button id="likeBtn" class="button">Like ({{ track.likes or 0 }})</button>
-        </div>
-        <div id="waveform"></div>
-      </div>
+            <section class="track-hero" id="track-hero">
+                <div class="track-hero-glow" {% if track.background_image_path %}style="background-image: url('{{ url_for('static', filename=track.background_image_path) }}')"{% endif %}></div>
+                <div class="track-hero-content">
+                    <div class="track-artwork" id="track-artwork">
+                        {% if track.background_image_path %}
+                        <img src="{{ url_for('static', filename=track.background_image_path) }}" alt="Artwork for {{ track.nickname or track.original_filepath }}">
+                        {% else %}
+                        <span aria-hidden="true">♪</span>
+                        {% endif %}
+                    </div>
 
-      <div class="photo-upload" style="margin-top: 16px; padding: 16px; background: #f9f9f9; border-radius: 8px; border: 1px solid #eee;">
-        <h3 style="margin: 0 0 12px 0; font-size: 16px;">Track Photo</h3>
-        <div style="display: flex; gap: 12px; align-items: center;">
-          <div style="flex: 1;">
-            <input type="file" id="photoUpload" accept="image/*" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
-            <div style="font-size: 12px; color: #666; margin-top: 4px;">Upload a new background image for this track</div>
-          </div>
-          <button id="uploadPhotoBtn" class="button" style="background: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-            Upload Photo
-          </button>
-        </div>
-        <div id="photoPreview" style="margin-top: 12px; display: none;">
-          <img id="previewImage" style="max-width: 200px; max-height: 120px; border-radius: 4px; border: 1px solid #ddd;" />
-        </div>
-        <div id="uploadStatus" style="margin-top: 8px; font-size: 12px;"></div>
-      </div>
+                    <div class="track-listening-area">
+                        <div class="track-heading">
+                            <button class="hero-play-button" id="play-pause" type="button"
+                                data-global-track
+                                data-track-id="{{ track.id }}"
+                                data-track-title="{{ track.nickname or track.original_filepath }}"
+                                data-track-artist="{% if artists %}{{ artists|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
+                                data-track-artwork="{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+                                data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
+                                data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
+                                aria-label="Play track">
+                                <span id="play-icon" aria-hidden="true">▶</span>
+                            </button>
+                            <div>
+                                <p class="track-kicker">Track</p>
+                                <h1 id="track-title">{{ track.nickname or track.original_filepath }}</h1>
+                                <div class="track-artists-line" id="track-artists">
+                                    {% if artists %}
+                                        {% for artist in artists %}
+                                        <a href="{{ url_for('artist_detail', artist_id=artist.id) }}">{{ artist.name }}</a>{% if not loop.last %}<span>,</span>{% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <span>Unknown artist</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
 
-      <div class="comments">
-        <h3>Comments</h3>
-        <form id="commentForm" autocomplete="off">
-          <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-            <input type="text" name="author" placeholder="Your name" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" readonly style="flex: 1;" />
-            <div class="ai-comment-dropdown" style="position: relative;">
-              <button type="button" id="aiCommentBtn" class="button" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                🤖 AI Comment
-              </button>
-              <div id="aiCommentDropdown" class="ai-dropdown-content" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 300px; padding: 12px;">
-                <div style="margin-bottom: 8px;">
-                  <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #333;">Comment Style:</label>
-                  <select id="aiPromptSelect" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px;">
-                    <option value="general">General fan comment</option>
-                    <option value="positive">Enthusiastic comment</option>
-                    <option value="critical">Thoughtful critique</option>
-                    <option value="discovery">Just discovered this</option>
-                    <option value="nostalgic">Nostalgic comment</option>
-                    <option value="technical">Technical analysis</option>
-                    <option value="emotional">Emotional response</option>
-                    <option value="comparison">Compare to other music</option>
-                    <option value="custom">Custom prompt...</option>
-                  </select>
+                        <div class="waveform-wrap">
+                            <input id="track-page-progress" type="range" min="0" max="1000" value="0" aria-label="Track progress">
+                            <div class="waveform-times">
+                                <span id="current-time">0:00</span>
+                                <span id="duration">0:00</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div id="customPromptDiv" style="display: none; margin-bottom: 8px;">
-                  <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #333;">Custom Prompt:</label>
-                  <textarea id="customPrompt" placeholder="Enter your custom prompt..." style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; resize: vertical; min-height: 60px;"></textarea>
+            </section>
+
+            <div class="track-action-bar">
+                <div class="track-primary-actions">
+                    <button id="like-track" class="control-button track-like" type="button">
+                        <span aria-hidden="true">♥</span> Like
+                    </button>
+                    <button class="control-button" type="button"
+                        data-global-track data-queue="add"
+                        data-track-id="{{ track.id }}"
+                        data-track-title="{{ track.nickname or track.original_filepath }}"
+                        data-track-artist="{% if artists %}{{ artists|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
+                        data-track-artwork="{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+                        data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
+                        data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}">Add to queue</button>
+                    <details class="edit-track-menu">
+                        <summary class="control-button">Edit track</summary>
+                        <div class="edit-track-panel">
+                            <form id="edit-track-form">
+                                <div class="edit-field">
+                                    <label for="edit-title">Title</label>
+                                    <input id="edit-title" name="nickname" value="{{ track.nickname or track.original_filepath }}" required>
+                                </div>
+                                <div class="edit-field">
+                                    <label for="edit-artists">Artists</label>
+                                    <input id="edit-artists" name="artist_names" value="{{ artists|map(attribute='name')|join(', ') }}" placeholder="Separate multiple artists with commas">
+                                </div>
+                                <div class="edit-field">
+                                    <label for="edit-description">Description</label>
+                                    <textarea id="edit-description" name="description">{{ track.description or '' }}</textarea>
+                                </div>
+                                <div class="edit-field">
+                                    <label for="edit-tags">Tags</label>
+                                    <input id="edit-tags" name="tags" value="{{ track.tags or '' }}" placeholder="Separate tags with commas">
+                                </div>
+                                <div class="edit-field">
+                                    <label for="photo-upload">Artwork</label>
+                                    <input type="file" id="photo-upload" accept="image/jpeg,image/png,image/webp">
+                                    <img id="photo-preview" alt="Artwork preview" hidden>
+                                </div>
+                                <div class="edit-actions">
+                                    <button id="upload-photo" class="control-button" type="button">Upload artwork</button>
+                                    <button class="control-button control-primary" type="submit">Save changes</button>
+                                </div>
+                                <p id="edit-status" role="status"></p>
+                            </form>
+                        </div>
+                    </details>
                 </div>
-                <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                  <button type="button" id="generateAiComment" class="button" style="background: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                    Generate
-                  </button>
-                  <button type="button" id="closeAiDropdown" class="button" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
-                    Cancel
-                  </button>
+                <div class="track-stats">
+                    <span class="stat-control"><strong id="play-count">{{ track.view_count or 0 }}</strong> plays</span>
+                    <span class="stat-control"><strong id="like-count">{{ track.likes or 0 }}</strong> likes</span>
+                    <span class="stat-control"><strong id="comment-count">{{ comments|length }}</strong> comments</span>
                 </div>
-              </div>
             </div>
-          </div>
-          <input type="text" name="content" placeholder="Write a comment" required autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" readonly />
-          <button class="button" type="submit">Post</button>
-        </form>
-        <div id="commentList">
-          {% for c in comments %}
-            <div class="comment" data-id="{{ c.id }}">
-              <div style="display:flex; align-items:center; gap:8px;">
-                {% set av = author_avatars.get(c.author|slugify) %}
-                <img alt="avatar" src="{% if av %}{{ url_for('static', filename=av) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;" />
-                <strong><a href="{{ url_for('artist_by_name', artist_name=c.author) }}">{{ c.author }}</a></strong>
-                <span style="color:#777; font-size:12px;">{{ c.timestamp.strftime('%m/%d/%Y %I:%M %p') }}</span>
-              </div>
-              <div>{{ c.content }}</div>
-              <button class="button like-comment">Like ({{ c.likes or 0 }})</button>
-              <button class="button delete-comment">Delete</button>
-            </div>
-          {% endfor %}
-        </div>
-      </div>
 
-      {% if related_tracks %}
-      <div class="related">
-        <h3>Related Tracks</h3>
-        <ul>
-          {% for t in related_tracks %}
-            <li><a href="{{ url_for('track_detail', track_id=t.id) }}">{{ t.nickname or t.original_filepath }}</a></li>
-          {% endfor %}
-        </ul>
-      </div>
-      {% endif %}
-    </div>
+            <div class="track-content-grid">
+                <div class="track-main-column">
+                    <section class="track-card track-about">
+                        <div class="section-title-row">
+                            <div>
+                                <p class="section-eyebrow">About this track</p>
+                                <h2>Track notes</h2>
+                            </div>
+                        </div>
+                        <p class="track-description" id="track-description">{{ track.description or 'No description has been added yet.' }}</p>
+
+                        <div class="track-tags" id="track-tags" aria-label="Tags">
+                        {% if track.tags %}
+                            {% for tag in track.tags.split(',') %}
+                                {% if tag.strip() %}
+                                <a href="{{ url_for('tag_detail', tag=tag.strip()) }}">#{{ tag.strip() }}</a>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                        </div>
+                    </section>
+
+                    <section class="track-card comments-card">
+                        <div class="section-title-row">
+                            <div>
+                                <p class="section-eyebrow">Conversation</p>
+                                <h2>Comments <span class="comment-total">{{ comments|length }}</span></h2>
+                            </div>
+                        </div>
+
+                        <form id="comment-form" class="track-comment-form" autocomplete="off">
+                            <input class="track-input" type="text" name="author" placeholder="Your name" maxlength="100" required>
+                            <textarea class="track-input" name="content" placeholder="Leave a comment at this moment..." required></textarea>
+                            <div class="comment-form-actions">
+                                <details class="ai-comment-menu">
+                                    <summary class="control-button control-quiet">AI assist</summary>
+                                    <div class="ai-comment-panel">
+                                        <label for="ai-style">Comment style</label>
+                                        <select id="ai-style">
+                                            <option value="general">General fan comment</option>
+                                            <option value="positive">Enthusiastic</option>
+                                            <option value="critical">Thoughtful critique</option>
+                                            <option value="discovery">Just discovered this</option>
+                                            <option value="technical">Technical analysis</option>
+                                            <option value="emotional">Emotional response</option>
+                                            <option value="custom">Custom prompt</option>
+                                        </select>
+                                        <textarea id="custom-prompt" placeholder="Describe the comment you want" hidden></textarea>
+                                        <button id="generate-comment" class="button button-secondary" type="button">Generate</button>
+                                    </div>
+                                </details>
+                                <button class="control-button control-primary" type="submit">Post comment</button>
+                            </div>
+                            <p id="comment-status" class="form-status" role="status"></p>
+                        </form>
+
+                        <div id="comment-list" class="track-comments">
+                            {% for comment in comments %}
+                            <article class="track-comment" data-id="{{ comment.id }}">
+                                {% set avatar = author_avatars.get(comment.author|slugify) %}
+                                <img class="comment-avatar" src="{% if avatar %}{{ url_for('static', filename=avatar) }}{% else %}{{ url_for('static', filename='avatars/default.png') }}{% endif %}" alt="">
+                                <div class="comment-body">
+                                    <div class="comment-meta">
+                                        <a href="{{ url_for('artist_by_name', artist_name=comment.author) }}">{{ comment.author }}</a>
+                                        <time>{{ comment.timestamp.strftime('%b %d, %Y at %I:%M %p') }}</time>
+                                    </div>
+                                    <p>{{ comment.content }}</p>
+                                    <div class="comment-actions">
+                                        <button class="control-button control-quiet comment-like" type="button">♥ <span>{{ comment.likes or 0 }}</span></button>
+                                        <details class="comment-menu">
+                                            <summary class="control-button control-quiet" aria-label="Comment options" title="Comment options">•••</summary>
+                                            <div class="comment-menu-panel">
+                                                <button class="comment-delete" type="button">Delete comment</button>
+                                            </div>
+                                        </details>
+                                    </div>
+                                </div>
+                            </article>
+                            {% endfor %}
+                        </div>
+                    </section>
+                </div>
+
+                <aside class="track-sidebar">
+                    {% if related_tracks %}
+                    <section class="track-card related-card">
+                        <div class="section-title-row">
+                            <div>
+                                <p class="section-eyebrow">Keep listening</p>
+                                <h2>Related tracks</h2>
+                            </div>
+                        </div>
+                        <div class="related-track-list">
+                            {% for related in related_tracks %}
+                            <a class="related-track" href="{{ url_for('track_detail', track_id=related.id) }}">
+                                <div class="related-artwork">
+                                    {% if related.background_image_path %}
+                                    <img src="{{ url_for('static', filename=related.background_image_path) }}" alt="">
+                                    {% else %}
+                                    <span aria-hidden="true">♪</span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <strong>{{ related.nickname or related.original_filepath }}</strong>
+                                    <span>{{ related.view_count or 0 }} plays</span>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </section>
+                    {% endif %}
+
+                    <section class="track-card file-card">
+                        <p class="section-eyebrow">Source</p>
+                        <h2>File details</h2>
+                        <dl>
+                            <div><dt>Original</dt><dd>{{ track.original_filepath }}</dd></div>
+                            <div><dt>Track ID</dt><dd>{{ track.id }}</dd></div>
+                        </dl>
+                    </section>
+                </aside>
+            </div>
+        </div>
+    </main>
 
     <script>
-      const wavesurfer = WaveSurfer.create({
-        container: '#waveform',
-        waveColor: '#aaa',
-        progressColor: '#ff5500',
-        height: 120,
-        barWidth: 2,
-        barGap: 1,
-        cursorColor: '#333',
-      })
-
-      wavesurfer.load("{{ url_for('stream_track', track_id=track.id) }}")
-
-      const btn = document.getElementById('playPause')
-      btn.addEventListener('click', () => {
-        wavesurfer.playPause()
-        btn.textContent = wavesurfer.isPlaying() ? 'Pause' : 'Play'
-      })
-
-      document.getElementById('likeBtn').addEventListener('click', async (e) => {
-        const res = await fetch("{{ url_for('like_track', track_id=track.id) }}", { method: 'POST' })
-        const json = await res.json()
-        if (json.success) e.target.textContent = `Like (${json.new_like_count})`
-      })
-
-      // Disable browser autofill by making fields readonly until user interacts
-      document.querySelectorAll('#commentForm input[type="text"]').forEach((el) => {
-        const unlock = () => el.removeAttribute('readonly')
-        el.addEventListener('focus', unlock, { once: true })
-        el.addEventListener('mousedown', unlock, { once: true })
-        el.addEventListener('touchstart', unlock, { once: true })
-      })
-
-      // Comments
-      const form = document.getElementById('commentForm')
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault()
-        const data = new FormData(form)
-        const res = await fetch("{{ url_for('add_track_comment', track_id=track.id) }}", { method: 'POST', body: data })
-        const json = await res.json()
-        if (json.success) {
-          const c = json.comment
-          const div = document.createElement('div')
-          div.className = 'comment'
-          div.dataset.id = c.id
-          div.innerHTML = `<div><strong><a href="/artist/${c.author}">${c.author}</a></strong> <span style="color:#777; font-size:12px;">${c.timestamp}</span></div>
-                           <div>${c.content}</div>
-                           <button class="button like-comment">Like (${c.likes})</button>
-                           <button class="button delete-comment">Delete</button>`
-          document.getElementById('commentList').prepend(div)
-          form.reset()
-        }
-      })
-
-      document.getElementById('commentList').addEventListener('click', async (e) => {
-        const item = e.target.closest('.comment')
-        if (!item) return
-        const id = item.dataset.id
-        if (e.target.classList.contains('like-comment')) {
-          const res = await fetch(`{{ url_for('like_track_comment', comment_id=0) }}`.replace('0', id), { method: 'POST' })
-          const json = await res.json()
-          if (json.success) e.target.textContent = `Like (${json.new_like_count})`
-        }
-        if (e.target.classList.contains('delete-comment')) {
-          const res = await fetch(`{{ url_for('delete_track_comment', comment_id=0) }}`.replace('0', id), { method: 'POST' })
-          const json = await res.json()
-          if (json.success) item.remove()
-        }
-      })
-
-      // AI Comment Generation
-      const aiCommentBtn = document.getElementById('aiCommentBtn')
-      const aiCommentDropdown = document.getElementById('aiCommentDropdown')
-      const aiPromptSelect = document.getElementById('aiPromptSelect')
-      const customPromptDiv = document.getElementById('customPromptDiv')
-      const customPrompt = document.getElementById('customPrompt')
-      const generateAiComment = document.getElementById('generateAiComment')
-      const closeAiDropdown = document.getElementById('closeAiDropdown')
-      const contentInput = document.querySelector('input[name="content"]')
-
-      // Toggle AI dropdown
-      aiCommentBtn.addEventListener('click', (e) => {
-        e.stopPropagation()
-        aiCommentDropdown.style.display = aiCommentDropdown.style.display === 'none' ? 'block' : 'none'
-      })
-
-      // Close dropdown when clicking outside
-      document.addEventListener('click', (e) => {
-        if (!aiCommentDropdown.contains(e.target) && !aiCommentBtn.contains(e.target)) {
-          aiCommentDropdown.style.display = 'none'
-        }
-      })
-
-      // Show/hide custom prompt field
-      aiPromptSelect.addEventListener('change', () => {
-        if (aiPromptSelect.value === 'custom') {
-          customPromptDiv.style.display = 'block'
-          customPrompt.focus()
-        } else {
-          customPromptDiv.style.display = 'none'
-          customPrompt.value = ''
-        }
-      })
-
-      // Close dropdown
-      closeAiDropdown.addEventListener('click', () => {
-        aiCommentDropdown.style.display = 'none'
-      })
-
-      // Photo Upload Functionality
-      const photoUpload = document.getElementById('photoUpload')
-      const uploadPhotoBtn = document.getElementById('uploadPhotoBtn')
-      const photoPreview = document.getElementById('photoPreview')
-      const previewImage = document.getElementById('previewImage')
-      const uploadStatus = document.getElementById('uploadStatus')
-
-      // Show preview when file is selected
-      photoUpload.addEventListener('change', (e) => {
-        const file = e.target.files[0]
-        if (file) {
-          const reader = new FileReader()
-          reader.onload = (e) => {
-            previewImage.src = e.target.result
-            photoPreview.style.display = 'block'
-          }
-          reader.readAsDataURL(file)
-        }
-      })
-
-      // Handle photo upload
-      uploadPhotoBtn.addEventListener('click', async () => {
-        const file = photoUpload.files[0]
-        if (!file) {
-          uploadStatus.textContent = 'Please select a file first'
-          uploadStatus.style.color = '#dc3545'
-          return
-        }
-
-        // Validate file type
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
-        if (!validTypes.includes(file.type)) {
-          uploadStatus.textContent = 'Please select a valid image file (JPEG, PNG, WebP)'
-          uploadStatus.style.color = '#dc3545'
-          return
-        }
-
-        // Show loading state
-        uploadPhotoBtn.textContent = 'Uploading...'
-        uploadPhotoBtn.disabled = true
-        uploadStatus.textContent = 'Uploading photo...'
-        uploadStatus.style.color = '#666'
-
-        try {
-          const formData = new FormData()
-          formData.append('photo', file)
-
-          const response = await fetch(`{{ url_for('update_track_photo', track_id=track.id) }}`, {
-            method: 'POST',
-            body: formData
-          })
-
-          const result = await response.json()
-
-          if (result.success) {
-            uploadStatus.textContent = 'Photo uploaded successfully!'
-            uploadStatus.style.color = '#28a745'
-            
-            // Update the hero background image if it exists
-            const hero = document.querySelector('.hero')
-            if (hero && result.photo_path) {
-              hero.style.backgroundImage = `url('${result.photo_path}')`
-            }
-            
-            // Clear the form
-            photoUpload.value = ''
-            photoPreview.style.display = 'none'
-          } else {
-            uploadStatus.textContent = 'Error: ' + (result.error || 'Upload failed')
-            uploadStatus.style.color = '#dc3545'
-          }
-        } catch (error) {
-          uploadStatus.textContent = 'Error: ' + error.message
-          uploadStatus.style.color = '#dc3545'
-        } finally {
-          uploadPhotoBtn.textContent = 'Upload Photo'
-          uploadPhotoBtn.disabled = false
-        }
-      })
-
-      // Generate AI comment
-      generateAiComment.addEventListener('click', async () => {
-        const selectedStyle = aiPromptSelect.value
-        let prompt = ''
-        
-        if (selectedStyle === 'custom') {
-          prompt = customPrompt.value.trim()
-          if (!prompt) {
-            alert('Please enter a custom prompt')
-            return
-          }
-        } else {
-          // Use predefined prompts
-          const prompts = {
-            general: `What would a music fan think about {{ track.nickname or track.original_filepath }} by {{ artists[0].name if artists else 'Unknown Artist' }}?`,
-            positive: `Write an enthusiastic comment about {{ track.nickname or track.original_filepath }} by {{ artists[0].name if artists else 'Unknown Artist' }}`,
-            critical: `Write a thoughtful, slightly critical comment about {{ track.nickname or track.original_filepath }} by {{ artists[0].name if artists else 'Unknown Artist' }}`,
-            discovery: `Write a comment from someone who just discovered {{ track.nickname or track.original_filepath }} by {{ artists[0].name if artists else 'Unknown Artist' }}`,
-            nostalgic: `Write a nostalgic comment about {{ track.nickname or track.original_filepath }} by {{ artists[0].name if artists else 'Unknown Artist' }}`,
-            technical: `Write a comment focusing on the technical aspects of {{ track.nickname or track.original_filepath }} by {{ artists[0].name if artists else 'Unknown Artist' }}`,
-            emotional: `Write an emotional comment about {{ track.nickname or track.original_filepath }} by {{ artists[0].name if artists else 'Unknown Artist' }}`,
-            comparison: `Write a comment comparing {{ track.nickname or track.original_filepath }} by {{ artists[0].name if artists else 'Unknown Artist' }} to other music`
-          }
-          prompt = prompts[selectedStyle]
-        }
-
-        // Show loading state
-        generateAiComment.textContent = 'Generating...'
-        generateAiComment.disabled = true
-
-        try {
-          const response = await fetch(`{{ url_for('generate_track_comment', track_id=track.id) }}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ prompt: prompt })
-          })
-
-          const result = await response.json()
-          console.log('AI Comment Response:', result)
-
-          if (result.success) {
-            console.log('Setting comment content:', result.comment)
-            contentInput.value = result.comment
-            contentInput.removeAttribute('readonly')
-            aiCommentDropdown.style.display = 'none'
-          } else {
-            console.error('AI Comment Error:', result.error)
-            alert('Error generating comment: ' + (result.error || 'Unknown error'))
-          }
-        } catch (error) {
-          alert('Error generating comment: ' + error.message)
-        } finally {
-          generateAiComment.textContent = 'Generate'
-          generateAiComment.disabled = false
-        }
-      })
+        window.trackDetailConfig = {
+            streamUrl: {{ url_for('stream_track', track_id=track.id) | tojson }},
+            trackId: {{ track.id }},
+            trackTitle: {{ (track.nickname or track.original_filepath)|tojson }},
+            likeUrl: {{ url_for('like_track', track_id=track.id) | tojson }},
+            photoUrl: {{ url_for('update_track_photo', track_id=track.id) | tojson }},
+            updateUrl: {{ url_for('update_track', track_id=track.id) | tojson }},
+            addCommentUrl: {{ url_for('add_track_comment', track_id=track.id) | tojson }},
+            likeCommentUrl: {{ url_for('like_track_comment', comment_id=0) | tojson }},
+            deleteCommentUrl: {{ url_for('delete_track_comment', comment_id=0) | tojson }},
+            generateCommentUrl: {{ url_for('generate_track_comment', track_id=track.id) | tojson }},
+            artistUrlTemplate: {{ url_for('artist_by_name', artist_name='__author__') | tojson }},
+            defaultAvatar: {{ url_for('static', filename='avatars/default.png') | tojson }}
+        };
     </script>
-  </body>
- </html>
-
+    <script src="{{ url_for('static', filename='js/track_detail.js') }}"></script>
+</body>
+</html>

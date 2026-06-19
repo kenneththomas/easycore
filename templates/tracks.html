@@ -30,6 +30,40 @@
         background: #f5f5f5 center/cover no-repeat;
         position: relative;
       }
+      .track-grid-play {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        display: grid;
+        width: 44px;
+        height: 44px;
+        padding-left: 3px;
+        place-items: center;
+        color: white;
+        background: #6f4ef2;
+        border: 0;
+        border-radius: 50%;
+        box-shadow: 0 8px 20px rgba(0,0,0,.24);
+        cursor: pointer;
+      }
+      .track-grid-queue {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        display: grid;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        place-items: center;
+        color: #5634d6;
+        background: rgba(255,255,255,.92);
+        border: 0;
+        border-radius: 50%;
+        box-shadow: 0 5px 14px rgba(0,0,0,.16);
+        cursor: pointer;
+        font-size: 1.15rem;
+      }
+      .track-title a { color: inherit; text-decoration: none; }
       .track-info { padding: 16px; }
       .track-title { 
         font-weight: 600; 
@@ -129,14 +163,32 @@
       {% if tracks %}
         <div class="grid">
           {% for track in tracks %}
-            <a class="track-card" href="{{ url_for('track_detail', track_id=track.id) }}">
+            <article class="track-card">
               <div class="track-thumbnail" style="background-image:url('{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}')">
                 {% if not track.background_image_path %}
                   <div style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 3rem; color: #ccc;">🎵</div>
                 {% endif %}
+                <button type="button" class="track-grid-play"
+                  data-global-track
+                  data-track-id="{{ track.id }}"
+                  data-track-title="{{ track.nickname or track.original_filepath }}"
+                  data-track-artist="{% if track_artists.get(track.id) %}{{ track_artists[track.id]|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
+                  data-track-artwork="{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+                  data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
+                  data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
+                  aria-label="Play {{ track.nickname or track.original_filepath }}">▶</button>
+                <button type="button" class="track-grid-queue"
+                  data-global-track data-queue="add"
+                  data-track-id="{{ track.id }}"
+                  data-track-title="{{ track.nickname or track.original_filepath }}"
+                  data-track-artist="{% if track_artists.get(track.id) %}{{ track_artists[track.id]|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
+                  data-track-artwork="{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+                  data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
+                  data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
+                  aria-label="Add {{ track.nickname or track.original_filepath }} to queue">+</button>
               </div>
               <div class="track-info">
-                <div class="track-title">{{ track.nickname or track.original_filepath }}</div>
+                <div class="track-title"><a href="{{ url_for('track_detail', track_id=track.id) }}">{{ track.nickname or track.original_filepath }}</a></div>
                 {% if track_artists.get(track.id) %}
                   <div class="track-artists">
                     by {% for artist in track_artists[track.id] %}{{ artist.name }}{% if not loop.last %}, {% endif %}{% endfor %}
@@ -152,7 +204,7 @@
                   {% endif %}
                 </div>
               </div>
-            </a>
+            </article>
           {% endfor %}
         </div>
         

@@ -36,6 +36,42 @@
     </div>
 </nav>
 
+<link rel="stylesheet" href="{{ url_for('static', filename='css/global_player.css') }}">
+<aside class="global-player" id="global-player" hidden aria-label="Music player">
+    <audio id="global-player-audio" preload="metadata"></audio>
+    <div class="global-player-art" id="global-player-art"><span aria-hidden="true">♪</span></div>
+    <div class="global-player-copy">
+        <a id="global-player-title" href="#">Nothing playing</a>
+        <span id="global-player-artist">Choose a track</span>
+    </div>
+    <div class="global-player-controls">
+        <button id="global-player-prev" type="button" aria-label="Previous track">|&lt;</button>
+        <button id="global-player-toggle" class="global-player-main" type="button" aria-label="Play">▶</button>
+        <button id="global-player-next" type="button" aria-label="Next track">&gt;|</button>
+    </div>
+    <div class="global-player-progress-wrap">
+        <span id="global-player-current">0:00</span>
+        <input id="global-player-progress" type="range" min="0" max="1000" value="0" aria-label="Track progress">
+        <span id="global-player-duration">0:00</span>
+    </div>
+    <div class="global-player-actions">
+        <button id="global-player-repeat" type="button" aria-label="Repeat mode" aria-pressed="false">↻</button>
+        <button id="global-player-queue-toggle" type="button" aria-label="Show queue">Queue <span id="global-player-queue-count">0</span></button>
+        <button id="global-player-close" type="button" aria-label="Close player">×</button>
+    </div>
+</aside>
+<section class="global-queue" id="global-player-queue" hidden aria-label="Playback queue">
+    <div class="global-queue-header">
+        <div>
+            <span>Up next</span>
+            <h2>Queue</h2>
+        </div>
+        <button id="global-player-clear" type="button">Clear</button>
+    </div>
+    <div id="global-player-queue-list" class="global-queue-list"></div>
+</section>
+<script src="{{ url_for('static', filename='js/global_player.js') }}"></script>
+
 <script>
     (() => {
         const nav = document.currentScript.previousElementSibling;
