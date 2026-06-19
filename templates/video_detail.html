@@ -4,23 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ video.nickname or video.original_filepath }}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
+<body class="video-detail-page">
     {% from 'navbar.html' import render_navbar %}
     {{ render_navbar() }}
     <div class="container">
-        <header>
-            <h1>{{ video.nickname or video.original_filepath }}</h1>
-            <a href="{{ url_for('index') }}" class="back-link">Back to Video List</a>
+        <header class="detail-header">
+            <div>
+                <a href="{{ url_for('index') }}" class="back-link">&larr; Back to library</a>
+                <p class="eyebrow">Now viewing</p>
+                <h1>{{ video.nickname or video.original_filepath }}</h1>
+            </div>
         </header>
 
         <main>
             <section class="video-player">
-                <h2>Video Player</h2>
+                <h2 class="sr-only">Video player</h2>
                 <div class="video-container">
-                    <video id="main-video" controls loop>
+                    <video id="main-video" controls loop playsinline preload="metadata">
                         <source src="{{ url_for('stream_video', video_id=video.id) }}" type="video/mp4">
                         Your browser does not support the video tag.
                     </video>
@@ -31,14 +34,14 @@
                 <div class="playlist-header">
                     <h2>Playlist</h2>
                     <div class="playlist-actions">
-                        <button id="toggleAutoplay" class="btn">
+                        <button id="toggleAutoplay" class="btn" type="button" aria-pressed="false">
                             Autoplay: <span id="autoplayStatus">Off</span>
                         </button>
-                        <select id="playlistSelect">
+                        <select id="playlistSelect" aria-label="Select playlist">
                             <option value="">Select Playlist</option>
                         </select>
-                        <button id="addToPlaylistBtn" class="btn" onclick="addToCurrentPlaylist()">Add to Playlist</button>
-                        <button id="createPlaylistBtn" class="btn">Create New Playlist</button>
+                        <button id="addToPlaylistBtn" class="btn" type="button" onclick="addToCurrentPlaylist()">Add video</button>
+                        <button id="createPlaylistBtn" class="btn" type="button">New playlist</button>
                     </div>
                 </div>
                 
@@ -52,14 +55,14 @@
                     <span id="title-display">{{ video.nickname or video.original_filepath }}</span>
                     <input type="text" id="title-edit" value="{{ video.nickname }}" style="display: none;">
                 </h2>
-                <button id="edit-title-btn" class="btn" onclick="toggleTitleEdit()">Edit Title</button>
-                <button id="save-title-btn" class="btn" style="display: none;" onclick="editTitle('{{ video.id }}')">Save Title</button>
-                <button id="trim-video-btn" class="btn" onclick="window.location.href='{{ url_for('trim_video_view', video_id=video.id) }}'">Trim Video</button>
+                <button id="edit-title-btn" class="btn" type="button" onclick="toggleTitleEdit()">Edit title</button>
+                <button id="save-title-btn" class="btn" type="button" style="display: none;" onclick="editTitle('{{ video.id }}')">Save title</button>
+                <button id="trim-video-btn" class="btn" type="button" onclick="window.location.href='{{ url_for('trim_video_view', video_id=video.id) }}'">Trim video</button>
                 <div class="video-stats">
                     <p>Views: <span class="view-count">{{ video.view_count }}</span></p>
                     <div class="like-container">
-                        <button id="like-btn" class="btn" onclick="likeVideo('{{ video.id }}')">
-                            👍 Like
+                        <button id="like-btn" class="btn" type="button" onclick="likeVideo('{{ video.id }}')">
+                            &hearts; Like
                         </button>
                         <span class="like-count">{{ video.likes or 0 }} likes</span>
                     </div>
@@ -85,8 +88,8 @@
                             {% endfor %}
                         {% endif %}
                     </div>
-                    <input type="text" id="tag-input" placeholder="Type to add tags">
-                    <div id="tag-suggestions"></div>
+                    <input type="text" id="tag-input" placeholder="Add a tag and press Enter..." autocomplete="off" aria-label="Add a tag">
+                    <div id="tag-suggestions" role="listbox"></div>
                 </div>
 
                 <div class="file-info">
@@ -118,8 +121,8 @@
                             </div>
                             <div class="comment-content">{{ comment.content }}</div>
                             <div class="comment-footer">
-                                <button class="like-comment-btn" onclick="likeComment({{ comment.id }})">
-                                    👍 <span class="comment-like-count">{{ comment.likes or 0 }}</span>
+                                <button class="like-comment-btn" type="button" onclick="likeComment({{ comment.id }})" aria-label="Like comment">
+                                    &hearts; <span class="comment-like-count" data-comment-id="{{ comment.id }}">{{ comment.likes or 0 }}</span>
                                 </button>
                             </div>
                         </div>
@@ -127,9 +130,9 @@
                 </div>
 
                 <div class="comment-form">
-                    <input type="text" id="comment-author" placeholder="Your name" maxlength="100">
-                    <textarea id="comment-content" placeholder="Write a comment..."></textarea>
-                    <button class="btn" onclick="submitComment('{{ video.id }}')">Post Comment</button>
+                    <input type="text" id="comment-author" placeholder="Your name" maxlength="100" aria-label="Your name">
+                    <textarea id="comment-content" placeholder="Share your thoughts..." aria-label="Comment"></textarea>
+                    <button class="btn" type="button" onclick="submitComment('{{ video.id }}')">Post comment</button>
                 </div>
                 
             </section>
@@ -165,12 +168,12 @@
     </div>
     <div id="createPlaylistModal" class="modal" style="display: none;">
         <div class="modal-content">
-            <h3>Create New Playlist</h3>
+            <h3>Create a playlist</h3>
             <form id="createPlaylistForm">
                 <input type="text" id="playlistName" placeholder="Playlist Name" required>
                 <textarea id="playlistDescription" placeholder="Description (optional)"></textarea>
                 <div class="modal-actions">
-                    <button type="submit" class="btn">Create</button>
+                    <button type="submit" class="btn">Create playlist</button>
                     <button type="button" class="btn" onclick="closePlaylistModal()">Cancel</button>
                 </div>
             </form>
@@ -249,6 +252,7 @@
     document.getElementById('toggleAutoplay').onclick = function() {
         autoplayEnabled = !autoplayEnabled;
         document.getElementById('autoplayStatus').textContent = autoplayEnabled ? 'On' : 'Off';
+        this.setAttribute('aria-pressed', String(autoplayEnabled));
     };
 
     document.getElementById('playlistSelect').onchange = function(e) {
@@ -261,12 +265,21 @@
     };
 
     document.getElementById('createPlaylistBtn').onclick = function() {
-        document.getElementById('createPlaylistModal').style.display = 'block';
+        document.getElementById('createPlaylistModal').style.display = 'flex';
+        document.getElementById('playlistName').focus();
     };
 
     function closePlaylistModal() {
         document.getElementById('createPlaylistModal').style.display = 'none';
     }
+
+    document.getElementById('createPlaylistModal').addEventListener('click', function(event) {
+        if (event.target === this) closePlaylistModal();
+    });
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') closePlaylistModal();
+    });
 
     document.getElementById('createPlaylistForm').onsubmit = function(e) {
         e.preventDefault();
@@ -483,6 +496,536 @@
     }
     .comment-header { display:flex; align-items:center; gap:8px; }
     .comment-avatar { width:28px; height:28px; border-radius:50%; object-fit:cover; }
+
+    /* Video detail page */
+    .video-detail-page .container {
+        max-width: 1240px;
+        padding: 44px 24px 72px;
+    }
+
+    .video-detail-page .detail-header {
+        align-items: flex-start;
+        margin-bottom: 24px;
+    }
+
+    .video-detail-page .detail-header h1 {
+        max-width: 900px;
+        margin-top: 6px;
+        font-size: clamp(1.8rem, 4vw, 3rem);
+        font-weight: 800;
+        line-height: 1.08;
+        letter-spacing: -.045em;
+        overflow-wrap: anywhere;
+    }
+
+    .video-detail-page .back-link {
+        display: inline-flex;
+        color: var(--color-muted);
+        font-size: .9rem;
+    }
+
+    .video-detail-page .back-link:hover { color: var(--color-primary); }
+
+    .eyebrow {
+        margin: 18px 0 0;
+        color: var(--color-primary);
+        font-size: .72rem;
+        font-weight: 800;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+    }
+
+    .video-detail-page main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 24px;
+        align-items: start;
+    }
+
+    .video-detail-page .video-player {
+        grid-column: 1 / -1;
+        overflow: hidden;
+        padding: 0;
+        background: #09090d;
+        border: 1px solid #22232d;
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-xl);
+    }
+
+    .video-detail-page .video-container { background: #09090d; }
+    .video-detail-page #main-video { border-radius: 0; }
+
+    .video-detail-page .playlist-controls,
+    .video-detail-page .video-info,
+    .video-detail-page .comments-section,
+    .video-detail-page .related-videos {
+        background: rgba(255,255,255,.94);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .video-detail-page .playlist-controls {
+        grid-column: 1 / -1;
+        margin: 0;
+        padding: 22px;
+    }
+
+    .video-detail-page .video-info {
+        grid-column: 1;
+        padding: 28px;
+    }
+
+    .video-detail-page .comments-section {
+        grid-column: 1;
+        margin: 0;
+        padding: 28px;
+    }
+
+    .video-detail-page .related-videos {
+        grid-column: 2;
+        grid-row: 3 / span 2;
+        position: sticky;
+        top: 92px;
+        padding: 22px;
+    }
+
+    .video-detail-page .playlist-header {
+        gap: 18px;
+        align-items: flex-start;
+        margin: 0;
+    }
+
+    .video-detail-page .playlist-header h2,
+    .video-detail-page .video-info > h2,
+    .video-detail-page .comments-section > h2,
+    .video-detail-page .related-videos > h2 {
+        margin: 0;
+        font-weight: 750;
+        letter-spacing: -.035em;
+    }
+
+    .video-detail-page .playlist-actions {
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .video-detail-page .playlist-actions select {
+        min-height: 42px;
+        max-width: 220px;
+        padding: 8px 36px 8px 12px;
+        color: var(--color-heading);
+        background: white;
+        border: 1px solid var(--color-border-strong);
+        border-radius: var(--radius-sm);
+    }
+
+    .video-detail-page #toggleAutoplay,
+    .video-detail-page #createPlaylistBtn,
+    .video-detail-page #edit-title-btn,
+    .video-detail-page #trim-video-btn,
+    .video-detail-page #edit-description-btn {
+        color: var(--color-heading);
+        background: white;
+        border-color: var(--color-border-strong);
+    }
+
+    .video-detail-page #toggleAutoplay:hover,
+    .video-detail-page #createPlaylistBtn:hover,
+    .video-detail-page #edit-title-btn:hover,
+    .video-detail-page #trim-video-btn:hover,
+    .video-detail-page #edit-description-btn:hover {
+        color: var(--color-heading);
+        background: var(--color-surface-subtle);
+        border-color: #b9bdc9;
+    }
+
+    .video-detail-page #addToPlaylistBtn {
+        background: var(--color-primary);
+    }
+
+    .video-detail-page .playlist-videos {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        gap: 10px;
+        max-height: 280px;
+        margin-top: 18px;
+        overflow-y: auto;
+    }
+
+    .video-detail-page .playlist-video-item {
+        display: grid;
+        grid-template-columns: 76px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+        padding: 8px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        transition: 160ms ease;
+    }
+
+    .video-detail-page .playlist-video-item:hover {
+        background: var(--color-primary-soft);
+        border-color: rgba(111,78,242,.28);
+        transform: translateY(-1px);
+    }
+
+    .video-detail-page .playlist-video-item img {
+        width: 76px;
+        height: 48px;
+        object-fit: cover;
+        border-radius: 7px;
+    }
+
+    .video-detail-page .playlist-video-item span {
+        overflow: hidden;
+        font-size: .86rem;
+        font-weight: 650;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .video-detail-page .video-info > h2 {
+        display: inline-block;
+        max-width: calc(100% - 270px);
+        margin-bottom: 16px;
+        vertical-align: middle;
+    }
+
+    .video-detail-page .video-info > .btn {
+        margin: 0 0 16px 6px;
+        vertical-align: middle;
+    }
+
+    .video-detail-page #title-edit {
+        margin: 0;
+        font-size: 1.4rem;
+        font-weight: 700;
+    }
+
+    .video-detail-page .video-stats {
+        gap: 18px;
+        margin: 4px 0 10px;
+        padding: 16px 0;
+        border-top: 1px solid var(--color-border);
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .video-detail-page .video-stats p {
+        margin: 0;
+        color: var(--color-muted);
+        font-size: .86rem;
+    }
+
+    .video-detail-page .video-stats .view-count {
+        display: inline;
+        color: var(--color-heading);
+        font-size: 1.1rem;
+        font-weight: 750;
+    }
+
+    .video-detail-page #like-btn {
+        min-height: 38px;
+        padding: 7px 12px;
+        color: #a92c4b;
+        background: #fff4f7;
+        border: 1px solid #f0c5d0;
+    }
+
+    .video-detail-page #like-btn:hover,
+    .video-detail-page #like-btn.liked {
+        color: #921c3c;
+        background: #ffe4eb;
+        border-color: #e9a6b8;
+    }
+
+    .video-detail-page .description-section,
+    .video-detail-page .tags-section {
+        margin: 0;
+        padding: 22px 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .video-detail-page .description-section h2,
+    .video-detail-page .tags-section h2,
+    .video-detail-page .file-info h2 {
+        margin-bottom: 10px;
+        font-size: 1rem;
+        font-weight: 750;
+    }
+
+    .video-detail-page #description-display {
+        margin: 0 0 12px;
+        white-space: pre-wrap;
+    }
+
+    .video-detail-page #description-edit {
+        min-height: 150px;
+        margin: 12px 0 0;
+        border-color: var(--color-border-strong);
+        border-radius: var(--radius-sm);
+    }
+
+    .video-detail-page #tag-input-container { gap: 7px; }
+
+    .video-detail-page .tag-pill {
+        gap: 3px;
+        padding: 4px 5px 4px 10px;
+        color: #4f35ae;
+        background: var(--color-primary-soft);
+        border-radius: 999px;
+    }
+
+    .video-detail-page .tag-pill .tag {
+        padding: 0;
+        color: inherit;
+        background: none;
+        text-decoration: none;
+    }
+
+    .video-detail-page .tag-pill button {
+        display: grid;
+        width: 23px;
+        height: 23px;
+        padding: 0;
+        place-items: center;
+        color: inherit;
+        border-radius: 50%;
+    }
+
+    .video-detail-page .tag-pill button:hover { background: rgba(111,78,242,.12); }
+
+    .video-detail-page #tag-input {
+        margin-top: 3px;
+        padding: 11px 13px;
+        border-color: var(--color-border-strong);
+        border-radius: var(--radius-sm);
+    }
+
+    .video-detail-page .tags-section { position: relative; }
+
+    .video-detail-page #tag-suggestions {
+        z-index: 10;
+        width: 100%;
+        padding: 5px;
+        border-color: var(--color-border);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-md);
+    }
+
+    .video-detail-page #tag-suggestions div {
+        padding: 9px 10px;
+        border-radius: 7px;
+    }
+
+    .video-detail-page .file-info {
+        margin: 0;
+        padding: 22px 0 4px;
+    }
+
+    .video-detail-page .file-info p {
+        margin: 8px 0;
+        overflow-wrap: anywhere;
+        color: var(--color-muted);
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: .78rem;
+    }
+
+    .video-detail-page .file-info strong {
+        color: var(--color-heading);
+        font-family: Inter, sans-serif;
+    }
+
+    .video-detail-page .stealth-controls { margin-top: 18px; }
+
+    .video-detail-page .comments-section > h2::after {
+        content: "{{ comments|length }}";
+        display: inline-grid;
+        min-width: 28px;
+        height: 28px;
+        margin-left: 9px;
+        padding: 0 7px;
+        place-items: center;
+        color: var(--color-primary);
+        background: var(--color-primary-soft);
+        border-radius: 999px;
+        font-size: .75rem;
+        vertical-align: 4px;
+    }
+
+    .video-detail-page .comment-form {
+        margin: 20px 0 0;
+        padding: 16px;
+        background: var(--color-surface-subtle);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+    }
+
+    .video-detail-page .comment-form input,
+    .video-detail-page .comment-form textarea {
+        margin: 0 0 10px;
+        padding: 11px 12px;
+        background: white;
+        border-color: var(--color-border);
+        border-radius: var(--radius-sm);
+    }
+
+    .video-detail-page .comment-form textarea { min-height: 110px; }
+    .video-detail-page .comment-form .btn { float: right; }
+    .video-detail-page .comment-form::after { display: block; clear: both; content: ""; }
+
+    .video-detail-page .comments-list {
+        display: grid;
+        gap: 12px;
+    }
+
+    .video-detail-page .comments-list .comment {
+        margin: 0;
+        padding: 16px;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        box-shadow: none;
+    }
+
+    .video-detail-page .comment-header {
+        display: grid;
+        grid-template-columns: 34px 1fr auto;
+        gap: 2px 10px;
+        align-items: center;
+    }
+
+    .video-detail-page .comment-avatar {
+        grid-row: 1 / span 2;
+        width: 34px;
+        height: 34px;
+    }
+
+    .video-detail-page .comment-author { line-height: 1.2; }
+    .video-detail-page .comment-author a { color: var(--color-heading); text-decoration: none; }
+    .video-detail-page .comment-timestamp { grid-column: 2; font-size: .76rem; }
+    .video-detail-page .comment-content { margin-top: 14px; }
+    .video-detail-page .comment-footer { display: flex; justify-content: flex-end; }
+
+    .video-detail-page .like-comment-btn {
+        color: #a33550;
+        background: #fff5f7;
+        border-radius: 999px;
+    }
+
+    .video-detail-page .like-comment-btn:hover { background: #ffe5eb; }
+
+    .video-detail-page .related-videos-grid { gap: 12px; }
+
+    .video-detail-page .related-video-card {
+        padding: 0;
+        overflow: hidden;
+        background: white;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        transition: 160ms ease;
+    }
+
+    .video-detail-page .related-video-card:hover {
+        border-color: rgba(111,78,242,.35);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .video-detail-page .related-video-card .thumbnail-container { padding-top: 54%; }
+    .video-detail-page .related-video-info { padding: 12px; }
+
+    .video-detail-page .related-video-info h3 {
+        display: -webkit-box;
+        margin: 0 0 4px;
+        overflow: hidden;
+        color: var(--color-heading);
+        font-size: .93rem;
+        line-height: 1.35;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .video-detail-page .related-video-tags {
+        display: flex;
+        gap: 5px;
+        margin-top: 8px;
+        overflow: hidden;
+    }
+
+    .video-detail-page .related-video-tags .tag {
+        flex: 0 0 auto;
+        padding: 3px 7px;
+        color: var(--color-muted);
+        background: var(--color-surface-subtle);
+        font-size: .68rem;
+    }
+
+    .video-detail-page .modal {
+        inset: 0;
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(15,15,22,.62);
+        backdrop-filter: blur(8px);
+    }
+
+    .video-detail-page .modal-content {
+        width: min(100%, 460px);
+        padding: 26px;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-xl);
+    }
+
+    .video-detail-page .modal-content h3 {
+        margin: 0 0 18px;
+        color: var(--color-heading);
+        font-size: 1.35rem;
+    }
+
+    .video-detail-page .modal-content input,
+    .video-detail-page .modal-content textarea {
+        margin-top: 10px;
+        border-color: var(--color-border-strong);
+        border-radius: var(--radius-sm);
+    }
+
+    .video-detail-page .modal-actions { margin-top: 18px; }
+
+    @media (max-width: 900px) {
+        .video-detail-page main { grid-template-columns: 1fr; }
+        .video-detail-page .video-player,
+        .video-detail-page .playlist-controls,
+        .video-detail-page .video-info,
+        .video-detail-page .comments-section,
+        .video-detail-page .related-videos {
+            grid-column: 1;
+            grid-row: auto;
+        }
+        .video-detail-page .related-videos { position: static; }
+        .video-detail-page .related-videos-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 680px) {
+        .video-detail-page .container { padding: 28px 16px 52px; }
+        .video-detail-page main { gap: 16px; }
+        .video-detail-page .video-player { border-radius: var(--radius-lg); }
+        .video-detail-page .playlist-controls,
+        .video-detail-page .video-info,
+        .video-detail-page .comments-section,
+        .video-detail-page .related-videos { padding: 18px; }
+        .video-detail-page .playlist-header { align-items: stretch; flex-direction: column; }
+        .video-detail-page .playlist-actions { justify-content: flex-start; }
+        .video-detail-page .playlist-actions select { max-width: none; flex-basis: 100%; }
+        .video-detail-page .video-info > h2 { display: block; max-width: none; }
+        .video-detail-page .video-info > .btn { margin: 0 5px 8px 0; }
+        .video-detail-page .related-videos-grid { grid-template-columns: 1fr; }
+        .video-detail-page .comment-header { grid-template-columns: 34px 1fr; }
+        .video-detail-page .comment-timestamp { grid-column: 2; }
+    }
     </style>
 </body>
 </html>
