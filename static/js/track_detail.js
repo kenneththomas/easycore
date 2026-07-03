@@ -293,6 +293,29 @@
     const photoPreview = document.getElementById('photo-preview');
     const uploadButton = document.getElementById('upload-photo');
     const editStatus = document.getElementById('edit-status');
+    const renderArtists = artistsData => {
+        const artists = document.getElementById('track-artists');
+        artists.replaceChildren();
+        if (artistsData.length) {
+            artistsData.forEach((artist, index) => {
+                const link = document.createElement('a');
+                link.href = `/artist/${artist.id}`;
+                link.textContent = artist.name;
+                artists.append(link);
+                if (index < artistsData.length - 1) artists.append(document.createTextNode(', '));
+            });
+        } else {
+            artists.textContent = 'Unknown artist';
+        }
+
+        const artistText = artistsData.length ? artistsData.map(artist => artist.name).join(', ') : 'Unknown artist';
+        document.querySelectorAll('[data-track-id]').forEach(trigger => {
+            if (Number(trigger.dataset.trackId) === Number(config.trackId)) {
+                trigger.dataset.trackArtist = artistText;
+                trigger.dataset.trackArtistUrl = artistsData[0] ? `/artist/${artistsData[0].id}` : '';
+            }
+        });
+    };
 
     photoInput.addEventListener('change', () => {
         const file = photoInput.files[0];
@@ -338,6 +361,32 @@
         }
     });
 
+    const editArtistsForm = document.getElementById('edit-artists-form');
+    const quickArtistsInput = document.getElementById('quick-edit-artists');
+    const editArtistsInput = document.getElementById('edit-artists');
+    const artistEditStatus = document.getElementById('artist-edit-status');
+
+    editArtistsForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        artistEditStatus.textContent = 'Saving artists...';
+        const formData = new FormData(editArtistsForm);
+        const response = await fetch(config.updateArtistsUrl, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            artistEditStatus.textContent = data.error || 'Could not save artists.';
+            return;
+        }
+
+        renderArtists(data.artists);
+        const artistNames = data.artists.map(artist => artist.name).join(', ');
+        quickArtistsInput.value = artistNames;
+        if (editArtistsInput) editArtistsInput.value = artistNames;
+        artistEditStatus.textContent = 'Artists saved.';
+    });
+
     const editForm = document.getElementById('edit-track-form');
     editForm.addEventListener('submit', async event => {
         event.preventDefault();
@@ -362,19 +411,8 @@
         document.getElementById('track-description').textContent =
             data.track.description || 'No description has been added yet.';
 
-        const artists = document.getElementById('track-artists');
-        artists.replaceChildren();
-        if (data.track.artists.length) {
-            data.track.artists.forEach((artist, index) => {
-                const link = document.createElement('a');
-                link.href = `/artist/${artist.id}`;
-                link.textContent = artist.name;
-                artists.append(link);
-                if (index < data.track.artists.length - 1) artists.append(document.createTextNode(', '));
-            });
-        } else {
-            artists.textContent = 'Unknown artist';
-        }
+        renderArtists(data.track.artists);
+        quickArtistsInput.value = data.track.artists.map(artist => artist.name).join(', ');
 
         const tags = document.getElementById('track-tags');
         tags.replaceChildren();

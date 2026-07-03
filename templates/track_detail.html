@@ -122,6 +122,17 @@
                         data-preview-default="{{ 'true' if track.preview_default else 'false' }}"
                         data-preview-fade-in-seconds="{{ track.preview_fade_in_seconds or 2 }}"
                         data-preview-fade-out-seconds="{{ track.preview_fade_out_seconds or 2 }}">Play preview</button>
+                    <details class="edit-artists-menu">
+                        <summary class="control-button">Edit artists</summary>
+                        <form id="edit-artists-form" class="edit-artists-panel">
+                            <label for="quick-edit-artists">Artists</label>
+                            <input id="quick-edit-artists" name="artist_names" value="{{ artists|map(attribute='name')|join(', ') }}" placeholder="Separate multiple artists with commas">
+                            <div class="edit-actions">
+                                <button class="control-button control-primary" type="submit">Save artists</button>
+                            </div>
+                            <p id="artist-edit-status" role="status"></p>
+                        </form>
+                    </details>
                     <details class="edit-track-menu">
                         <summary class="control-button">Edit track</summary>
                         <div class="edit-track-panel">
@@ -377,6 +388,7 @@
             likeUrl: {{ url_for('like_track', track_id=track.id) | tojson }},
             photoUrl: {{ url_for('update_track_photo', track_id=track.id) | tojson }},
             updateUrl: {{ url_for('update_track', track_id=track.id) | tojson }},
+            updateArtistsUrl: {{ url_for('update_track_artists', track_id=track.id) | tojson }},
             addCommentUrl: {{ url_for('add_track_comment', track_id=track.id) | tojson }},
             likeCommentUrl: {{ url_for('like_track_comment', comment_id=0) | tojson }},
             deleteCommentUrl: {{ url_for('delete_track_comment', comment_id=0) | tojson }},

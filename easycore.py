@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, Response, make_response
 import os
-from sqlalchemy import desc, func, text
+from sqlalchemy import desc, func, inspect, text
 import re
 from werkzeug.utils import secure_filename
 import ffmpeg
@@ -24,7 +24,7 @@ from routes import video_bp, playlist_bp, comment_bp, filter_bp
 from ai_comment_generator import get_ai_generator
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///videos.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('EASYCORE_DATABASE_URI', 'sqlite:///videos.db')
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
 app.config['STEALTH_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'stealth_uploads')
 app.config['AUDIO_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads_audio')
@@ -231,6 +231,7 @@ def get_mime_type_for_audio(file_path):
 
 _track_preview_schema_checked = False
 _author_profile_schema_checked = False
+_database_initialized = False
 
 def ensure_track_preview_columns():
     global _track_preview_schema_checked
@@ -383,8 +384,27 @@ def get_ai_personas():
 
 @app.before_request
 def ensure_schema_before_request():
+    initialize_database()
+
+def initialize_database():
+    global _database_initialized
+    required_tables = set(db.metadata.tables)
+    existing_tables = set(inspect(db.engine).get_table_names())
+    missing_tables = required_tables - existing_tables
+
+    if _database_initialized and not missing_tables:
+        return
+
+    if missing_tables:
+        global _track_preview_schema_checked, _author_profile_schema_checked
+        _track_preview_schema_checked = False
+        _author_profile_schema_checked = False
+
+    db.create_all()
     ensure_track_preview_columns()
     ensure_author_profile_persona_columns()
+    seed_default_ai_personas()
+    _database_initialized = True
 
 def get_related_tracks(current_track, limit=8):
     if not current_track.tags:
@@ -908,6 +928,29 @@ def update_track(track_id):
     except ValueError as e:
         message = "Date must use YYYY-MM-DD format." if str(e) == "track_date" else "Preview times must be numbers."
         return jsonify({"error": message}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/update_track_artists/<int:track_id>', methods=['POST'])
+def update_track_artists(track_id):
+    track = db.get_or_404(Track, track_id)
+    artist_names = [
+        name.strip() for name in request.form.get('artist_names', '').split(',')
+        if name.strip()
+    ]
+
+    try:
+        TrackArtist.query.filter_by(track_id=track.id).delete()
+        artists = []
+        for artist_name in dict.fromkeys(artist_names):
+            artist = get_or_create_artist_by_name(artist_name)
+            if artist:
+                db.session.add(TrackArtist(track_id=track.id, artist_id=artist.id))
+                artists.append({"id": artist.id, "name": artist.name})
+
+        db.session.commit()
+        return jsonify({"success": True, "artists": artists}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -2556,11 +2599,12 @@ def delete_playlist(playlist_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+with app.app_context():
+    ensure_directories_exist()
+    try:
+        initialize_database()
+    except Exception as exc:
+        print(f"Database initialization deferred until first request: {exc}")
+
 if __name__ == '__main__':
-    with app.app_context():
-        ensure_directories_exist()
-        db.create_all()
-        ensure_track_preview_columns()
-        ensure_author_profile_persona_columns()
-        seed_default_ai_personas()
     app.run("0.0.0.0", 5015, debug=True)

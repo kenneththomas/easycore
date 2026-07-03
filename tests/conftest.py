@@ -1,5 +1,7 @@
 import pytest
+import os
 
+os.environ.setdefault("EASYCORE_DATABASE_URI", "sqlite:///:memory:")
 import easycore
 from easycore import app as flask_app
 from models import db
@@ -12,7 +14,6 @@ def app(tmp_path):
 
     flask_app.config.update(
         TESTING=True,
-        SQLALCHEMY_DATABASE_URI=f"sqlite:///{tmp_path / 'easycore-test.db'}",
         UPLOAD_FOLDER=str(data_dir / "uploads"),
         STEALTH_UPLOAD_FOLDER=str(data_dir / "stealth_uploads"),
         AUDIO_UPLOAD_FOLDER=str(data_dir / "uploads_audio"),
@@ -23,6 +24,7 @@ def app(tmp_path):
 
     easycore._track_preview_schema_checked = False
     easycore._author_profile_schema_checked = False
+    easycore._database_initialized = False
 
     with flask_app.app_context():
         easycore.ensure_directories_exist()
