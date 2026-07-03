@@ -100,15 +100,24 @@ body.global-player-active {
 .global-player-controls,
 .global-player-actions {
     display: flex;
+    flex: 0 0 auto;
     gap: 4px;
     align-items: center;
 }
 
+.global-player-controls {
+    min-width: max-content;
+}
+
 .global-player button {
     display: inline-grid;
+    flex: 0 0 auto;
+    width: 34px;
     min-width: 34px;
     height: 34px;
-    padding: 0 8px;
+    box-sizing: border-box;
+    padding: 0;
+    overflow: visible;
     place-items: center;
     color: #d9dae2;
     background: transparent;
@@ -226,6 +235,7 @@ body.global-player-active {
 
 #global-player-queue-toggle {
     display: inline-flex;
+    width: auto;
     gap: 5px;
     align-items: center;
     padding: 0 10px;
@@ -385,6 +395,8 @@ body.global-player-active {
 }
 
 @media (max-width: 560px) {
+    :root { --global-player-height: 148px; }
+
     .global-player {
         right: 8px;
         bottom: 8px;
@@ -403,15 +415,24 @@ body.global-player-active {
     .global-player-controls button:not(.global-player-main),
     #global-player-repeat,
     #global-player-close {
-        display: none;
+        width: 30px;
+        min-width: 30px;
+        height: 30px;
+    }
+
+    .global-player .global-player-main {
+        width: 38px;
+        height: 38px;
     }
 
     .global-player-actions {
-        grid-column: 3;
-        grid-row: 1;
+        grid-column: 1 / -1;
+        grid-row: 3;
+        justify-content: flex-end;
     }
 
     .global-player-progress-wrap {
         grid-column: 1 / -1;
+        grid-row: 2;
     }
 }
