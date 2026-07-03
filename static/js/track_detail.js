@@ -362,6 +362,7 @@
     });
 
     const editArtistsForm = document.getElementById('edit-artists-form');
+    const editArtistsMenu = editArtistsForm.closest('details');
     const quickArtistsInput = document.getElementById('quick-edit-artists');
     const editArtistsInput = document.getElementById('edit-artists');
     const artistEditStatus = document.getElementById('artist-edit-status');
@@ -385,9 +386,11 @@
         quickArtistsInput.value = artistNames;
         if (editArtistsInput) editArtistsInput.value = artistNames;
         artistEditStatus.textContent = 'Artists saved.';
+        if (editArtistsMenu) editArtistsMenu.open = false;
     });
 
     const editForm = document.getElementById('edit-track-form');
+    const editTrackMenu = editForm.closest('details');
     editForm.addEventListener('submit', async event => {
         event.preventDefault();
         editStatus.textContent = 'Saving changes...';
@@ -425,6 +428,8 @@
 
         editStatus.textContent = 'Changes saved.';
         syncPreviewDataAttributes();
+        previewEditorAudio.pause();
+        if (editTrackMenu) editTrackMenu.open = false;
     });
 
     const buildComment = comment => {
