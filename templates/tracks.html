@@ -163,9 +163,10 @@
       {% if tracks %}
         <div class="grid">
           {% for track in tracks %}
+            {% set artwork = track_artwork_path(track, track_artists.get(track.id)) %}
             <article class="track-card">
-              <div class="track-thumbnail" style="background-image:url('{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}')">
-                {% if not track.background_image_path %}
+              <div class="track-thumbnail" style="background-image:url('{% if artwork %}{{ url_for('static', filename=artwork) }}{% endif %}')">
+                {% if not artwork %}
                   <div style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 3rem; color: #ccc;">🎵</div>
                 {% endif %}
                 <button type="button" class="track-grid-play"
@@ -173,18 +174,32 @@
                   data-track-id="{{ track.id }}"
                   data-track-title="{{ track.nickname or track.original_filepath }}"
                   data-track-artist="{% if track_artists.get(track.id) %}{{ track_artists[track.id]|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
-                  data-track-artwork="{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+                  data-track-artwork="{% if artwork %}{{ url_for('static', filename=artwork) }}{% endif %}"
                   data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
                   data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
+                  data-preview-start="{{ track.preview_start if track.preview_start is not none else '' }}"
+                  data-preview-end="{{ track.preview_end if track.preview_end is not none else '' }}"
+                  data-preview-fade-in="{{ 'true' if track.preview_fade_in else 'false' }}"
+                  data-preview-fade-out="{{ 'true' if track.preview_fade_out else 'false' }}"
+                  data-preview-default="{{ 'true' if track.preview_default else 'false' }}"
+                  data-preview-fade-in-seconds="{{ track.preview_fade_in_seconds or 2 }}"
+                  data-preview-fade-out-seconds="{{ track.preview_fade_out_seconds or 2 }}"
                   aria-label="Play {{ track.nickname or track.original_filepath }}">▶</button>
                 <button type="button" class="track-grid-queue"
                   data-global-track data-queue="add"
                   data-track-id="{{ track.id }}"
                   data-track-title="{{ track.nickname or track.original_filepath }}"
                   data-track-artist="{% if track_artists.get(track.id) %}{{ track_artists[track.id]|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
-                  data-track-artwork="{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+                  data-track-artwork="{% if artwork %}{{ url_for('static', filename=artwork) }}{% endif %}"
                   data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
                   data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
+                  data-preview-start="{{ track.preview_start if track.preview_start is not none else '' }}"
+                  data-preview-end="{{ track.preview_end if track.preview_end is not none else '' }}"
+                  data-preview-fade-in="{{ 'true' if track.preview_fade_in else 'false' }}"
+                  data-preview-fade-out="{{ 'true' if track.preview_fade_out else 'false' }}"
+                  data-preview-default="{{ 'true' if track.preview_default else 'false' }}"
+                  data-preview-fade-in-seconds="{{ track.preview_fade_in_seconds or 2 }}"
+                  data-preview-fade-out-seconds="{{ track.preview_fade_out_seconds or 2 }}"
                   aria-label="Add {{ track.nickname or track.original_filepath }} to queue">+</button>
               </div>
               <div class="track-info">

@@ -15,15 +15,16 @@
     {{ render_navbar() }}
 
     <main class="track-page">
+        {% set artwork = track_artwork_path(track, artists) %}
         <div class="track-shell">
             <a href="{{ url_for('tracks_index') }}" class="track-back">&larr; Back to tracks</a>
 
             <section class="track-hero" id="track-hero">
-                <div class="track-hero-glow" {% if track.background_image_path %}style="background-image: url('{{ url_for('static', filename=track.background_image_path) }}')"{% endif %}></div>
+                <div class="track-hero-glow" {% if artwork %}style="background-image: url('{{ url_for('static', filename=artwork) }}')"{% endif %}></div>
                 <div class="track-hero-content">
                     <div class="track-artwork" id="track-artwork">
-                        {% if track.background_image_path %}
-                        <img src="{{ url_for('static', filename=track.background_image_path) }}" alt="Artwork for {{ track.nickname or track.original_filepath }}">
+                        {% if artwork %}
+                        <img src="{{ url_for('static', filename=artwork) }}" alt="Artwork for {{ track.nickname or track.original_filepath }}">
                         {% else %}
                         <span aria-hidden="true">♪</span>
                         {% endif %}
@@ -36,9 +37,16 @@
                                 data-track-id="{{ track.id }}"
                                 data-track-title="{{ track.nickname or track.original_filepath }}"
                                 data-track-artist="{% if artists %}{{ artists|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
-                                data-track-artwork="{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+                                data-track-artwork="{% if artwork %}{{ url_for('static', filename=artwork) }}{% endif %}"
                                 data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
                                 data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
+                                data-preview-start="{{ track.preview_start if track.preview_start is not none else '' }}"
+                                data-preview-end="{{ track.preview_end if track.preview_end is not none else '' }}"
+                                data-preview-fade-in="{{ 'true' if track.preview_fade_in else 'false' }}"
+                                data-preview-fade-out="{{ 'true' if track.preview_fade_out else 'false' }}"
+                                data-preview-default="{{ 'true' if track.preview_default else 'false' }}"
+                                data-preview-fade-in-seconds="{{ track.preview_fade_in_seconds or 2 }}"
+                                data-preview-fade-out-seconds="{{ track.preview_fade_out_seconds or 2 }}"
                                 aria-label="Play track">
                                 <span id="play-icon" aria-hidden="true">▶</span>
                             </button>
@@ -54,6 +62,9 @@
                                         <span>Unknown artist</span>
                                     {% endif %}
                                 </div>
+                                <time class="track-date-line" id="track-date" datetime="{{ track.track_date.isoformat() if track.track_date else '' }}">
+                                    {{ format_track_date(track.track_date) if track.track_date else 'No date set' }}
+                                </time>
                             </div>
                         </div>
 
@@ -78,9 +89,32 @@
                         data-track-id="{{ track.id }}"
                         data-track-title="{{ track.nickname or track.original_filepath }}"
                         data-track-artist="{% if artists %}{{ artists|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
-                        data-track-artwork="{% if track.background_image_path %}{{ url_for('static', filename=track.background_image_path) }}{% endif %}"
+                        data-track-artwork="{% if artwork %}{{ url_for('static', filename=artwork) }}{% endif %}"
                         data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
-                        data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}">Add to queue</button>
+                        data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
+                        data-preview-start="{{ track.preview_start if track.preview_start is not none else '' }}"
+                        data-preview-end="{{ track.preview_end if track.preview_end is not none else '' }}"
+                        data-preview-fade-in="{{ 'true' if track.preview_fade_in else 'false' }}"
+                        data-preview-fade-out="{{ 'true' if track.preview_fade_out else 'false' }}"
+                        data-preview-default="{{ 'true' if track.preview_default else 'false' }}"
+                        data-preview-fade-in-seconds="{{ track.preview_fade_in_seconds or 2 }}"
+                        data-preview-fade-out-seconds="{{ track.preview_fade_out_seconds or 2 }}">Add to queue</button>
+                    <button id="play-preview" class="control-button control-primary" type="button"
+                        data-global-track
+                        data-preview-only="true"
+                        data-track-id="{{ track.id }}"
+                        data-track-title="{{ track.nickname or track.original_filepath }}"
+                        data-track-artist="{% if artists %}{{ artists|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
+                        data-track-artwork="{% if artwork %}{{ url_for('static', filename=artwork) }}{% endif %}"
+                        data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
+                        data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
+                        data-preview-start="{{ track.preview_start if track.preview_start is not none else '' }}"
+                        data-preview-end="{{ track.preview_end if track.preview_end is not none else '' }}"
+                        data-preview-fade-in="{{ 'true' if track.preview_fade_in else 'false' }}"
+                        data-preview-fade-out="{{ 'true' if track.preview_fade_out else 'false' }}"
+                        data-preview-default="{{ 'true' if track.preview_default else 'false' }}"
+                        data-preview-fade-in-seconds="{{ track.preview_fade_in_seconds or 2 }}"
+                        data-preview-fade-out-seconds="{{ track.preview_fade_out_seconds or 2 }}">Play preview</button>
                     <details class="edit-track-menu">
                         <summary class="control-button">Edit track</summary>
                         <div class="edit-track-panel">
@@ -94,12 +128,72 @@
                                     <input id="edit-artists" name="artist_names" value="{{ artists|map(attribute='name')|join(', ') }}" placeholder="Separate multiple artists with commas">
                                 </div>
                                 <div class="edit-field">
+                                    <label for="edit-track-date">Date</label>
+                                    <input id="edit-track-date" name="track_date" type="date" value="{{ track.track_date.isoformat() if track.track_date else '' }}" required>
+                                </div>
+                                <div class="edit-field">
                                     <label for="edit-description">Description</label>
                                     <textarea id="edit-description" name="description">{{ track.description or '' }}</textarea>
                                 </div>
                                 <div class="edit-field">
                                     <label for="edit-tags">Tags</label>
                                     <input id="edit-tags" name="tags" value="{{ track.tags or '' }}" placeholder="Separate tags with commas">
+                                </div>
+                                <div class="edit-field preview-editor">
+                                    <div class="preview-editor-heading">
+                                        <label>Preview</label>
+                                        <span id="preview-editor-duration">Loading audio...</span>
+                                    </div>
+                                    <div class="preview-range" id="preview-range" aria-label="Preview time range">
+                                        <div class="preview-track-line"></div>
+                                        <div class="preview-selection" id="preview-selection" tabindex="0" role="slider" aria-label="Preview selection">
+                                            <span class="preview-handle preview-handle-start" data-handle="start"></span>
+                                            <span class="preview-handle preview-handle-end" data-handle="end"></span>
+                                        </div>
+                                    </div>
+                                    <div class="preview-time-inputs">
+                                        <label for="preview-start">Start
+                                            <input id="preview-start" name="preview_start" type="number" min="0" step="0.1" value="{{ '%.1f'|format(track.preview_start) if track.preview_start is not none else '' }}">
+                                        </label>
+                                        <label for="preview-end">End
+                                            <input id="preview-end" name="preview_end" type="number" min="0" step="0.1" value="{{ '%.1f'|format(track.preview_end) if track.preview_end is not none else '' }}">
+                                        </label>
+                                    </div>
+                                    <div class="preview-fade-options">
+                                        <div class="preview-fade-card">
+                                            <label class="preview-fade-copy" for="preview-default">
+                                                <span>Preview mode</span>
+                                                <small>Use this preview by default in the queue</small>
+                                            </label>
+                                            <input id="preview-default" type="checkbox" name="preview_default" {% if track.preview_default %}checked{% endif %}>
+                                        </div>
+                                        <div class="preview-fade-card">
+                                            <label class="preview-fade-copy" for="preview-fade-in">
+                                                <span>Fade in</span>
+                                                <small>Ease into the preview</small>
+                                            </label>
+                                            <input id="preview-fade-in" type="checkbox" name="preview_fade_in" {% if track.preview_fade_in %}checked{% endif %}>
+                                            <input class="preview-fade-seconds" id="preview-fade-in-seconds" name="preview_fade_in_seconds" type="number" min="0" max="30" step="0.1" value="{{ '%.1f'|format(track.preview_fade_in_seconds or 2) }}" aria-label="Fade in seconds">
+                                            <span>sec</span>
+                                        </div>
+                                        <div class="preview-fade-card">
+                                            <label class="preview-fade-copy" for="preview-fade-out">
+                                                <span>Fade out</span>
+                                                <small>Ease out at the end</small>
+                                            </label>
+                                            <input id="preview-fade-out" type="checkbox" name="preview_fade_out" {% if track.preview_fade_out %}checked{% endif %}>
+                                            <input class="preview-fade-seconds" id="preview-fade-out-seconds" name="preview_fade_out_seconds" type="number" min="0" max="30" step="0.1" value="{{ '%.1f'|format(track.preview_fade_out_seconds or 2) }}" aria-label="Fade out seconds">
+                                            <span>sec</span>
+                                        </div>
+                                    </div>
+                                    <div class="preview-editor-player">
+                                        <button id="preview-editor-play" class="control-button control-primary preview-editor-play" type="button">Play this preview</button>
+                                        <div class="preview-editor-progress-wrap">
+                                            <span id="preview-editor-current">0:00</span>
+                                            <input id="preview-editor-progress" type="range" min="0" max="1000" value="0" aria-label="Preview playback progress">
+                                            <span id="preview-editor-end">0:00</span>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="edit-field">
                                     <label for="photo-upload">Artwork</label>
@@ -216,10 +310,11 @@
                         </div>
                         <div class="related-track-list">
                             {% for related in related_tracks %}
+                            {% set related_artwork = track_artwork_path(related) %}
                             <a class="related-track" href="{{ url_for('track_detail', track_id=related.id) }}">
                                 <div class="related-artwork">
-                                    {% if related.background_image_path %}
-                                    <img src="{{ url_for('static', filename=related.background_image_path) }}" alt="">
+                                    {% if related_artwork %}
+                                    <img src="{{ url_for('static', filename=related_artwork) }}" alt="">
                                     {% else %}
                                     <span aria-hidden="true">♪</span>
                                     {% endif %}
@@ -239,6 +334,7 @@
                         <h2>File details</h2>
                         <dl>
                             <div><dt>Original</dt><dd>{{ track.original_filepath }}</dd></div>
+                            <div><dt>Date</dt><dd>{{ format_track_date(track.track_date) if track.track_date else 'No date set' }}</dd></div>
                             <div><dt>Track ID</dt><dd>{{ track.id }}</dd></div>
                         </dl>
                     </section>
@@ -252,6 +348,15 @@
             streamUrl: {{ url_for('stream_track', track_id=track.id) | tojson }},
             trackId: {{ track.id }},
             trackTitle: {{ (track.nickname or track.original_filepath)|tojson }},
+            preview: {
+                start: {{ track.preview_start | tojson }},
+                end: {{ track.preview_end | tojson }},
+                fadeIn: {{ (track.preview_fade_in or false) | tojson }},
+                fadeOut: {{ (track.preview_fade_out or false) | tojson }},
+                fadeInSeconds: {{ (track.preview_fade_in_seconds or 2) | tojson }},
+                fadeOutSeconds: {{ (track.preview_fade_out_seconds or 2) | tojson }},
+                default: {{ (track.preview_default or false) | tojson }}
+            },
             likeUrl: {{ url_for('like_track', track_id=track.id) | tojson }},
             photoUrl: {{ url_for('update_track_photo', track_id=track.id) | tojson }},
             updateUrl: {{ url_for('update_track', track_id=track.id) | tojson }},

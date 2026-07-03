@@ -32,26 +32,65 @@
         return `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;
     };
 
-    const normalizeTrack = track => ({
-        id: Number(track.id),
-        title: track.title || `Track ${track.id}`,
-        artist: track.artist || 'Unknown artist',
-        artwork: track.artwork || '',
-        url: track.url || `/stream_track/${track.id}`,
-        detailUrl: track.detailUrl || `/track/${track.id}`
+    const normalizePreview = preview => ({
+        start: Number.isFinite(Number(preview?.start)) ? Math.max(0, Number(preview.start)) : 0,
+        end: Number.isFinite(Number(preview?.end)) ? Math.max(0, Number(preview.end)) : null,
+        fadeIn: Boolean(preview?.fadeIn),
+        fadeOut: Boolean(preview?.fadeOut),
+        fadeInSeconds: Number.isFinite(Number(preview?.fadeInSeconds)) ? Math.min(30, Math.max(0, Number(preview.fadeInSeconds))) : 2,
+        fadeOutSeconds: Number.isFinite(Number(preview?.fadeOutSeconds)) ? Math.min(30, Math.max(0, Number(preview.fadeOutSeconds))) : 2
     });
+
+    const normalizeTrack = track => {
+        const preview = normalizePreview(track.preview);
+        const previewOnly = Boolean(track.previewOnly) || Boolean(track.previewDefault);
+        if (previewOnly && preview.end === null) preview.end = preview.start + 30;
+        return {
+            id: Number(track.id),
+            key: `${Number(track.id)}:${previewOnly ? 'preview' : 'full'}`,
+            title: track.title || `Track ${track.id}`,
+            artist: track.artist || 'Unknown artist',
+            artwork: track.artwork || '',
+            url: track.url || `/stream_track/${track.id}`,
+            detailUrl: track.detailUrl || `/track/${track.id}`,
+            preview,
+            previewOnly,
+            previewDefault: Boolean(track.previewDefault)
+        };
+    };
 
     const save = () => {
         clearTimeout(saveTimer);
         saveTimer = setTimeout(() => {
             state.currentTime = audio.currentTime || 0;
             state.playing = !audio.paused;
-            state.volume = audio.volume;
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         }, 80);
     };
 
     const currentTrack = () => state.queue[state.index] || null;
+    const previewEndFor = track => {
+        if (!track?.previewOnly) return null;
+        const end = Number(track.preview?.end);
+        return Number.isFinite(end) && end > track.preview.start ? end : null;
+    };
+    const updatePreviewVolume = () => {
+        const track = currentTrack();
+        if (!track?.previewOnly) {
+            audio.volume = state.volume;
+            return;
+        }
+        const start = Number(track.preview.start) || 0;
+        const end = previewEndFor(track);
+        let multiplier = 1;
+        if (track.preview.fadeIn && track.preview.fadeInSeconds > 0) {
+            multiplier = Math.min(multiplier, Math.max(0, (audio.currentTime - start) / track.preview.fadeInSeconds));
+        }
+        if (track.preview.fadeOut && end && track.preview.fadeOutSeconds > 0) {
+            multiplier = Math.min(multiplier, Math.max(0, (end - audio.currentTime) / track.preview.fadeOutSeconds));
+        }
+        audio.volume = Math.min(1, Math.max(0, state.volume * multiplier));
+    };
     const announce = type => {
         window.dispatchEvent(new CustomEvent('easycoreplayerchange', {
             detail: {
@@ -104,7 +143,7 @@
             const itemTitle = document.createElement('strong');
             itemTitle.textContent = track.title;
             const itemArtist = document.createElement('span');
-            itemArtist.textContent = track.artist;
+            itemArtist.textContent = track.previewOnly ? `${track.artist} - Preview` : track.artist;
             copy.append(itemTitle, itemArtist);
 
             const remove = document.createElement('button');
@@ -126,7 +165,7 @@
         if (!track) return;
         title.textContent = track.title;
         title.href = track.detailUrl;
-        artist.textContent = track.artist;
+        artist.textContent = track.previewOnly ? `${track.artist} - Preview` : track.artist;
         renderArtwork(track);
         toggle.textContent = audio.paused ? '▶' : 'Ⅱ';
         toggle.setAttribute('aria-label', audio.paused ? 'Play' : 'Pause');
@@ -145,10 +184,17 @@
         audio.load();
         audio.addEventListener('loadedmetadata', async function onMetadata() {
             audio.removeEventListener('loadedmetadata', onMetadata);
-            if (position > 0 && Number.isFinite(audio.duration)) {
-                audio.currentTime = Math.min(position, Math.max(0, audio.duration - .25));
+            const previewStart = track.previewOnly ? track.preview.start : 0;
+            const previewEnd = previewEndFor(track);
+            let requestedPosition = position > 0 ? position : previewStart;
+            if (previewEnd && (requestedPosition < previewStart || requestedPosition >= previewEnd)) {
+                requestedPosition = previewStart;
+            }
+            if (Number.isFinite(audio.duration)) {
+                audio.currentTime = Math.min(Math.max(0, requestedPosition), Math.max(0, audio.duration - .25));
             }
             restoring = false;
+            updatePreviewVolume();
             if (autoplay) {
                 try { await audio.play(); } catch (_) { state.playing = false; }
             }
@@ -164,10 +210,13 @@
         const normalized = normalizeTrack(track);
         if (queue?.length) {
             state.queue = queue.map(normalizeTrack);
-            state.index = Math.max(0, state.queue.findIndex(item => item.id === normalized.id));
+            state.index = Math.max(0, state.queue.findIndex(item => item.key === normalized.key));
         } else {
-            const existingIndex = state.queue.findIndex(item => item.id === normalized.id);
+            const existingIndex = state.queue.findIndex(item =>
+                item.id === normalized.id && item.previewOnly === normalized.previewOnly
+            );
             if (existingIndex >= 0) {
+                state.queue[existingIndex] = normalized;
                 state.index = existingIndex;
             } else {
                 state.queue.push(normalized);
@@ -187,7 +236,7 @@
 
     const addToQueue = track => {
         const normalized = normalizeTrack(track);
-        if (!state.queue.some(item => item.id === normalized.id)) state.queue.push(normalized);
+        if (!state.queue.some(item => item.key === normalized.key)) state.queue.push(normalized);
         if (state.index < 0 && state.queue.length) {
             state.index = 0;
             load(0, { autoplay: false, increment: false });
@@ -216,6 +265,16 @@
         load(state.index - 1, { autoplay: true });
     };
 
+    const completeCurrentPlayback = () => {
+        if (state.repeat === 'one') {
+            const track = currentTrack();
+            audio.currentTime = track?.previewOnly ? track.preview.start : 0;
+            audio.play().catch(() => {});
+        } else {
+            next();
+        }
+    };
+
     window.easycorePlayer = {
         playTrack,
         playQueue,
@@ -235,7 +294,7 @@
     document.getElementById('global-player-prev').addEventListener('click', previous);
     document.getElementById('global-player-close').addEventListener('click', () => {
         audio.pause();
-        state = { queue: [], index: -1, currentTime: 0, playing: false, repeat: 'off', volume: audio.volume };
+        state = { queue: [], index: -1, currentTime: 0, playing: false, repeat: 'off', volume: state.volume };
         localStorage.removeItem(STORAGE_KEY);
         queuePanel.hidden = true;
         render();
@@ -287,6 +346,13 @@
     audio.addEventListener('play', () => { render(); announce('play'); save(); });
     audio.addEventListener('pause', () => { render(); announce('pause'); save(); });
     audio.addEventListener('timeupdate', () => {
+        updatePreviewVolume();
+        const track = currentTrack();
+        const previewEnd = previewEndFor(track);
+        if (previewEnd && audio.currentTime >= previewEnd - .05) {
+            completeCurrentPlayback();
+            return;
+        }
         currentTime.textContent = formatTime(audio.currentTime);
         duration.textContent = formatTime(audio.duration);
         progress.value = Number.isFinite(audio.duration) && audio.duration > 0
@@ -296,12 +362,7 @@
         announce('time');
     });
     audio.addEventListener('ended', () => {
-        if (state.repeat === 'one') {
-            audio.currentTime = 0;
-            audio.play().catch(() => {});
-        } else {
-            next();
-        }
+        completeCurrentPlayback();
     });
     window.addEventListener('pagehide', () => {
         state.currentTime = audio.currentTime || 0;
@@ -319,7 +380,17 @@
             artist: trigger.dataset.trackArtist,
             artwork: trigger.dataset.trackArtwork,
             url: trigger.dataset.trackUrl,
-            detailUrl: trigger.dataset.trackDetailUrl
+            detailUrl: trigger.dataset.trackDetailUrl,
+            previewOnly: trigger.dataset.previewOnly === 'true',
+            previewDefault: trigger.dataset.previewDefault === 'true',
+            preview: {
+                start: trigger.dataset.previewStart,
+                end: trigger.dataset.previewEnd,
+                fadeIn: trigger.dataset.previewFadeIn === 'true',
+                fadeOut: trigger.dataset.previewFadeOut === 'true',
+                fadeInSeconds: trigger.dataset.previewFadeInSeconds,
+                fadeOutSeconds: trigger.dataset.previewFadeOutSeconds
+            }
         };
         if (trigger.dataset.queue === 'add') {
             addToQueue(track);

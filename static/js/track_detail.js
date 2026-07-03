@@ -17,6 +17,227 @@
         return `${minutes}:${remaining}`;
     };
 
+    const previewStartInput = document.getElementById('preview-start');
+    const previewEndInput = document.getElementById('preview-end');
+    const previewRange = document.getElementById('preview-range');
+    const previewSelection = document.getElementById('preview-selection');
+    const previewDuration = document.getElementById('preview-editor-duration');
+    const previewEditorPlay = document.getElementById('preview-editor-play');
+    const previewEditorProgress = document.getElementById('preview-editor-progress');
+    const previewEditorCurrent = document.getElementById('preview-editor-current');
+    const previewEditorEnd = document.getElementById('preview-editor-end');
+    const previewEditorAudio = new Audio(config.streamUrl);
+    const fadeInInput = document.querySelector('[name="preview_fade_in"]');
+    const fadeOutInput = document.querySelector('[name="preview_fade_out"]');
+    const fadeInSecondsInput = document.getElementById('preview-fade-in-seconds');
+    const fadeOutSecondsInput = document.getElementById('preview-fade-out-seconds');
+    const previewDefaultInput = document.querySelector('[name="preview_default"]');
+    let audioDuration = 0;
+    let previewDrag = null;
+
+    const getPreviewStart = () => Math.max(0, Number(previewStartInput.value) || 0);
+    const getPreviewEnd = () => {
+        const fallbackEnd = audioDuration ? Math.min(audioDuration, getPreviewStart() + 30) : getPreviewStart() + 30;
+        return Math.max(getPreviewStart() + .1, Number(previewEndInput.value) || fallbackEnd);
+    };
+    const clampPreview = (start, end) => {
+        const max = audioDuration || Math.max(end, 30);
+        const safeStart = Math.min(Math.max(0, start), Math.max(0, max - .1));
+        const safeEnd = Math.min(Math.max(safeStart + .1, end), max);
+        return [Number(safeStart.toFixed(1)), Number(safeEnd.toFixed(1))];
+    };
+    const setPreviewValues = (start, end) => {
+        const [safeStart, safeEnd] = clampPreview(start, end);
+        previewStartInput.value = safeStart.toFixed(1);
+        previewEndInput.value = safeEnd.toFixed(1);
+        renderPreviewSelection();
+        syncPreviewDataAttributes();
+        renderPreviewEditorPlayer();
+    };
+    const syncPreviewDataAttributes = () => {
+        const start = previewStartInput.value;
+        const end = previewEndInput.value;
+        const fadeIn = String(Boolean(fadeInInput?.checked));
+        const fadeOut = String(Boolean(fadeOutInput?.checked));
+        const previewDefault = String(Boolean(previewDefaultInput?.checked));
+        const fadeInSeconds = String(getFadeSeconds('in'));
+        const fadeOutSeconds = String(getFadeSeconds('out'));
+        document.querySelectorAll('[data-track-id]').forEach(trigger => {
+            if (Number(trigger.dataset.trackId) !== Number(config.trackId)) return;
+            trigger.dataset.previewStart = start;
+            trigger.dataset.previewEnd = end;
+            trigger.dataset.previewFadeIn = fadeIn;
+            trigger.dataset.previewFadeOut = fadeOut;
+            trigger.dataset.previewDefault = previewDefault;
+            trigger.dataset.previewFadeInSeconds = fadeInSeconds;
+            trigger.dataset.previewFadeOutSeconds = fadeOutSeconds;
+        });
+    };
+    const renderPreviewSelection = () => {
+        if (!previewRange || !previewSelection) return;
+        const max = audioDuration || Math.max(getPreviewEnd(), 30);
+        const startPercent = (getPreviewStart() / max) * 100;
+        const endPercent = (getPreviewEnd() / max) * 100;
+        previewSelection.style.left = `${Math.min(99, Math.max(0, startPercent))}%`;
+        previewSelection.style.width = `${Math.max(1, Math.min(100, endPercent) - startPercent)}%`;
+        previewSelection.setAttribute('aria-valuemin', '0');
+        previewSelection.setAttribute('aria-valuemax', String(Math.round(max)));
+        previewSelection.setAttribute('aria-valuenow', String(getPreviewStart()));
+        previewSelection.title = `${formatTime(getPreviewStart())} - ${formatTime(getPreviewEnd())}`;
+    };
+
+    function getPreviewLength() {
+        return Math.max(.1, getPreviewEnd() - getPreviewStart());
+    }
+
+    function getFadeSeconds(kind) {
+        const input = kind === 'in' ? fadeInSecondsInput : fadeOutSecondsInput;
+        const value = Number(input?.value);
+        return Number.isFinite(value) ? Math.min(30, Math.max(0, value)) : 2;
+    }
+
+    function applyPreviewEditorFade() {
+        const start = getPreviewStart();
+        const end = getPreviewEnd();
+        let multiplier = 1;
+        const fadeInSeconds = getFadeSeconds('in');
+        const fadeOutSeconds = getFadeSeconds('out');
+        if (fadeInInput?.checked && fadeInSeconds > 0) {
+            multiplier = Math.min(multiplier, Math.max(0, (previewEditorAudio.currentTime - start) / fadeInSeconds));
+        }
+        if (fadeOutInput?.checked && fadeOutSeconds > 0) {
+            multiplier = Math.min(multiplier, Math.max(0, (end - previewEditorAudio.currentTime) / fadeOutSeconds));
+        }
+        previewEditorAudio.volume = Math.min(1, Math.max(0, multiplier));
+    }
+
+    function renderPreviewEditorPlayer() {
+        const start = getPreviewStart();
+        const end = getPreviewEnd();
+        const length = getPreviewLength();
+        const current = Math.min(Math.max(previewEditorAudio.currentTime || start, start), end);
+        const relative = Math.min(length, Math.max(0, current - start));
+        previewEditorCurrent.textContent = formatTime(relative);
+        previewEditorEnd.textContent = formatTime(length);
+        previewEditorProgress.value = Math.round((relative / length) * 1000);
+        previewEditorPlay.textContent = previewEditorAudio.paused ? 'Play this preview' : 'Pause preview';
+    }
+
+    async function playPreviewEditor() {
+        syncPreviewDataAttributes();
+        const playerState = window.easycorePlayer?.getState?.();
+        if (playerState?.playing) window.easycorePlayer.toggle();
+
+        const start = getPreviewStart();
+        const end = getPreviewEnd();
+        if (previewEditorAudio.paused || previewEditorAudio.currentTime < start || previewEditorAudio.currentTime >= end) {
+            previewEditorAudio.currentTime = start;
+            applyPreviewEditorFade();
+            try {
+                await previewEditorAudio.play();
+            } catch (_) {}
+        } else {
+            previewEditorAudio.pause();
+        }
+        renderPreviewEditorPlayer();
+    }
+
+    const initializePreviewEditor = () => {
+        previewEditorAudio.preload = 'metadata';
+        previewEditorAudio.addEventListener('loadedmetadata', () => {
+            audioDuration = Number.isFinite(previewEditorAudio.duration) ? previewEditorAudio.duration : 0;
+            previewDuration.textContent = audioDuration ? `Duration ${formatTime(audioDuration)}` : 'Duration unavailable';
+            if (!previewStartInput.value && !previewEndInput.value) {
+                setPreviewValues(0, Math.min(audioDuration || 30, 30));
+            } else {
+                setPreviewValues(getPreviewStart(), getPreviewEnd());
+            }
+        });
+        previewEditorAudio.addEventListener('error', () => {
+            previewDuration.textContent = 'Duration unavailable';
+            if (!previewEndInput.value) setPreviewValues(0, 30);
+        });
+        renderPreviewEditorPlayer();
+    };
+
+    const positionToSeconds = clientX => {
+        const rect = previewRange.getBoundingClientRect();
+        const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+        return ratio * (audioDuration || Math.max(getPreviewEnd(), 30));
+    };
+
+    previewStartInput.addEventListener('input', () => setPreviewValues(getPreviewStart(), getPreviewEnd()));
+    previewEndInput.addEventListener('input', () => setPreviewValues(getPreviewStart(), getPreviewEnd()));
+    document.querySelectorAll('[name="preview_fade_in"], [name="preview_fade_out"], [name="preview_fade_in_seconds"], [name="preview_fade_out_seconds"], [name="preview_default"]').forEach(input => {
+        input.addEventListener('change', () => {
+            syncPreviewDataAttributes();
+            applyPreviewEditorFade();
+        });
+        input.addEventListener('input', () => {
+            syncPreviewDataAttributes();
+            applyPreviewEditorFade();
+        });
+    });
+    previewEditorPlay.addEventListener('click', playPreviewEditor);
+    previewEditorProgress.addEventListener('input', () => {
+        previewEditorAudio.currentTime = getPreviewStart() + (Number(previewEditorProgress.value) / 1000) * getPreviewLength();
+        applyPreviewEditorFade();
+        renderPreviewEditorPlayer();
+    });
+    previewEditorAudio.addEventListener('play', renderPreviewEditorPlayer);
+    previewEditorAudio.addEventListener('pause', renderPreviewEditorPlayer);
+    previewEditorAudio.addEventListener('timeupdate', () => {
+        if (previewEditorAudio.currentTime >= getPreviewEnd() - .05) {
+            previewEditorAudio.pause();
+            previewEditorAudio.currentTime = getPreviewEnd();
+        }
+        applyPreviewEditorFade();
+        renderPreviewEditorPlayer();
+    });
+
+    previewRange.addEventListener('pointerdown', event => {
+        const handle = event.target.closest('[data-handle]')?.dataset.handle;
+        const start = getPreviewStart();
+        const end = getPreviewEnd();
+        previewDrag = {
+            mode: handle || (event.target.closest('#preview-selection') ? 'move' : 'create'),
+            start,
+            end,
+            offset: positionToSeconds(event.clientX)
+        };
+        previewSelection.classList.add('is-dragging');
+        previewRange.setPointerCapture(event.pointerId);
+        if (previewDrag.mode === 'create') {
+            const point = positionToSeconds(event.clientX);
+            setPreviewValues(point, point + Math.min(15, audioDuration || 15));
+        }
+    });
+
+    previewRange.addEventListener('pointermove', event => {
+        if (!previewDrag) return;
+        const point = positionToSeconds(event.clientX);
+        const length = previewDrag.end - previewDrag.start;
+        if (previewDrag.mode === 'start') setPreviewValues(point, getPreviewEnd());
+        if (previewDrag.mode === 'end') setPreviewValues(getPreviewStart(), point);
+        if (previewDrag.mode === 'move') {
+            const delta = point - previewDrag.offset;
+            setPreviewValues(previewDrag.start + delta, previewDrag.start + delta + length);
+        }
+        if (previewDrag.mode === 'create') {
+            setPreviewValues(Math.min(previewDrag.offset, point), Math.max(previewDrag.offset, point));
+        }
+    });
+
+    const endPreviewDrag = event => {
+        if (!previewDrag) return;
+        previewDrag = null;
+        previewSelection.classList.remove('is-dragging');
+        if (previewRange.hasPointerCapture(event.pointerId)) previewRange.releasePointerCapture(event.pointerId);
+    };
+    previewRange.addEventListener('pointerup', endPreviewDrag);
+    previewRange.addEventListener('pointercancel', endPreviewDrag);
+    initializePreviewEditor();
+
     const syncPlayButton = playing => {
         playIcon.textContent = playing ? 'Ⅱ' : '▶';
         playButton.setAttribute('aria-label', playing ? 'Pause track' : 'Play track');
@@ -112,6 +333,11 @@
 
         document.getElementById('track-title').textContent = data.track.title;
         document.title = `${data.track.title} - easycore`;
+        const trackDate = document.getElementById('track-date');
+        if (trackDate) {
+            trackDate.dateTime = data.track.date || '';
+            trackDate.textContent = data.track.dateDisplay || 'No date set';
+        }
         document.getElementById('track-description').textContent =
             data.track.description || 'No description has been added yet.';
 
@@ -139,6 +365,7 @@
         });
 
         editStatus.textContent = 'Changes saved.';
+        syncPreviewDataAttributes();
     });
 
     const buildComment = comment => {

@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, date
 
 db = SQLAlchemy()
 
@@ -69,9 +69,17 @@ class Track(db.Model):
     original_filepath = db.Column(db.String(255), nullable=False)
     stored_filepath = db.Column(db.String(255), nullable=False)
     nickname = db.Column(db.String(100))
+    track_date = db.Column(db.Date, default=lambda: date.today())
     description = db.Column(db.Text)
     tags = db.Column(db.String(255))
     background_image_path = db.Column(db.String(255))
+    preview_start = db.Column(db.Float, nullable=True)
+    preview_end = db.Column(db.Float, nullable=True)
+    preview_fade_in = db.Column(db.Boolean, default=False)
+    preview_fade_out = db.Column(db.Boolean, default=False)
+    preview_fade_in_seconds = db.Column(db.Float, default=2.0)
+    preview_fade_out_seconds = db.Column(db.Float, default=2.0)
+    preview_default = db.Column(db.Boolean, default=False)
     view_count = db.Column(db.Integer, default=0)
     likes = db.Column(db.Integer, default=0)
     artists = db.relationship('Artist', secondary='track_artist', back_populates='tracks')

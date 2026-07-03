@@ -233,7 +233,11 @@ def add_video():
                     seen_tags.add(tag.lower())
                     processed_tags.append(tag)
     
-    return render_template('add.html', recent_tags=processed_tags[:20])
+    return render_template(
+        'add.html',
+        recent_tags=processed_tags[:20],
+        current_track_date=datetime.now().date().isoformat(),
+    )
 
 @video_bp.route('/<int:video_id>')
 def video_detail(video_id):

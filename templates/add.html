@@ -47,6 +47,10 @@
                                 <label class="upload-label" for="artist-name">Artist</label>
                                 <input class="upload-control" type="text" name="artist_name" id="artist-name" placeholder="Artist name">
                             </div>
+                            <div class="upload-field conditional-section" id="track-date-field" hidden>
+                                <label class="upload-label" for="track-date">Date</label>
+                                <input class="upload-control" type="date" name="track_date" id="track-date" value="{{ current_track_date }}">
+                            </div>
                         </div>
 
                         <div class="upload-field conditional-section" id="cover-field" hidden>
@@ -115,6 +119,7 @@
         const detectedType = document.getElementById('detected-type');
         const detailsSection = document.getElementById('details-section');
         const artistField = document.getElementById('artist-field');
+        const trackDateField = document.getElementById('track-date-field');
         const coverField = document.getElementById('cover-field');
         const tagInput = document.getElementById('tag-input');
         const tagContainer = document.getElementById('tag-input-container');
@@ -143,6 +148,7 @@
             fileName.textContent = file?.name || '';
             detailsSection.hidden = !contentType;
             artistField.hidden = contentType !== 'track';
+            trackDateField.hidden = contentType !== 'track';
             coverField.hidden = contentType !== 'track';
             submitButton.disabled = !contentType;
             detectedType.classList.toggle('is-visible', Boolean(contentType));

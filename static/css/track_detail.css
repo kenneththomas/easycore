@@ -156,6 +156,14 @@
 
 .track-artists-line a:hover { text-decoration: underline; }
 
+.track-date-line {
+    display: block;
+    margin-top: 8px;
+    color: rgba(255,255,255,.66);
+    font-size: .82rem;
+    font-weight: 650;
+}
+
 .waveform-wrap {
     margin-top: 50px;
     padding: 12px 14px 7px;
@@ -306,6 +314,197 @@
     max-height: 150px;
     object-fit: cover;
     border-radius: 8px;
+}
+
+.preview-editor {
+    padding: 12px;
+    background: var(--color-surface-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.preview-editor-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: baseline;
+}
+
+.preview-editor-heading span {
+    color: var(--color-muted);
+    font-size: .7rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.preview-range {
+    position: relative;
+    height: 58px;
+    margin-top: 8px;
+    overflow: hidden;
+    background:
+        linear-gradient(90deg, rgba(255,90,31,.22) 1px, transparent 1px) 0 0 / 12px 100%,
+        linear-gradient(180deg, #fff, #f1f2f5);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 6px;
+    cursor: crosshair;
+}
+
+.preview-track-line {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    left: 8px;
+    height: 2px;
+    background: #c4c8d1;
+    transform: translateY(-50%);
+}
+
+.preview-selection {
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    min-width: 18px;
+    background: rgba(255,90,31,.24);
+    border: 2px solid var(--track-accent);
+    border-radius: 5px;
+    cursor: grab;
+}
+
+.preview-selection:focus {
+    outline: 2px solid rgba(255,90,31,.35);
+    outline-offset: 2px;
+}
+
+.preview-selection.is-dragging { cursor: grabbing; }
+
+.preview-handle {
+    position: absolute;
+    top: 50%;
+    width: 12px;
+    height: 26px;
+    background: white;
+    border: 2px solid var(--track-accent);
+    border-radius: 999px;
+    transform: translateY(-50%);
+    cursor: ew-resize;
+}
+
+.preview-handle-start { left: -7px; }
+.preview-handle-end { right: -7px; }
+
+.preview-time-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 9px;
+}
+
+.preview-time-inputs label {
+    color: var(--color-muted);
+    font-size: .72rem;
+    font-weight: 700;
+}
+
+.preview-time-inputs input {
+    margin-top: 5px;
+}
+
+.preview-fade-options {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.preview-fade-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto 72px auto;
+    gap: 9px;
+    align-items: center;
+    min-height: 50px;
+    padding: 9px 10px;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: 7px;
+}
+
+.preview-fade-card:focus-within {
+    border-color: rgba(255,90,31,.58);
+    box-shadow: 0 0 0 3px rgba(255,90,31,.12);
+}
+
+.preview-fade-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.preview-fade-copy span {
+    color: var(--color-heading);
+    font-size: .76rem;
+    font-weight: 760;
+}
+
+.preview-fade-copy small {
+    overflow: hidden;
+    color: var(--color-muted);
+    font-size: .66rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.preview-fade-card > input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--track-accent);
+}
+
+.preview-fade-seconds {
+    min-height: 32px;
+    padding: 6px 7px;
+    color: var(--color-heading);
+    background: var(--color-surface-subtle);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 6px;
+    font-size: .76rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.preview-fade-card > span:last-child {
+    color: var(--color-muted);
+    font-size: .68rem;
+    font-weight: 700;
+}
+
+.preview-editor-player {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.preview-editor-play {
+    justify-content: center;
+    width: 100%;
+}
+
+.preview-editor-progress-wrap {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    gap: 8px;
+    align-items: center;
+    color: var(--color-muted);
+    font-size: .66rem;
+    font-variant-numeric: tabular-nums;
+}
+
+#preview-editor-progress {
+    width: 100%;
+    height: 4px;
+    margin: 0;
+    padding: 0;
+    accent-color: var(--track-accent);
+    cursor: pointer;
 }
 
 .edit-actions {

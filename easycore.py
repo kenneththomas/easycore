@@ -1,13 +1,13 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, Response, make_response
 import os
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, text
 import re
 from werkzeug.utils import secure_filename
 import ffmpeg
 from PIL import Image
 import io
 from werkzeug.datastructures import FileStorage
-from datetime import datetime
+from datetime import datetime, date
 import uuid
 import random
 import string
@@ -89,8 +89,38 @@ def get_or_create_artist_by_name(artist_name: str) -> Artist:
     
     return artist
 
+def track_artwork_path(track: Track, artists=None) -> str:
+    if not track:
+        return ''
+    if track.background_image_path:
+        return track.background_image_path
+
+    artist_list = artists if artists is not None else getattr(track, 'artists', [])
+    for artist in artist_list or []:
+        if artist and artist.avatar_path:
+            return artist.avatar_path
+    return ''
+
+def current_track_date():
+    return date.today()
+
+def parse_track_date(raw_value):
+    if not raw_value:
+        return current_track_date()
+    try:
+        return datetime.strptime(raw_value, '%Y-%m-%d').date()
+    except ValueError as exc:
+        raise ValueError("track_date") from exc
+
+def format_track_date(track_date):
+    if not track_date:
+        return ''
+    return track_date.strftime('%B %d, %Y')
+
 # Expose slugify to templates
 app.jinja_env.filters['slugify'] = slugify_author
+app.jinja_env.globals['track_artwork_path'] = track_artwork_path
+app.jinja_env.globals['format_track_date'] = format_track_date
 
 @app.route('/artist/<artist_name>')
 def artist_by_name(artist_name: str):
@@ -198,6 +228,40 @@ def get_mime_type_for_audio(file_path):
     if ext in ['.m4a', '.mp4', '.aac']:
         return 'audio/mp4'
     return 'application/octet-stream'
+
+_track_preview_schema_checked = False
+
+def ensure_track_preview_columns():
+    global _track_preview_schema_checked
+    if _track_preview_schema_checked:
+        return
+
+    existing_columns = {
+        row[1] for row in db.session.execute(text("PRAGMA table_info(track)")).fetchall()
+    }
+    columns = {
+        'track_date': 'DATE',
+        'preview_start': 'FLOAT',
+        'preview_end': 'FLOAT',
+        'preview_fade_in': 'BOOLEAN DEFAULT 0',
+        'preview_fade_out': 'BOOLEAN DEFAULT 0',
+        'preview_fade_in_seconds': 'FLOAT DEFAULT 2.0',
+        'preview_fade_out_seconds': 'FLOAT DEFAULT 2.0',
+        'preview_default': 'BOOLEAN DEFAULT 0',
+    }
+    for column_name, column_type in columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(f"ALTER TABLE track ADD COLUMN {column_name} {column_type}"))
+    db.session.execute(
+        text("UPDATE track SET track_date = :today WHERE track_date IS NULL OR track_date = ''"),
+        {"today": current_track_date().isoformat()},
+    )
+    db.session.commit()
+    _track_preview_schema_checked = True
+
+@app.before_request
+def ensure_track_preview_schema_before_request():
+    ensure_track_preview_columns()
 
 def get_related_tracks(current_track, limit=8):
     if not current_track.tags:
@@ -469,6 +533,7 @@ def add_track():
         background = request.files.get('background')
         nickname = request.form.get('nickname')
         artist_name = request.form.get('artist_name', '').strip()
+        track_date_raw = request.form.get('track_date', '').strip()
         description = request.form.get('description')
         tags = request.form.get('tags')
         stealth = request.form.get('stealth') == 'on'
@@ -481,6 +546,10 @@ def add_track():
         allowed_audio_exts = ['.mp3', '.wav', '.ogg', '.oga', '.flac', '.m4a', '.aac']
         if original_extension not in allowed_audio_exts:
             return jsonify({"error": "Unsupported audio format"}), 400
+        try:
+            track_date = parse_track_date(track_date_raw)
+        except ValueError:
+            return jsonify({"error": "Date must use YYYY-MM-DD format."}), 400
 
         base_filename = secure_filename((nickname or os.path.splitext(original_filepath)[0]) + original_extension)
         upload_folder = app.config['STEALTH_AUDIO_UPLOAD_FOLDER'] if stealth else app.config['AUDIO_UPLOAD_FOLDER']
@@ -505,6 +574,7 @@ def add_track():
                 original_filepath=original_filepath,
                 stored_filepath=stored_filepath,
                 nickname=nickname,
+                track_date=track_date,
                 description=description,
                 tags=tags,
                 background_image_path=relative_cover_path,
@@ -512,6 +582,7 @@ def add_track():
                 likes=0,
             )
             db.session.add(new_track)
+            db.session.flush()
             # Optional artist association (create if missing)
             if artist_name:
                 artist = Artist.query.filter(Artist.name.ilike(artist_name)).first()
@@ -626,6 +697,11 @@ def update_track(track_id):
     title = request.form.get('nickname', '').strip()
     description = request.form.get('description', '').strip()
     tags = request.form.get('tags', '').strip()
+    preview_start_raw = request.form.get('preview_start', '').strip()
+    preview_end_raw = request.form.get('preview_end', '').strip()
+    track_date_raw = request.form.get('track_date', '').strip()
+    preview_fade_in_seconds_raw = request.form.get('preview_fade_in_seconds', '').strip()
+    preview_fade_out_seconds_raw = request.form.get('preview_fade_out_seconds', '').strip()
     artist_names = [
         name.strip() for name in request.form.get('artist_names', '').split(',')
         if name.strip()
@@ -634,10 +710,39 @@ def update_track(track_id):
     if not title:
         return jsonify({"error": "Track title is required"}), 400
 
+    def parse_preview_time(raw_value):
+        if raw_value == '':
+            return None
+        value = float(raw_value)
+        if value < 0:
+            value = 0
+        return round(value, 3)
+
+    def parse_fade_seconds(raw_value):
+        if raw_value == '':
+            return 2.0
+        value = float(raw_value)
+        return round(min(30, max(0, value)), 2)
+
     try:
+        preview_start = parse_preview_time(preview_start_raw)
+        preview_end = parse_preview_time(preview_end_raw)
+        preview_fade_in_seconds = parse_fade_seconds(preview_fade_in_seconds_raw)
+        preview_fade_out_seconds = parse_fade_seconds(preview_fade_out_seconds_raw)
+        if preview_start is not None and preview_end is not None and preview_end <= preview_start:
+            return jsonify({"error": "Preview end must be after preview start."}), 400
+
         track.nickname = title
+        track.track_date = parse_track_date(track_date_raw)
         track.description = description
         track.tags = tags
+        track.preview_start = preview_start
+        track.preview_end = preview_end
+        track.preview_fade_in = request.form.get('preview_fade_in') == 'on'
+        track.preview_fade_out = request.form.get('preview_fade_out') == 'on'
+        track.preview_fade_in_seconds = preview_fade_in_seconds
+        track.preview_fade_out_seconds = preview_fade_out_seconds
+        track.preview_default = request.form.get('preview_default') == 'on'
 
         TrackArtist.query.filter_by(track_id=track.id).delete()
         artists = []
@@ -652,11 +757,25 @@ def update_track(track_id):
             "success": True,
             "track": {
                 "title": track.nickname,
+                "date": track.track_date.isoformat() if track.track_date else '',
+                "dateDisplay": format_track_date(track.track_date),
                 "description": track.description,
                 "tags": [tag.strip() for tag in track.tags.split(',') if tag.strip()],
-                "artists": artists
+                "artists": artists,
+                "preview": {
+                    "start": track.preview_start,
+                    "end": track.preview_end,
+                    "fadeIn": bool(track.preview_fade_in),
+                    "fadeOut": bool(track.preview_fade_out),
+                    "fadeInSeconds": track.preview_fade_in_seconds or 2,
+                    "fadeOutSeconds": track.preview_fade_out_seconds or 2,
+                    "default": bool(track.preview_default)
+                }
             }
         })
+    except ValueError as e:
+        message = "Date must use YYYY-MM-DD format." if str(e) == "track_date" else "Preview times must be numbers."
+        return jsonify({"error": message}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -1104,13 +1223,19 @@ def filter_videos():
     # Calculate total pages
     total_items = len(combined_content)
     total_pages = (total_items + per_page - 1) // per_page
+
+    track_artists = {}
+    for item in paginated_content:
+        if item['type'] == 'track':
+            track_artists[item['id']] = db.session.query(Artist).join(TrackArtist).filter(TrackArtist.track_id == item['id']).all()
     
     return render_template('index.html', 
                          content=paginated_content, 
                          page=page, 
                          total_pages=total_pages,
                          tag=tag,
-                         sort_by=sort_by)
+                         sort_by=sort_by,
+                         track_artists=track_artists)
 
 @app.route('/delete/<int:video_id>', methods=['POST'])
 def delete_video(video_id):
@@ -2260,4 +2385,5 @@ if __name__ == '__main__':
     with app.app_context():
         ensure_directories_exist()
         db.create_all()
+        ensure_track_preview_columns()
     app.run("0.0.0.0", 5015, debug=True)
