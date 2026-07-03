@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-v4-pro")
-DEFAULT_SITE_TITLE = "EasyCore"
+DEFAULT_SITE_TITLE = "easycore"
 REQUEST_TIMEOUT_SECONDS = 60
 
 

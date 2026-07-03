@@ -4,7 +4,7 @@ Guidance for coding agents working in this repository.
 
 ## Project Overview
 
-EasyCore is a local Flask media library. It manages videos, audio tracks, artists, playlists, tags, comments, likes, generated thumbnails, and optional AI-generated comments.
+easycore is a local Flask media library. It manages videos, audio tracks, artists, playlists, tags, comments, likes, generated thumbnails, and optional AI-generated comments.
 
 The app is intentionally simple: a Flask server, SQLite database, local upload folders, Jinja templates, and static CSS/JavaScript.
 

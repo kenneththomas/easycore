@@ -1,6 +1,6 @@
-# EasyCore
+# easycore
 
-EasyCore is a local Flask media library for organizing videos, tracks, artists, playlists, tags, comments, likes, and generated thumbnails. It stores metadata in SQLite and keeps uploaded media files in local folders.
+easycore is a local Flask media library for organizing videos, tracks, artists, playlists, tags, comments, likes, and generated thumbnails. It stores metadata in SQLite and keeps uploaded media files in local folders.
 
 ## Features
 
@@ -85,7 +85,7 @@ Optional overrides:
 
 ```powershell
 $env:OPENROUTER_MODEL = "deepseek/deepseek-v4-pro"
-$env:OPENROUTER_SITE_NAME = "EasyCore"
+$env:OPENROUTER_SITE_NAME = "easycore"
 $env:OPENROUTER_SITE_URL = "http://127.0.0.1:5015"
 ```
 

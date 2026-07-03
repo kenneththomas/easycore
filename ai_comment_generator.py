@@ -1,6 +1,6 @@
 """
 AI Comment Generator Module
-Builds EasyCore music-social prompts for AI-generated comments.
+Builds easycore music-social prompts for AI-generated comments.
 """
 
 import logging

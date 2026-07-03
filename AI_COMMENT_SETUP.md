@@ -26,7 +26,7 @@ Optional settings:
 
 ```bash
 export OPENROUTER_MODEL=deepseek/deepseek-v4-pro
-export OPENROUTER_SITE_NAME=EasyCore
+export OPENROUTER_SITE_NAME=easycore
 export OPENROUTER_SITE_URL=http://127.0.0.1:5015
 ```
 
