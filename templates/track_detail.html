@@ -260,6 +260,13 @@
                                 <details class="ai-comment-menu">
                                     <summary class="control-button control-quiet">AI assist</summary>
                                     <div class="ai-comment-panel">
+                                        <label for="ai-persona">Listener</label>
+                                        <select id="ai-persona">
+                                            <option value="random">Random listener</option>
+                                            {% for persona in ai_personas %}
+                                            <option value="{{ persona.id }}">{{ persona.display_name }}</option>
+                                            {% endfor %}
+                                        </select>
                                         <label for="ai-style">Comment style</label>
                                         <select id="ai-style">
                                             <option value="general">General fan comment</option>
@@ -271,7 +278,10 @@
                                             <option value="custom">Custom prompt</option>
                                         </select>
                                         <textarea id="custom-prompt" placeholder="Describe the comment you want" hidden></textarea>
-                                        <button id="generate-comment" class="button button-secondary" type="button">Generate</button>
+                                        <div class="ai-action-row">
+                                            <button id="generate-comment" class="button button-secondary" type="button">Draft</button>
+                                            <button id="post-ai-comment" class="button button-secondary" type="button">Post as listener</button>
+                                        </div>
                                     </div>
                                 </details>
                                 <button class="control-button control-primary" type="submit">Post comment</button>

@@ -230,6 +230,7 @@ def get_mime_type_for_audio(file_path):
     return 'application/octet-stream'
 
 _track_preview_schema_checked = False
+_author_profile_schema_checked = False
 
 def ensure_track_preview_columns():
     global _track_preview_schema_checked
@@ -259,9 +260,131 @@ def ensure_track_preview_columns():
     db.session.commit()
     _track_preview_schema_checked = True
 
+DEFAULT_AI_PERSONAS = [
+    {
+        "slug": "maya-vale",
+        "display_name": "Maya Vale",
+        "bio": "Keeps a private playlist for songs that sound like driving home after midnight.",
+        "personality": "Warm, observant, emotionally direct, notices atmosphere before theory.",
+        "taste_profile": "dream pop, alt R&B, soft synths, intimate vocals, late-night demos",
+        "comment_style": "short, sincere, and image-rich",
+        "activity_level": "high",
+    },
+    {
+        "slug": "nico-thread",
+        "display_name": "Nico Thread",
+        "bio": "Production nerd who hears compression choices before the chorus lands.",
+        "personality": "Analytical but friendly, excited by texture, drums, mix depth, and arrangement choices.",
+        "taste_profile": "left-field pop, electronic, indie rock, detailed percussion, weird bridges",
+        "comment_style": "specific production notes with casual enthusiasm",
+        "activity_level": "medium",
+    },
+    {
+        "slug": "jules-parker",
+        "display_name": "Jules Parker",
+        "bio": "Always looking for songs that feel handmade instead of polished flat.",
+        "personality": "Supportive, poetic, a little nostalgic, drawn to rough edges.",
+        "taste_profile": "lo-fi, folk, bedroom pop, tape hiss, voice memos, acoustic layers",
+        "comment_style": "gentle, personal, and reflective",
+        "activity_level": "medium",
+    },
+    {
+        "slug": "ren-kline",
+        "display_name": "Ren Kline",
+        "bio": "Playlist maker with strong opinions and a soft spot for hooks that sneak up late.",
+        "personality": "Curious, concise, mildly critical, notices structure and replay value.",
+        "taste_profile": "hooks, momentum, genre blends, tracks that fit nighttime playlists",
+        "comment_style": "balanced mini-review",
+        "activity_level": "high",
+    },
+    {
+        "slug": "sasha-mori",
+        "display_name": "Sasha Mori",
+        "bio": "Comments when a song hits a feeling they cannot quite name.",
+        "personality": "Emotion-first listener, understated, vulnerable, rarely uses technical language.",
+        "taste_profile": "melancholy pop, ambient moments, emotional vocals, slow builds",
+        "comment_style": "brief emotional reaction",
+        "activity_level": "low",
+    },
+    {
+        "slug": "cal-ventura",
+        "display_name": "Cal Ventura",
+        "bio": "The friend who sends one-line comments but actually listens three times.",
+        "personality": "Casual, funny, direct, mostly reacts to the part that grabbed them.",
+        "taste_profile": "catchy basslines, memorable phrases, confident drums, repeatable hooks",
+        "comment_style": "short casual comment",
+        "activity_level": "medium",
+    },
+    {
+        "slug": "imani-cross",
+        "display_name": "Imani Cross",
+        "bio": "Underground-scene lifer who loves when a song sounds like it came from somewhere specific.",
+        "personality": "Tasteful, scene-aware, a little hard to impress, generous when something feels real.",
+        "taste_profile": "local scenes, post-punk, experimental pop, rough mixes, distinctive identities",
+        "comment_style": "cool-headed but complimentary",
+        "activity_level": "medium",
+    },
+    {
+        "slug": "eli-sun",
+        "display_name": "Eli Sun",
+        "bio": "Finds the bright part in almost every song.",
+        "personality": "Enthusiastic, kind, excitable, focuses on melodies and moments that feel good.",
+        "taste_profile": "sunny choruses, warm chords, danceable pockets, hopeful lyrics",
+        "comment_style": "upbeat fan reaction",
+        "activity_level": "high",
+    },
+]
+
+
+def ensure_author_profile_persona_columns():
+    global _author_profile_schema_checked
+    if _author_profile_schema_checked:
+        return
+
+    existing_columns = {
+        row[1] for row in db.session.execute(text("PRAGMA table_info(author_profile)")).fetchall()
+    }
+    columns = {
+        'is_ai_persona': 'BOOLEAN DEFAULT 0',
+        'personality': 'TEXT',
+        'taste_profile': 'TEXT',
+        'comment_style': 'VARCHAR(100)',
+        'activity_level': 'VARCHAR(50)',
+    }
+    for column_name, column_type in columns.items():
+        if column_name not in existing_columns:
+            db.session.execute(text(f"ALTER TABLE author_profile ADD COLUMN {column_name} {column_type}"))
+    db.session.commit()
+    _author_profile_schema_checked = True
+
+
+def seed_default_ai_personas():
+    for persona_data in DEFAULT_AI_PERSONAS:
+        profile = AuthorProfile.query.filter_by(slug=persona_data["slug"]).first()
+        if profile is None:
+            profile = AuthorProfile(slug=persona_data["slug"])
+            db.session.add(profile)
+        profile.display_name = persona_data["display_name"]
+        profile.bio = persona_data["bio"]
+        profile.is_ai_persona = True
+        profile.personality = persona_data["personality"]
+        profile.taste_profile = persona_data["taste_profile"]
+        profile.comment_style = persona_data["comment_style"]
+        profile.activity_level = persona_data["activity_level"]
+
+        artist = get_or_create_artist_by_name(profile.display_name)
+        if artist and not artist.bio:
+            artist.bio = profile.bio
+    db.session.commit()
+
+
+def get_ai_personas():
+    return AuthorProfile.query.filter_by(is_ai_persona=True).order_by(AuthorProfile.display_name.asc()).all()
+
 @app.before_request
-def ensure_track_preview_schema_before_request():
+def ensure_schema_before_request():
     ensure_track_preview_columns()
+    ensure_author_profile_persona_columns()
 
 def get_related_tracks(current_track, limit=8):
     if not current_track.tags:
@@ -493,7 +616,8 @@ def artist_detail(artist_id):
                          artist_comments=artist_comments,
                          track_comment_data=track_comment_data,
                          author_avatars=author_avatars,
-                         recent_activity=recent_activity)
+                         recent_activity=recent_activity,
+                         ai_personas=get_ai_personas())
 
 @app.route('/add_artist', methods=['GET', 'POST'])
 def add_artist():
@@ -645,7 +769,15 @@ def track_detail(track_id):
                 avatars[p.slug] = p.avatar_path
     artists = db.session.query(Artist).join(TrackArtist, TrackArtist.artist_id == Artist.id).filter(TrackArtist.track_id == track_id).all()
     db.session.commit()
-    return render_template('track_detail.html', track=track, related_tracks=related_tracks, comments=comments, artists=artists, author_avatars=avatars)
+    return render_template(
+        'track_detail.html',
+        track=track,
+        related_tracks=related_tracks,
+        comments=comments,
+        artists=artists,
+        author_avatars=avatars,
+        ai_personas=get_ai_personas(),
+    )
 
 @app.route('/update_track_photo/<int:track_id>', methods=['POST'])
 def update_track_photo(track_id):
@@ -797,6 +929,66 @@ def increment_track_view(track_id):
     db.session.commit()
     return jsonify({"success": True, "new_view_count": track.view_count})
 
+
+def serialize_comment(comment, artist=None):
+    author_slug = slugify_author(comment.author)
+    profile = AuthorProfile.query.filter_by(slug=author_slug).first()
+    avatar_rel = profile.avatar_path if profile and profile.avatar_path else None
+    return {
+        "id": comment.id,
+        "author": comment.author,
+        "author_slug": author_slug,
+        "author_avatar": avatar_rel,
+        "author_artist_id": artist.id if artist else comment.author_artist_id,
+        "content": comment.content,
+        "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
+        "likes": comment.likes
+    }
+
+
+def create_track_comment(track_id, author, content):
+    artist = get_or_create_artist_by_name(author)
+    comment = TrackComment(
+        track_id=track_id,
+        author=author,
+        content=content,
+        likes=0,
+        author_artist_id=artist.id if artist else None,
+    )
+    db.session.add(comment)
+    db.session.commit()
+    return comment, artist
+
+
+def create_artist_comment(artist_id, author, content):
+    comment_artist = get_or_create_artist_by_name(author)
+    comment = ArtistComment(
+        artist_id=artist_id,
+        author=author,
+        content=content,
+        likes=0,
+        author_artist_id=comment_artist.id if comment_artist else None,
+    )
+    db.session.add(comment)
+    db.session.commit()
+    return comment, comment_artist
+
+
+def resolve_ai_persona(persona_id=None):
+    personas = get_ai_personas()
+    if not personas:
+        return None
+    if persona_id and str(persona_id) != "random":
+        try:
+            selected_id = int(persona_id)
+        except (TypeError, ValueError):
+            selected_id = None
+        if selected_id:
+            selected = next((persona for persona in personas if persona.id == selected_id), None)
+            if selected:
+                return selected
+    return random.choice(personas)
+
 @app.route('/add_track_comment/<int:track_id>', methods=['POST'])
 def add_track_comment(track_id):
     track = Track.query.get_or_404(track_id)
@@ -805,28 +997,11 @@ def add_track_comment(track_id):
     if not author or not content:
         return jsonify({"error": "Name and comment are required"}), 400
     try:
-        # Get or create artist for the comment author
-        artist = get_or_create_artist_by_name(author)
-        
-        comment = TrackComment(track_id=track_id, author=author, content=content, likes=0, author_artist_id=artist.id if artist else None)
-        db.session.add(comment)
-        db.session.commit()
-        author_slug = slugify_author(comment.author)
-        profile = AuthorProfile.query.filter_by(slug=author_slug).first()
-        avatar_rel = profile.avatar_path if profile and profile.avatar_path else None
+        comment, artist = create_track_comment(track_id, author, content)
 
         return jsonify({
             "success": True,
-            "comment": {
-                "id": comment.id,
-                "author": comment.author,
-                "author_slug": author_slug,
-                "author_avatar": avatar_rel,
-                "author_artist_id": artist.id if artist else None,
-                "content": comment.content,
-                "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
-                "likes": comment.likes
-            }
+            "comment": serialize_comment(comment, artist)
         }), 200
     except Exception as e:
         db.session.rollback()
@@ -858,28 +1033,11 @@ def add_artist_comment(artist_id):
     if not author or not content:
         return jsonify({"error": "Name and comment are required"}), 400
     try:
-        # Get or create artist for the comment author
-        comment_artist = get_or_create_artist_by_name(author)
-        
-        comment = ArtistComment(artist_id=artist_id, author=author, content=content, likes=0, author_artist_id=comment_artist.id if comment_artist else None)
-        db.session.add(comment)
-        db.session.commit()
-        author_slug = slugify_author(comment.author)
-        profile = AuthorProfile.query.filter_by(slug=author_slug).first()
-        avatar_rel = profile.avatar_path if profile and profile.avatar_path else None
+        comment, comment_artist = create_artist_comment(artist_id, author, content)
 
         return jsonify({
             "success": True,
-            "comment": {
-                "id": comment.id,
-                "author": comment.author,
-                "author_slug": author_slug,
-                "author_avatar": avatar_rel,
-                "author_artist_id": comment_artist.id if comment_artist else None,
-                "content": comment.content,
-                "timestamp": comment.timestamp.strftime("%m/%d/%Y %I:%M %p"),
-                "likes": comment.likes
-            }
+            "comment": serialize_comment(comment, comment_artist)
         }), 200
     except Exception as e:
         db.session.rollback()
@@ -930,9 +1088,11 @@ def generate_track_comment(track_id):
     """Generate an AI comment for a track"""
     try:
         track = Track.query.get_or_404(track_id)
-        
-        # Get the prompt from the request
-        prompt = request.json.get('prompt', '') if request.is_json else request.form.get('prompt', '')
+        payload = request.get_json(silent=True) if request.is_json else request.form
+        payload = payload or {}
+        prompt = payload.get('prompt', '')
+        post_comment = str(payload.get('post', '')).lower() in ('1', 'true', 'yes')
+        persona = resolve_ai_persona(payload.get('persona_id'))
         
         # Get track artists
         track_artists = [artist.name for artist in track.artists]
@@ -944,19 +1104,23 @@ def generate_track_comment(track_id):
             track_name=track.nickname or track.original_filepath,
             artist_name=artist_name,
             custom_prompt=prompt if prompt else None,
-            track_tags=track.tags
+            track_tags=track.tags,
+            persona=persona,
         )
-        
-        # Debug logging
-        print(f"AI Generation Result: {result}")
-        
+
         if result['success']:
             response_data = {
                 "success": True,
                 "comment": result['comment'],
-                "prompt_used": result['prompt_used']
+                "prompt_used": result['prompt_used'],
+                "author": persona.display_name if persona else None,
+                "persona_id": persona.id if persona else None,
             }
-            print(f"Returning success response: {response_data}")
+            if post_comment:
+                author = response_data["author"] or payload.get("author") or "AI Listener"
+                comment, artist = create_track_comment(track.id, author, result["comment"])
+                response_data["posted"] = True
+                response_data["comment_record"] = serialize_comment(comment, artist)
             return jsonify(response_data)
         else:
             error_response = {
@@ -977,12 +1141,14 @@ def generate_artist_comment(artist_id):
     """Generate an AI comment for an artist"""
     try:
         artist = Artist.query.get_or_404(artist_id)
-        
-        # Get the prompt from the request
-        prompt = request.json.get('prompt', '') if request.is_json else request.form.get('prompt', '')
+        payload = request.get_json(silent=True) if request.is_json else request.form
+        payload = payload or {}
+        prompt = payload.get('prompt', '')
+        post_comment = str(payload.get('post', '')).lower() in ('1', 'true', 'yes')
+        persona = resolve_ai_persona(payload.get('persona_id'))
         
         # Count tracks by this artist
-        track_count = Track.query.join(TrackArtist).filter(TrackArtist.c.artist_id == artist_id).count()
+        track_count = Track.query.join(TrackArtist, TrackArtist.track_id == Track.id).filter(TrackArtist.artist_id == artist_id).count()
         
         # Generate the comment using AI
         ai_generator = get_ai_generator()
@@ -990,15 +1156,24 @@ def generate_artist_comment(artist_id):
             artist_name=artist.name,
             custom_prompt=prompt if prompt else None,
             artist_bio=artist.bio,
-            track_count=track_count
+            track_count=track_count,
+            persona=persona,
         )
         
         if result['success']:
-            return jsonify({
+            response_data = {
                 "success": True,
                 "comment": result['comment'],
-                "prompt_used": result['prompt_used']
-            })
+                "prompt_used": result['prompt_used'],
+                "author": persona.display_name if persona else None,
+                "persona_id": persona.id if persona else None,
+            }
+            if post_comment:
+                author = response_data["author"] or payload.get("author") or "AI Listener"
+                comment, comment_artist = create_artist_comment(artist.id, author, result["comment"])
+                response_data["posted"] = True
+                response_data["comment_record"] = serialize_comment(comment, comment_artist)
+            return jsonify(response_data)
         else:
             return jsonify({
                 "success": False,
@@ -2386,4 +2561,6 @@ if __name__ == '__main__':
         ensure_directories_exist()
         db.create_all()
         ensure_track_preview_columns()
+        ensure_author_profile_persona_columns()
+        seed_default_ai_personas()
     app.run("0.0.0.0", 5015, debug=True)

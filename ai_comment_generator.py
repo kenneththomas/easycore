@@ -1,82 +1,43 @@
 """
 AI Comment Generator Module
-Handles OpenRouter API integration for generating fake engagement comments
+Builds EasyCore music-social prompts for AI-generated comments.
 """
 
-import json
 import logging
-import os
 from typing import Optional, Dict, Any
-from urllib import error, request
-
-try:
-    import maricon
-except ImportError:
-    maricon = None
+from ai_service import get_ai_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-v4-pro")
-DEFAULT_SITE_TITLE = "EasyCore"
-REQUEST_TIMEOUT_SECONDS = 60
-
 
 class AICommentGenerator:
     def __init__(self):
-        """Initialize the AI comment generator with an OpenRouter API key"""
-        self.api_key = os.getenv("OPENROUTER_API_KEY")
-        if not self.api_key and maricon is not None:
-            self.api_key = getattr(maricon, "gptkey", None)
+        """Initialize the comment prompt layer."""
+        self.ai_service = get_ai_service()
+        self.model = self.ai_service.model
 
-        if not self.api_key:
-            raise RuntimeError("OPENROUTER_API_KEY environment variable is required")
-
-        self.model = DEFAULT_MODEL
-        default_headers = {"X-Title": os.getenv("OPENROUTER_SITE_NAME", DEFAULT_SITE_TITLE)}
-        site_url = os.getenv("OPENROUTER_SITE_URL")
-        if site_url:
-            default_headers["HTTP-Referer"] = site_url
-
-        self.default_headers = default_headers
-
-    def _create_chat_completion(self, messages: list[Dict[str, str]], max_tokens: int) -> Dict[str, Any]:
-        """Create a chat completion using OpenRouter's OpenAI-compatible API."""
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "max_tokens": max_tokens,
-        }
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            **self.default_headers,
-        }
-        api_request = request.Request(
-            f"{OPENROUTER_BASE_URL}/chat/completions",
-            data=json.dumps(payload).encode("utf-8"),
-            headers=headers,
-            method="POST",
-        )
-
-        try:
-            with request.urlopen(api_request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
-                response_body = response.read().decode("utf-8")
-        except error.HTTPError as exc:
-            error_body = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"OpenRouter API error {exc.code}: {error_body}") from exc
-        except error.URLError as exc:
-            raise RuntimeError(f"OpenRouter API request failed: {exc.reason}") from exc
-
-        return json.loads(response_body)
+    def _persona_context(self, persona: Optional[Any]) -> str:
+        if not persona:
+            return ""
+        return f"""
+            Write as this specific listener:
+            Name: {persona.display_name or persona.slug}
+            Bio: {persona.bio or 'No bio yet.'}
+            Personality: {persona.personality or 'Natural, believable music fan.'}
+            Taste profile: {persona.taste_profile or 'Curious listener with broad taste.'}
+            Comment style: {persona.comment_style or 'Conversational and specific.'}
+            Activity level: {persona.activity_level or 'medium'}
+            Do not mention that you are an AI persona. Write only the comment text.
+            """
     
     def generate_track_comment(self, 
                              track_name: str, 
                              artist_name: str, 
                              custom_prompt: Optional[str] = None,
-                             track_tags: Optional[str] = None) -> Dict[str, Any]:
+                             track_tags: Optional[str] = None,
+                             persona: Optional[Any] = None) -> Dict[str, Any]:
         """
         Generate a fake comment for a track
         
@@ -99,6 +60,7 @@ class AICommentGenerator:
             Generate a realistic music fan comment for the track "{track_name}" by {artist_name}.
             The comment should sound like it's from a real music listener who just discovered or enjoyed this track.
             Make it conversational, authentic, and engaging. Include specific details about the music.
+            Keep it to 1-3 sentences.
             """
             
             if track_tags:
@@ -106,35 +68,25 @@ class AICommentGenerator:
             
             # Add custom prompt context
             context += f"\nSpecific focus: {custom_prompt}"
+            context += self._persona_context(persona)
             
             # Generate the comment
-            response = self._create_chat_completion(
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are a music fan writing comments on a music platform. Write authentic, engaging comments that sound like real music listeners. Keep comments conversational and specific to the music."
-                    },
-                    {
-                        "role": "user",
-                        "content": context
-                    }
-                ],
+            generated_comment = self.ai_service.generate_text(
+                system_prompt="You are a music fan writing comments on a music platform. Write authentic, engaging comments that sound like real music listeners. Keep comments conversational and specific to the music.",
+                user_prompt=context,
                 max_tokens=1000,
-
             )
             
-            generated_comment = response["choices"][0]["message"]["content"].strip()
-            
             # Debug logging
-            logger.info(f"OpenRouter API Response: {response}")
             logger.info(f"Generated comment: {generated_comment}")
-            logger.info(f"Response choices count: {len(response['choices'])}")
             
             return {
                 "success": True,
                 "comment": generated_comment,
                 "model": self.model,
-                "prompt_used": custom_prompt
+                "prompt_used": custom_prompt,
+                "persona_id": persona.id if persona else None,
+                "author": persona.display_name if persona else None
             }
             
         except Exception as e:
@@ -149,7 +101,8 @@ class AICommentGenerator:
                                artist_name: str, 
                                custom_prompt: Optional[str] = None,
                                artist_bio: Optional[str] = None,
-                               track_count: Optional[int] = None) -> Dict[str, Any]:
+                               track_count: Optional[int] = None,
+                               persona: Optional[Any] = None) -> Dict[str, Any]:
         """
         Generate a fake comment for an artist
         
@@ -172,6 +125,7 @@ class AICommentGenerator:
             Generate a realistic music fan comment about the artist "{artist_name}".
             The comment should sound like it's from a real music listener who appreciates this artist's work.
             Make it conversational, authentic, and engaging. Include specific details about the artist's music or style.
+            Keep it to 1-3 sentences.
             """
             
             if artist_bio:
@@ -182,35 +136,25 @@ class AICommentGenerator:
             
             # Add custom prompt context
             context += f"\nSpecific focus: {custom_prompt}"
+            context += self._persona_context(persona)
             
             # Generate the comment
-            response = self._create_chat_completion(
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are a music fan writing comments on a music platform. Write authentic, engaging comments that sound like real music listeners. Keep comments conversational and specific to the artist's music and style."
-                    },
-                    {
-                        "role": "user",
-                        "content": context
-                    }
-                ],
+            generated_comment = self.ai_service.generate_text(
+                system_prompt="You are a music fan writing comments on a music platform. Write authentic, engaging comments that sound like real music listeners. Keep comments conversational and specific to the artist's music and style.",
+                user_prompt=context,
                 max_tokens=150,
-
             )
             
-            generated_comment = response["choices"][0]["message"]["content"].strip()
-            
             # Debug logging
-            logger.info(f"OpenRouter API Response: {response}")
             logger.info(f"Generated comment: {generated_comment}")
-            logger.info(f"Response choices count: {len(response['choices'])}")
             
             return {
                 "success": True,
                 "comment": generated_comment,
                 "model": self.model,
-                "prompt_used": custom_prompt
+                "prompt_used": custom_prompt,
+                "persona_id": persona.id if persona else None,
+                "author": persona.display_name if persona else None
             }
             
         except Exception as e:

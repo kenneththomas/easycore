@@ -91,6 +91,8 @@ $env:OPENROUTER_SITE_URL = "http://127.0.0.1:5015"
 
 See [AI_COMMENT_SETUP.md](AI_COMMENT_SETUP.md) for feature behavior, prompt styles, troubleshooting, and cost notes.
 
+Track and artist pages include AI listener personas. Use AI assist to draft a comment from a selected or random listener, or post an AI listener reaction directly into the existing comment thread.
+
 ## Useful Routes
 
 - `/` - video library

@@ -204,6 +204,13 @@
                                 <details class="artist-ai-menu">
                                     <summary class="artist-control artist-control-quiet">AI assist</summary>
                                     <div class="artist-ai-panel">
+                                        <label for="artist-ai-persona">Listener</label>
+                                        <select id="artist-ai-persona">
+                                            <option value="random">Random listener</option>
+                                            {% for persona in ai_personas %}
+                                            <option value="{{ persona.id }}">{{ persona.display_name }}</option>
+                                            {% endfor %}
+                                        </select>
                                         <label for="artist-ai-style">Comment style</label>
                                         <select id="artist-ai-style">
                                             <option value="general">General fan comment</option>
@@ -214,7 +221,10 @@
                                             <option value="custom">Custom prompt</option>
                                         </select>
                                         <textarea id="artist-custom-prompt" placeholder="Describe the comment you want" hidden></textarea>
-                                        <button id="generate-artist-comment" class="artist-control" type="button">Generate</button>
+                                        <div class="artist-ai-action-row">
+                                            <button id="generate-artist-comment" class="artist-control" type="button">Draft</button>
+                                            <button id="post-artist-ai-comment" class="artist-control" type="button">Post as listener</button>
+                                        </div>
                                     </div>
                                 </details>
                                 <button class="artist-control artist-control-primary" type="submit">Post comment</button>

@@ -694,6 +694,19 @@ textarea.track-input {
     border-radius: 8px;
 }
 
+.ai-action-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.ai-action-row .button {
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+}
+
 .form-status {
     min-height: 18px;
     margin: 0;

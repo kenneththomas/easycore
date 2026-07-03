@@ -495,8 +495,11 @@
     }, true);
 
     const aiStyle = document.getElementById('ai-style');
+    const aiPersona = document.getElementById('ai-persona');
     const customPrompt = document.getElementById('custom-prompt');
     const generateButton = document.getElementById('generate-comment');
+    const postAiButton = document.getElementById('post-ai-comment');
+    const authorInput = commentForm.querySelector('[name="author"]');
     const contentInput = commentForm.querySelector('[name="content"]');
     const promptMap = {
         general: 'Write a natural music fan comment about this track.',
@@ -511,30 +514,49 @@
         customPrompt.hidden = aiStyle.value !== 'custom';
     });
 
-    generateButton.addEventListener('click', async () => {
+    async function generateAiComment({ post = false } = {}) {
         const prompt = aiStyle.value === 'custom' ? customPrompt.value.trim() : promptMap[aiStyle.value];
         if (!prompt) {
             commentStatus.textContent = 'Enter a custom prompt first.';
             return;
         }
         generateButton.disabled = true;
-        generateButton.textContent = 'Generating...';
+        postAiButton.disabled = true;
+        const activeButton = post ? postAiButton : generateButton;
+        const originalLabel = activeButton.textContent;
+        activeButton.textContent = post ? 'Posting...' : 'Drafting...';
         try {
             const response = await fetch(config.generateCommentUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt })
+                body: JSON.stringify({
+                    prompt,
+                    persona_id: aiPersona.value,
+                    post
+                })
             });
             const data = await response.json();
             if (!response.ok || !data.success) throw new Error(data.error || 'Generation failed');
-            contentInput.value = data.comment;
-            contentInput.focus();
-            commentStatus.textContent = 'Draft generated.';
+            if (post && data.comment_record) {
+                commentList.prepend(buildComment(data.comment_record));
+                commentCount.textContent = Number(commentCount.textContent) + 1;
+                document.querySelector('.comment-total').textContent = commentCount.textContent;
+                commentStatus.textContent = `${data.comment_record.author} joined the conversation.`;
+            } else {
+                if (data.author) authorInput.value = data.author;
+                contentInput.value = data.comment;
+                contentInput.focus();
+                commentStatus.textContent = data.author ? `Draft from ${data.author}.` : 'Draft generated.';
+            }
         } catch (error) {
             commentStatus.textContent = error.message;
         } finally {
             generateButton.disabled = false;
-            generateButton.textContent = 'Generate';
+            postAiButton.disabled = false;
+            activeButton.textContent = originalLabel;
         }
-    });
+    }
+
+    generateButton.addEventListener('click', () => generateAiComment({ post: false }));
+    postAiButton.addEventListener('click', () => generateAiComment({ post: true }));
 })();
