@@ -62,7 +62,28 @@
                     {% set item_artwork = track_artwork_path(item.object, track_artists.get(item.id)) if item.type == 'track' else '' %}
                     {% set primary_artist = track_artists.get(item.id)[0] if item.type == 'track' and track_artists.get(item.id) else none %}
                     <li class="video-item">
-                        <div class="video-thumbnail">
+                        <button type="button" class="video-thumbnail media-play-button"
+                            aria-label="Play {{ item.object.nickname or item.object.original_filepath }}"
+                            {% if item.type == 'video' %}
+                            data-action="play" data-video-id="{{ item.id }}"
+                            {% else %}
+                            data-global-track
+                            data-track-id="{{ item.id }}"
+                            data-track-title="{{ item.object.nickname or item.object.original_filepath }}"
+                            data-track-artist="{% if track_artists.get(item.id) %}{{ track_artists[item.id]|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
+                            data-track-artwork="{% if item_artwork %}{{ url_for('static', filename=item_artwork) }}{% endif %}"
+                            data-track-artist-url="{% if primary_artist %}{{ url_for('artist_detail', artist_id=primary_artist.id) }}{% endif %}"
+                            data-track-artist-artwork="{% if primary_artist and primary_artist.avatar_path %}{{ url_for('static', filename=primary_artist.avatar_path) }}{% endif %}"
+                            data-track-url="{{ url_for('stream_track', track_id=item.id) }}"
+                            data-track-detail-url="{{ url_for('track_detail', track_id=item.id) }}"
+                            data-preview-start="{{ item.object.preview_start if item.object.preview_start is not none else '' }}"
+                            data-preview-end="{{ item.object.preview_end if item.object.preview_end is not none else '' }}"
+                            data-preview-fade-in="{{ 'true' if item.object.preview_fade_in else 'false' }}"
+                            data-preview-fade-out="{{ 'true' if item.object.preview_fade_out else 'false' }}"
+                            data-preview-default="{{ 'true' if item.object.preview_default else 'false' }}"
+                            data-preview-fade-in-seconds="{{ item.object.preview_fade_in_seconds or 2 }}"
+                            data-preview-fade-out-seconds="{{ item.object.preview_fade_out_seconds or 2 }}"
+                            {% endif %}>
                             {% if item.type == 'video' %}
                                 <img src="{{ url_for('static', filename=item.object.thumbnail_path) }}" alt="">
                             {% elif item_artwork %}
@@ -70,7 +91,8 @@
                             {% else %}
                                 <div class="track-placeholder" aria-hidden="true">♪</div>
                             {% endif %}
-                        </div>
+                            <span class="thumbnail-play-label" aria-hidden="true">Play</span>
+                        </button>
 
                         <div class="video-details">
                             <span class="content-type">{{ item.type }}</span>
@@ -131,32 +153,16 @@
                                 data-preview-fade-in-seconds="{{ item.object.preview_fade_in_seconds or 2 }}"
                                 data-preview-fade-out-seconds="{{ item.object.preview_fade_out_seconds or 2 }}">Queue</button>
                             {% endif %}
-                            <button type="button" class="button button-secondary"
-                                {% if item.type == 'video' %}
-                                data-action="play" data-video-id="{{ item.id }}"
-                                {% else %}
-                                data-global-track
-                                data-track-id="{{ item.id }}"
-                                data-track-title="{{ item.object.nickname or item.object.original_filepath }}"
-                                data-track-artist="{% if track_artists.get(item.id) %}{{ track_artists[item.id]|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
-                                data-track-artwork="{% if item_artwork %}{{ url_for('static', filename=item_artwork) }}{% endif %}"
-                                data-track-artist-url="{% if primary_artist %}{{ url_for('artist_detail', artist_id=primary_artist.id) }}{% endif %}"
-                                data-track-artist-artwork="{% if primary_artist and primary_artist.avatar_path %}{{ url_for('static', filename=primary_artist.avatar_path) }}{% endif %}"
-                                data-track-url="{{ url_for('stream_track', track_id=item.id) }}"
-                                data-track-detail-url="{{ url_for('track_detail', track_id=item.id) }}"
-                                data-preview-start="{{ item.object.preview_start if item.object.preview_start is not none else '' }}"
-                                data-preview-end="{{ item.object.preview_end if item.object.preview_end is not none else '' }}"
-                                data-preview-fade-in="{{ 'true' if item.object.preview_fade_in else 'false' }}"
-                                data-preview-fade-out="{{ 'true' if item.object.preview_fade_out else 'false' }}"
-                                data-preview-default="{{ 'true' if item.object.preview_default else 'false' }}"
-                                data-preview-fade-in-seconds="{{ item.object.preview_fade_in_seconds or 2 }}"
-                                data-preview-fade-out-seconds="{{ item.object.preview_fade_out_seconds or 2 }}"
-                                {% endif %}>
-                                Play
-                            </button>
-                            <button type="button" class="button button-secondary delete-button" data-action="{{ 'delete' if item.type == 'video' else 'delete-track' }}" data-{{ item.type }}-id="{{ item.id }}" aria-label="Delete {{ item.object.nickname or item.object.original_filepath }}" title="Delete">
-                                <span aria-hidden="true">•••</span>
-                            </button>
+                            <details class="item-menu">
+                                <summary class="button button-secondary item-menu-trigger" aria-label="More options for {{ item.object.nickname or item.object.original_filepath }}" title="More options">
+                                    <span aria-hidden="true">&hellip;</span>
+                                </summary>
+                                <div class="item-menu-panel">
+                                    <button type="button" class="item-menu-delete" data-action="{{ 'delete' if item.type == 'video' else 'delete-track' }}" data-{{ item.type }}-id="{{ item.id }}">
+                                        Delete {{ item.type }}
+                                    </button>
+                                </div>
+                            </details>
                         </div>
                     </li>
                 {% endfor %}
@@ -274,6 +280,20 @@
             if (action === 'delete-track') deleteTrack(button.dataset.trackId);
             if (action === 'play') playVideo(button.dataset.videoId);
             if (action === 'close-player') closePlayer();
+        });
+
+        document.querySelectorAll('.item-menu').forEach(menu => {
+            menu.addEventListener('toggle', () => {
+                if (!menu.open) return;
+                document.querySelectorAll('.item-menu[open]').forEach(otherMenu => {
+                    if (otherMenu !== menu) otherMenu.removeAttribute('open');
+                });
+            });
+        });
+
+        document.addEventListener('click', event => {
+            if (event.target.closest('.item-menu')) return;
+            document.querySelectorAll('.item-menu[open]').forEach(menu => menu.removeAttribute('open'));
         });
 
         document.getElementById('loopToggle').addEventListener('change', event => {

@@ -146,10 +146,23 @@
 }
 
 .video-thumbnail {
+    position: relative;
+    display: block;
     aspect-ratio: 16 / 9;
+    width: 100%;
+    padding: 0;
     overflow: hidden;
     background: var(--color-surface-subtle);
+    border: 0;
     border-radius: var(--radius-md);
+    cursor: pointer;
+    font: inherit;
+    text-align: inherit;
+}
+
+.video-thumbnail:focus-visible {
+    outline: 3px solid var(--color-primary-soft);
+    outline-offset: 3px;
 }
 
 .video-thumbnail img {
@@ -157,6 +170,38 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.media-play-button::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 45%, rgba(0, 0, 0, 0.44));
+    content: "";
+    opacity: 0.86;
+    transition: opacity 160ms ease;
+}
+
+.media-play-button:hover::after,
+.media-play-button:focus-visible::after {
+    opacity: 1;
+}
+
+.thumbnail-play-label {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    z-index: 1;
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    padding: 7px 11px;
+    color: #ffffff;
+    background: rgba(20, 23, 31, 0.76);
+    border: 1px solid rgba(255, 255, 255, 0.36);
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    line-height: 1;
 }
 
 .track-placeholder {
@@ -281,16 +326,68 @@
     align-self: stretch;
 }
 
-.delete-button {
+.item-menu {
+    position: relative;
+}
+
+.item-menu-trigger {
+    width: 42px;
+    min-width: 42px;
+    justify-content: center;
     color: var(--color-muted);
     background: transparent;
     border-color: transparent;
+    cursor: pointer;
+    list-style: none;
 }
 
-.delete-button:hover {
+.item-menu-trigger::-webkit-details-marker {
+    display: none;
+}
+
+.item-menu-trigger::marker {
+    content: "";
+}
+
+.item-menu[open] .item-menu-trigger,
+.item-menu-trigger:hover {
+    color: var(--color-heading);
+    background: var(--color-surface-subtle);
+    border-color: var(--color-border);
+}
+
+.item-menu-panel {
+    position: absolute;
+    right: 0;
+    z-index: 20;
+    min-width: 150px;
+    padding: 6px;
+    margin-top: 8px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+}
+
+.item-menu-delete {
+    display: flex;
+    width: 100%;
+    min-height: 36px;
+    align-items: center;
+    padding: 8px 10px;
     color: var(--color-danger);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-align: left;
+}
+
+.item-menu-delete:hover {
     background: var(--color-danger-soft);
-    border-color: #ffd8dc;
 }
 
 .empty-state {
