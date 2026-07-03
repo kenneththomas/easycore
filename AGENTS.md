@@ -18,7 +18,7 @@ The app is intentionally simple: a Flask server, SQLite database, local upload f
 - `static/js/` - browser-side behavior.
 - `requirements.txt` - Python dependencies.
 - `README.md` - setup and usage documentation.
-- `AI_COMMENT_SETUP.md` - optional OpenAI comment generation setup.
+- `AI_COMMENT_SETUP.md` - optional OpenRouter comment generation setup.
 - `update_thumbnails.py` - helper script for regenerating missing video thumbnails.
 
 ## Runtime Behavior
@@ -55,7 +55,7 @@ FFmpeg must be installed and available on `PATH`. The app uses FFmpeg for video 
 Optional AI comment generation requires:
 
 ```powershell
-$env:OPENAI_API_KEY = "your_api_key_here"
+$env:OPENROUTER_API_KEY = "your_api_key_here"
 ```
 
 ## Generated And Local Data
@@ -110,4 +110,3 @@ Only run `update_thumbnails.py` when thumbnail regeneration is relevant, because
 Update `README.md` when setup, runtime behavior, dependencies, ports, or major user-facing workflows change.
 
 Update `releasenotes.md` only when the user asks for release notes or the change clearly belongs in the project history.
-

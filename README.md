@@ -10,7 +10,7 @@ EasyCore is a local Flask media library for organizing videos, tracks, artists, 
 - Browse by tags, artists, tracks, playlists, newest, oldest, most viewed, or most liked.
 - Generate video thumbnails and convert WebM uploads to MP4 with FFmpeg.
 - Extract MP3 audio and trim videos.
-- Use optional OpenAI-powered comment generation for tracks and artists.
+- Use optional OpenRouter-powered comment generation for tracks and artists.
 
 ## Project Structure
 
@@ -33,7 +33,7 @@ Runtime files are created locally and ignored by Git, including `instance/`, `up
 
 - Python 3.10 or newer
 - FFmpeg installed and available on your `PATH`
-- Optional: an OpenAI API key for AI comment generation
+- Optional: an OpenRouter API key for AI comment generation
 
 ## Setup
 
@@ -72,13 +72,21 @@ http://127.0.0.1:5015
 
 ## Optional AI Comments
 
-AI comment generation uses the `OPENAI_API_KEY` environment variable.
+AI comment generation uses the `OPENROUTER_API_KEY` environment variable and defaults to `deepseek/deepseek-v4-pro`.
 
 For the current PowerShell session:
 
 ```powershell
-$env:OPENAI_API_KEY = "your_api_key_here"
+$env:OPENROUTER_API_KEY = "your_api_key_here"
 python easycore.py
+```
+
+Optional overrides:
+
+```powershell
+$env:OPENROUTER_MODEL = "deepseek/deepseek-v4-pro"
+$env:OPENROUTER_SITE_NAME = "EasyCore"
+$env:OPENROUTER_SITE_URL = "http://127.0.0.1:5015"
 ```
 
 See [AI_COMMENT_SETUP.md](AI_COMMENT_SETUP.md) for feature behavior, prompt styles, troubleshooting, and cost notes.
@@ -105,4 +113,3 @@ python update_thumbnails.py
 ```
 
 The app stores media files on disk and metadata in SQLite, so keep backups of both the upload folders and the database file if the library matters.
-

@@ -1,6 +1,6 @@
 # AI Comment Generation Setup
 
-This feature adds AI-powered comment generation to your music platform using OpenAI's GPT-4o-mini model.
+This feature adds AI-powered comment generation to your music platform using OpenRouter with `deepseek/deepseek-v4-pro` by default.
 
 ## Setup Instructions
 
@@ -10,20 +10,28 @@ pip install -r requirements.txt
 ```
 
 ### 2. Set Environment Variable
-You need to set your OpenAI API key as an environment variable:
+You need to set your OpenRouter API key as an environment variable:
 
 **Windows:**
 ```cmd
-set OPENAI_API_KEY=your_api_key_here
+set OPENROUTER_API_KEY=your_api_key_here
 ```
 
 **Linux/Mac:**
 ```bash
-export OPENAI_API_KEY=your_api_key_here
+export OPENROUTER_API_KEY=your_api_key_here
 ```
 
-### 3. Get OpenAI API Key
-1. Go to [OpenAI Platform](https://platform.openai.com/)
+Optional settings:
+
+```bash
+export OPENROUTER_MODEL=deepseek/deepseek-v4-pro
+export OPENROUTER_SITE_NAME=EasyCore
+export OPENROUTER_SITE_URL=http://127.0.0.1:5015
+```
+
+### 3. Get OpenRouter API Key
+1. Go to [OpenRouter](https://openrouter.ai/)
 2. Sign up or log in
 3. Go to API Keys section
 4. Create a new API key
@@ -66,25 +74,25 @@ export OPENAI_API_KEY=your_api_key_here
 
 ## Cost Considerations
 
-- Uses GPT-4o-mini model (cost-effective)
+- Uses `deepseek/deepseek-v4-pro` by default
 - Each comment generation uses approximately 150 tokens
-- Typical cost: ~$0.0001-0.0002 per comment
-- Monitor your OpenAI usage dashboard for actual costs
+- Actual cost depends on current OpenRouter pricing for the selected model
+- Monitor your OpenRouter usage dashboard for actual costs
 
 ## Troubleshooting
 
-### "OPENAI_API_KEY environment variable is required"
+### "OPENROUTER_API_KEY environment variable is required"
 - Make sure you've set the environment variable correctly
 - Restart your Flask application after setting the variable
 
 ### "Error generating comment"
-- Check your OpenAI API key is valid
-- Ensure you have credits in your OpenAI account
+- Check your OpenRouter API key is valid
+- Ensure you have credits in your OpenRouter account
 - Check your internet connection
 
 ### Comments not generating
 - Verify the API key has the correct permissions
-- Check the OpenAI service status
+- Check the OpenRouter service status
 - Review the browser console for JavaScript errors
 
 ## Security Notes

@@ -1,25 +1,76 @@
 """
 AI Comment Generator Module
-Handles OpenAI API integration for generating fake engagement comments
+Handles OpenRouter API integration for generating fake engagement comments
 """
 
-import os
-import openai
-from typing import Optional, Dict, Any
+import json
 import logging
-import maricon
+import os
+from typing import Optional, Dict, Any
+from urllib import error, request
+
+try:
+    import maricon
+except ImportError:
+    maricon = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+DEFAULT_MODEL = os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-v4-pro")
+DEFAULT_SITE_TITLE = "EasyCore"
+REQUEST_TIMEOUT_SECONDS = 60
+
+
 class AICommentGenerator:
     def __init__(self):
-        """Initialize the AI comment generator with OpenAI API key"""
-        self.api_key = maricon.gptkey
-        
-        openai.api_key = self.api_key
-        self.client = openai.OpenAI(api_key=self.api_key)
+        """Initialize the AI comment generator with an OpenRouter API key"""
+        self.api_key = os.getenv("OPENROUTER_API_KEY")
+        if not self.api_key and maricon is not None:
+            self.api_key = getattr(maricon, "gptkey", None)
+
+        if not self.api_key:
+            raise RuntimeError("OPENROUTER_API_KEY environment variable is required")
+
+        self.model = DEFAULT_MODEL
+        default_headers = {"X-Title": os.getenv("OPENROUTER_SITE_NAME", DEFAULT_SITE_TITLE)}
+        site_url = os.getenv("OPENROUTER_SITE_URL")
+        if site_url:
+            default_headers["HTTP-Referer"] = site_url
+
+        self.default_headers = default_headers
+
+    def _create_chat_completion(self, messages: list[Dict[str, str]], max_tokens: int) -> Dict[str, Any]:
+        """Create a chat completion using OpenRouter's OpenAI-compatible API."""
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+        }
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            **self.default_headers,
+        }
+        api_request = request.Request(
+            f"{OPENROUTER_BASE_URL}/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+
+        try:
+            with request.urlopen(api_request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+                response_body = response.read().decode("utf-8")
+        except error.HTTPError as exc:
+            error_body = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"OpenRouter API error {exc.code}: {error_body}") from exc
+        except error.URLError as exc:
+            raise RuntimeError(f"OpenRouter API request failed: {exc.reason}") from exc
+
+        return json.loads(response_body)
     
     def generate_track_comment(self, 
                              track_name: str, 
@@ -57,8 +108,7 @@ class AICommentGenerator:
             context += f"\nSpecific focus: {custom_prompt}"
             
             # Generate the comment
-            response = self.client.chat.completions.create(
-                model="gpt-5-mini",
+            response = self._create_chat_completion(
                 messages=[
                     {
                         "role": "system", 
@@ -69,21 +119,21 @@ class AICommentGenerator:
                         "content": context
                     }
                 ],
-                max_completion_tokens=1000,
+                max_tokens=1000,
 
             )
             
-            generated_comment = response.choices[0].message.content.strip()
+            generated_comment = response["choices"][0]["message"]["content"].strip()
             
             # Debug logging
-            logger.info(f"GPT API Response: {response}")
+            logger.info(f"OpenRouter API Response: {response}")
             logger.info(f"Generated comment: {generated_comment}")
-            logger.info(f"Response choices count: {len(response.choices)}")
+            logger.info(f"Response choices count: {len(response['choices'])}")
             
             return {
                 "success": True,
                 "comment": generated_comment,
-                "model": "gpt-5",
+                "model": self.model,
                 "prompt_used": custom_prompt
             }
             
@@ -134,8 +184,7 @@ class AICommentGenerator:
             context += f"\nSpecific focus: {custom_prompt}"
             
             # Generate the comment
-            response = self.client.chat.completions.create(
-                model="gpt-5",
+            response = self._create_chat_completion(
                 messages=[
                     {
                         "role": "system", 
@@ -146,21 +195,21 @@ class AICommentGenerator:
                         "content": context
                     }
                 ],
-                max_completion_tokens=150,
+                max_tokens=150,
 
             )
             
-            generated_comment = response.choices[0].message.content.strip()
+            generated_comment = response["choices"][0]["message"]["content"].strip()
             
             # Debug logging
-            logger.info(f"GPT API Response: {response}")
+            logger.info(f"OpenRouter API Response: {response}")
             logger.info(f"Generated comment: {generated_comment}")
-            logger.info(f"Response choices count: {len(response.choices)}")
+            logger.info(f"Response choices count: {len(response['choices'])}")
             
             return {
                 "success": True,
                 "comment": generated_comment,
-                "model": "gpt-5",
+                "model": self.model,
                 "prompt_used": custom_prompt
             }
             
