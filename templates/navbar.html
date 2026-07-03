@@ -39,15 +39,15 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/global_player.css') }}">
 <aside class="global-player" id="global-player" hidden aria-label="Music player">
     <audio id="global-player-audio" preload="metadata"></audio>
-    <div class="global-player-art" id="global-player-art"><span aria-hidden="true">♪</span></div>
+    <a class="global-player-art" id="global-player-art" href="#" aria-label="Open artist page"><span aria-hidden="true">♪</span></a>
     <div class="global-player-copy">
         <a id="global-player-title" href="#">Nothing playing</a>
-        <span id="global-player-artist">Choose a track</span>
+        <a id="global-player-artist" href="#">Choose a track</a>
     </div>
     <div class="global-player-controls">
-        <button id="global-player-prev" type="button" aria-label="Previous track">|&lt;</button>
-        <button id="global-player-toggle" class="global-player-main" type="button" aria-label="Play">▶</button>
-        <button id="global-player-next" type="button" aria-label="Next track">&gt;|</button>
+        <button id="global-player-prev" type="button" aria-label="Previous track" title="Previous"></button>
+        <button id="global-player-toggle" class="global-player-main" type="button" aria-label="Play" title="Play"></button>
+        <button id="global-player-next" type="button" aria-label="Next track" title="Next"></button>
     </div>
     <div class="global-player-progress-wrap">
         <span id="global-player-current">0:00</span>
@@ -74,9 +74,11 @@
 
 <script>
     (() => {
-        const nav = document.currentScript.previousElementSibling;
+        const nav = document.querySelector('.navbar');
+        if (!nav) return;
         const toggle = nav.querySelector('.nav-toggle');
         const links = nav.querySelector('.nav-links');
+        if (!toggle || !links) return;
 
         toggle.addEventListener('click', () => {
             const isOpen = toggle.getAttribute('aria-expanded') === 'true';

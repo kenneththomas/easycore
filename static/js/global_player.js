@@ -41,16 +41,25 @@
         fadeOutSeconds: Number.isFinite(Number(preview?.fadeOutSeconds)) ? Math.min(30, Math.max(0, Number(preview.fadeOutSeconds))) : 2
     });
 
+    const fallbackArtistUrl = artistName => {
+        const firstArtist = String(artistName || '').split(',')[0].trim();
+        if (!firstArtist || firstArtist.toLowerCase() === 'unknown artist') return '';
+        return `/artist/${encodeURIComponent(firstArtist)}`;
+    };
+
     const normalizeTrack = track => {
         const preview = normalizePreview(track.preview);
         const previewOnly = Boolean(track.previewOnly) || Boolean(track.previewDefault);
+        const artistName = track.artist || 'Unknown artist';
         if (previewOnly && preview.end === null) preview.end = preview.start + 30;
         return {
             id: Number(track.id),
             key: `${Number(track.id)}:${previewOnly ? 'preview' : 'full'}`,
             title: track.title || `Track ${track.id}`,
-            artist: track.artist || 'Unknown artist',
+            artist: artistName,
             artwork: track.artwork || '',
+            artistUrl: track.artistUrl || fallbackArtistUrl(artistName),
+            artistArtwork: track.artistArtwork || '',
             url: track.url || `/stream_track/${track.id}`,
             detailUrl: track.detailUrl || `/track/${track.id}`,
             preview,
@@ -73,6 +82,33 @@
         if (!track?.previewOnly) return null;
         const end = Number(track.preview?.end);
         return Number.isFinite(end) && end > track.preview.start ? end : null;
+    };
+    const playbackStartFor = track => track?.previewOnly ? Number(track.preview.start) || 0 : 0;
+    const playbackEndFor = track => {
+        if (!track) return null;
+        const previewEnd = previewEndFor(track);
+        if (previewEnd) return Number.isFinite(audio.duration) ? Math.min(previewEnd, audio.duration) : previewEnd;
+        return Number.isFinite(audio.duration) ? audio.duration : null;
+    };
+    const playbackDurationFor = track => {
+        const end = playbackEndFor(track);
+        if (!Number.isFinite(end)) return 0;
+        return Math.max(0, end - playbackStartFor(track));
+    };
+    const playbackCurrentFor = track => {
+        const duration = playbackDurationFor(track);
+        if (!duration) return 0;
+        return Math.min(duration, Math.max(0, (audio.currentTime || 0) - playbackStartFor(track)));
+    };
+    const renderTimeline = () => {
+        const track = currentTrack();
+        const playbackDuration = playbackDurationFor(track);
+        const playbackCurrent = playbackCurrentFor(track);
+        currentTime.textContent = formatTime(playbackCurrent);
+        duration.textContent = formatTime(playbackDuration);
+        progress.value = playbackDuration > 0
+            ? Math.round((playbackCurrent / playbackDuration) * 1000)
+            : 0;
     };
     const updatePreviewVolume = () => {
         const track = currentTrack();
@@ -97,8 +133,8 @@
                 type,
                 track: currentTrack(),
                 playing: !audio.paused,
-                currentTime: audio.currentTime || 0,
-                duration: audio.duration || 0,
+                currentTime: playbackCurrentFor(currentTrack()),
+                duration: playbackDurationFor(currentTrack()),
                 queue: state.queue,
                 index: state.index
             }
@@ -107,9 +143,13 @@
 
     const renderArtwork = track => {
         art.replaceChildren();
-        if (track?.artwork) {
+        const artwork = track?.artistArtwork || track?.artwork;
+        art.href = track?.artistUrl || track?.detailUrl || '#';
+        art.classList.toggle('is-clickable', Boolean(track?.artistUrl));
+        art.setAttribute('aria-label', track?.artistUrl ? `Open ${track.artist}` : 'Open track');
+        if (artwork) {
             const image = document.createElement('img');
-            image.src = track.artwork;
+            image.src = artwork;
             image.alt = '';
             art.append(image);
         } else {
@@ -129,9 +169,10 @@
 
             const itemArt = document.createElement('div');
             itemArt.className = 'global-queue-item-art';
-            if (track.artwork) {
+            const artwork = track.artistArtwork || track.artwork;
+            if (artwork) {
                 const image = document.createElement('img');
-                image.src = track.artwork;
+                image.src = artwork;
                 image.alt = '';
                 itemArt.append(image);
             } else {
@@ -166,11 +207,16 @@
         title.textContent = track.title;
         title.href = track.detailUrl;
         artist.textContent = track.previewOnly ? `${track.artist} - Preview` : track.artist;
+        artist.href = track.artistUrl || track.detailUrl || '#';
+        artist.classList.toggle('is-clickable', Boolean(track.artistUrl));
         renderArtwork(track);
-        toggle.textContent = audio.paused ? '▶' : 'Ⅱ';
+        toggle.textContent = '';
+        toggle.classList.toggle('is-playing', !audio.paused);
         toggle.setAttribute('aria-label', audio.paused ? 'Play' : 'Pause');
+        toggle.title = audio.paused ? 'Play' : 'Pause';
         repeatButton.setAttribute('aria-pressed', state.repeat !== 'off' ? 'true' : 'false');
         repeatButton.title = `Repeat: ${state.repeat}`;
+        renderTimeline();
         renderQueue();
         announce('render');
     };
@@ -258,8 +304,10 @@
     };
 
     const previous = () => {
-        if (audio.currentTime > 4) {
-            audio.currentTime = 0;
+        const track = currentTrack();
+        if (playbackCurrentFor(track) > 4) {
+            audio.currentTime = playbackStartFor(track);
+            renderTimeline();
             return;
         }
         load(state.index - 1, { autoplay: true });
@@ -282,8 +330,14 @@
         next,
         previous,
         toggle: () => toggle.click(),
-        seek: seconds => { audio.currentTime = seconds; },
-        getState: () => ({ ...state, track: currentTrack(), playing: !audio.paused, duration: audio.duration || 0 })
+        seek: seconds => { audio.currentTime = playbackStartFor(currentTrack()) + seconds; },
+        getState: () => ({
+            ...state,
+            track: currentTrack(),
+            playing: !audio.paused,
+            duration: playbackDurationFor(currentTrack()),
+            currentTime: playbackCurrentFor(currentTrack())
+        })
     };
 
     toggle.addEventListener('click', () => {
@@ -315,7 +369,13 @@
         save();
     });
     progress.addEventListener('input', () => {
-        if (Number.isFinite(audio.duration)) audio.currentTime = (Number(progress.value) / 1000) * audio.duration;
+        const track = currentTrack();
+        const playbackDuration = playbackDurationFor(track);
+        if (playbackDuration > 0) {
+            audio.currentTime = playbackStartFor(track) + (Number(progress.value) / 1000) * playbackDuration;
+            renderTimeline();
+            updatePreviewVolume();
+        }
     });
     queueList.addEventListener('click', event => {
         const remove = event.target.closest('[data-remove-index]');
@@ -353,11 +413,7 @@
             completeCurrentPlayback();
             return;
         }
-        currentTime.textContent = formatTime(audio.currentTime);
-        duration.textContent = formatTime(audio.duration);
-        progress.value = Number.isFinite(audio.duration) && audio.duration > 0
-            ? Math.round((audio.currentTime / audio.duration) * 1000)
-            : 0;
+        renderTimeline();
         if (!restoring) save();
         announce('time');
     });
@@ -379,6 +435,8 @@
             title: trigger.dataset.trackTitle,
             artist: trigger.dataset.trackArtist,
             artwork: trigger.dataset.trackArtwork,
+            artistUrl: trigger.dataset.trackArtistUrl,
+            artistArtwork: trigger.dataset.trackArtistArtwork,
             url: trigger.dataset.trackUrl,
             detailUrl: trigger.dataset.trackDetailUrl,
             previewOnly: trigger.dataset.previewOnly === 'true',

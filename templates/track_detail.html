@@ -16,6 +16,7 @@
 
     <main class="track-page">
         {% set artwork = track_artwork_path(track, artists) %}
+        {% set primary_artist = artists[0] if artists else none %}
         <div class="track-shell">
             <a href="{{ url_for('tracks_index') }}" class="track-back">&larr; Back to tracks</a>
 
@@ -38,6 +39,8 @@
                                 data-track-title="{{ track.nickname or track.original_filepath }}"
                                 data-track-artist="{% if artists %}{{ artists|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
                                 data-track-artwork="{% if artwork %}{{ url_for('static', filename=artwork) }}{% endif %}"
+                                data-track-artist-url="{% if primary_artist %}{{ url_for('artist_detail', artist_id=primary_artist.id) }}{% endif %}"
+                                data-track-artist-artwork="{% if primary_artist and primary_artist.avatar_path %}{{ url_for('static', filename=primary_artist.avatar_path) }}{% endif %}"
                                 data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
                                 data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
                                 data-preview-start="{{ track.preview_start if track.preview_start is not none else '' }}"
@@ -90,6 +93,8 @@
                         data-track-title="{{ track.nickname or track.original_filepath }}"
                         data-track-artist="{% if artists %}{{ artists|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
                         data-track-artwork="{% if artwork %}{{ url_for('static', filename=artwork) }}{% endif %}"
+                        data-track-artist-url="{% if primary_artist %}{{ url_for('artist_detail', artist_id=primary_artist.id) }}{% endif %}"
+                        data-track-artist-artwork="{% if primary_artist and primary_artist.avatar_path %}{{ url_for('static', filename=primary_artist.avatar_path) }}{% endif %}"
                         data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
                         data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
                         data-preview-start="{{ track.preview_start if track.preview_start is not none else '' }}"
@@ -106,6 +111,8 @@
                         data-track-title="{{ track.nickname or track.original_filepath }}"
                         data-track-artist="{% if artists %}{{ artists|map(attribute='name')|join(', ') }}{% else %}Unknown artist{% endif %}"
                         data-track-artwork="{% if artwork %}{{ url_for('static', filename=artwork) }}{% endif %}"
+                        data-track-artist-url="{% if primary_artist %}{{ url_for('artist_detail', artist_id=primary_artist.id) }}{% endif %}"
+                        data-track-artist-artwork="{% if primary_artist and primary_artist.avatar_path %}{{ url_for('static', filename=primary_artist.avatar_path) }}{% endif %}"
                         data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
                         data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
                         data-preview-start="{{ track.preview_start if track.preview_start is not none else '' }}"

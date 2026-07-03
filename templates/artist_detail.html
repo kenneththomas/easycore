@@ -102,6 +102,8 @@
                                     data-track-title="{{ track.nickname or track.original_filepath }}"
                                     data-track-artist="{{ artist.name }}"
                                     data-track-artwork="{% if artwork %}{{ url_for('static', filename=artwork) }}{% endif %}"
+                                    data-track-artist-url="{{ url_for('artist_detail', artist_id=artist.id) }}"
+                                    data-track-artist-artwork="{% if artist.avatar_path %}{{ url_for('static', filename=artist.avatar_path) }}{% endif %}"
                                     data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
                                     data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
                                     data-preview-start="{{ track.preview_start if track.preview_start is not none else '' }}"
@@ -132,6 +134,8 @@
                                         data-track-title="{{ track.nickname or track.original_filepath }}"
                                         data-track-artist="{{ artist.name }}"
                                         data-track-artwork="{% if artwork %}{{ url_for('static', filename=artwork) }}{% endif %}"
+                                        data-track-artist-url="{{ url_for('artist_detail', artist_id=artist.id) }}"
+                                        data-track-artist-artwork="{% if artist.avatar_path %}{{ url_for('static', filename=artist.avatar_path) }}{% endif %}"
                                         data-track-url="{{ url_for('stream_track', track_id=track.id) }}"
                                         data-track-detail-url="{{ url_for('track_detail', track_id=track.id) }}"
                                         data-preview-start="{{ track.preview_start if track.preview_start is not none else '' }}"
@@ -348,6 +352,8 @@
                     title: {{ (track.nickname or track.original_filepath)|tojson }},
                     artist: {{ artist.name|tojson }},
                     artwork: {{ (url_for('static', filename=track_artwork_path(track, [artist])) if track_artwork_path(track, [artist]) else '')|tojson }},
+                    artistUrl: {{ url_for('artist_detail', artist_id=artist.id)|tojson }},
+                    artistArtwork: {{ (url_for('static', filename=artist.avatar_path) if artist.avatar_path else '')|tojson }},
                     url: {{ url_for('stream_track', track_id=track.id)|tojson }},
                     detailUrl: {{ url_for('track_detail', track_id=track.id)|tojson }},
                     previewDefault: {{ (track.preview_default or false)|tojson }},

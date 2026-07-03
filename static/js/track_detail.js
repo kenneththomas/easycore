@@ -54,6 +54,11 @@
         syncPreviewDataAttributes();
         renderPreviewEditorPlayer();
     };
+    const refreshPreviewEditorFromInputs = () => {
+        renderPreviewSelection();
+        syncPreviewDataAttributes();
+        renderPreviewEditorPlayer();
+    };
     const syncPreviewDataAttributes = () => {
         const start = previewStartInput.value;
         const end = previewEndInput.value;
@@ -166,8 +171,12 @@
         return ratio * (audioDuration || Math.max(getPreviewEnd(), 30));
     };
 
-    previewStartInput.addEventListener('input', () => setPreviewValues(getPreviewStart(), getPreviewEnd()));
-    previewEndInput.addEventListener('input', () => setPreviewValues(getPreviewStart(), getPreviewEnd()));
+    previewStartInput.addEventListener('input', refreshPreviewEditorFromInputs);
+    previewEndInput.addEventListener('input', refreshPreviewEditorFromInputs);
+    previewStartInput.addEventListener('change', () => setPreviewValues(getPreviewStart(), getPreviewEnd()));
+    previewEndInput.addEventListener('change', () => setPreviewValues(getPreviewStart(), getPreviewEnd()));
+    previewStartInput.addEventListener('blur', () => setPreviewValues(getPreviewStart(), getPreviewEnd()));
+    previewEndInput.addEventListener('blur', () => setPreviewValues(getPreviewStart(), getPreviewEnd()));
     document.querySelectorAll('[name="preview_fade_in"], [name="preview_fade_out"], [name="preview_fade_in_seconds"], [name="preview_fade_out_seconds"], [name="preview_default"]').forEach(input => {
         input.addEventListener('change', () => {
             syncPreviewDataAttributes();
@@ -195,12 +204,24 @@
         renderPreviewEditorPlayer();
     });
 
-    previewRange.addEventListener('pointerdown', event => {
+    const getPreviewDragMode = event => {
         const handle = event.target.closest('[data-handle]')?.dataset.handle;
+        if (handle) return handle;
+        if (!event.target.closest('#preview-selection')) return 'create';
+
+        const selectionRect = previewSelection.getBoundingClientRect();
+        const edgeWidth = 16;
+        if (Math.abs(event.clientX - selectionRect.left) <= edgeWidth) return 'start';
+        if (Math.abs(event.clientX - selectionRect.right) <= edgeWidth) return 'end';
+        return 'move';
+    };
+
+    previewRange.addEventListener('pointerdown', event => {
+        event.preventDefault();
         const start = getPreviewStart();
         const end = getPreviewEnd();
         previewDrag = {
-            mode: handle || (event.target.closest('#preview-selection') ? 'move' : 'create'),
+            mode: getPreviewDragMode(event),
             start,
             end,
             offset: positionToSeconds(event.clientX)
