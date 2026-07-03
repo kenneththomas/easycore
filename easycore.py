@@ -138,7 +138,7 @@ def artist_by_name(artist_name: str):
 
 @app.route('/artist/<int:artist_id>/avatar', methods=['POST'])
 def upload_artist_avatar(artist_id: int):
-    artist = Artist.query.get_or_404(artist_id)
+    artist = db.get_or_404(Artist, artist_id)
     avatar = request.files.get('avatar')
     if not avatar or not avatar.filename:
         return redirect(url_for('artist_detail', artist_id=artist_id))
@@ -487,7 +487,7 @@ def tracks_index():
 
 @app.route('/artist/<int:artist_id>')
 def artist_detail(artist_id):
-    artist = Artist.query.get_or_404(artist_id)
+    artist = db.get_or_404(Artist, artist_id)
     tracks = db.session.query(Track).join(TrackArtist, TrackArtist.track_id == Track.id).filter(TrackArtist.artist_id == artist_id).order_by(desc(Track.id)).all()
     videos = db.session.query(Video).join(VideoArtist, VideoArtist.video_id == Video.id).filter(VideoArtist.artist_id == artist_id).order_by(desc(Video.id)).all()
     
@@ -727,7 +727,7 @@ def add_track():
 
 @app.route('/stream_track/<int:track_id>')
 def stream_track(track_id):
-    track = Track.query.get_or_404(track_id)
+    track = db.get_or_404(Track, track_id)
     mime_type = get_mime_type_for_audio(track.stored_filepath)
     range_header = request.headers.get('Range', None)
     file_size = os.path.getsize(track.stored_filepath)
@@ -756,7 +756,7 @@ def stream_track(track_id):
 
 @app.route('/track/<int:track_id>')
 def track_detail(track_id):
-    track = Track.query.get_or_404(track_id)
+    track = db.get_or_404(Track, track_id)
     track.view_count = (track.view_count or 0) + 1
     related_tracks = get_related_tracks(track)
     comments = TrackComment.query.filter_by(track_id=track_id).order_by(TrackComment.timestamp.desc()).all()
@@ -781,7 +781,7 @@ def track_detail(track_id):
 
 @app.route('/update_track_photo/<int:track_id>', methods=['POST'])
 def update_track_photo(track_id):
-    track = Track.query.get_or_404(track_id)
+    track = db.get_or_404(Track, track_id)
     
     if 'photo' not in request.files:
         return jsonify({"error": "No photo file provided"}), 400
@@ -825,7 +825,7 @@ def update_track_photo(track_id):
 
 @app.route('/update_track/<int:track_id>', methods=['POST'])
 def update_track(track_id):
-    track = Track.query.get_or_404(track_id)
+    track = db.get_or_404(Track, track_id)
     title = request.form.get('nickname', '').strip()
     description = request.form.get('description', '').strip()
     tags = request.form.get('tags', '').strip()
@@ -914,14 +914,14 @@ def update_track(track_id):
 
 @app.route('/like_track/<int:track_id>', methods=['POST'])
 def like_track(track_id):
-    track = Track.query.get_or_404(track_id)
+    track = db.get_or_404(Track, track_id)
     track.likes = (track.likes or 0) + 1
     db.session.commit()
     return jsonify({"success": True, "new_like_count": track.likes})
 
 @app.route('/increment_track_view/<int:track_id>', methods=['POST'])
 def increment_track_view(track_id):
-    track = Track.query.get_or_404(track_id)
+    track = db.get_or_404(Track, track_id)
     if track.view_count is None:
         track.view_count = 1
     else:
@@ -991,7 +991,7 @@ def resolve_ai_persona(persona_id=None):
 
 @app.route('/add_track_comment/<int:track_id>', methods=['POST'])
 def add_track_comment(track_id):
-    track = Track.query.get_or_404(track_id)
+    track = db.get_or_404(Track, track_id)
     author = request.form.get('author', '').strip()
     content = request.form.get('content', '').strip()
     if not author or not content:
@@ -1009,14 +1009,14 @@ def add_track_comment(track_id):
 
 @app.route('/like_track_comment/<int:comment_id>', methods=['POST'])
 def like_track_comment(comment_id):
-    comment = TrackComment.query.get_or_404(comment_id)
+    comment = db.get_or_404(TrackComment, comment_id)
     comment.likes = (comment.likes or 0) + 1
     db.session.commit()
     return jsonify({"success": True, "new_like_count": comment.likes})
 
 @app.route('/delete_track_comment/<int:comment_id>', methods=['POST'])
 def delete_track_comment(comment_id):
-    comment = TrackComment.query.get_or_404(comment_id)
+    comment = db.get_or_404(TrackComment, comment_id)
     try:
         db.session.delete(comment)
         db.session.commit()
@@ -1027,7 +1027,7 @@ def delete_track_comment(comment_id):
 
 @app.route('/add_artist_comment/<int:artist_id>', methods=['POST'])
 def add_artist_comment(artist_id):
-    artist = Artist.query.get_or_404(artist_id)
+    artist = db.get_or_404(Artist, artist_id)
     author = request.form.get('author', '').strip()
     content = request.form.get('content', '').strip()
     if not author or not content:
@@ -1045,14 +1045,14 @@ def add_artist_comment(artist_id):
 
 @app.route('/like_artist_comment/<int:comment_id>', methods=['POST'])
 def like_artist_comment(comment_id):
-    comment = ArtistComment.query.get_or_404(comment_id)
+    comment = db.get_or_404(ArtistComment, comment_id)
     comment.likes = (comment.likes or 0) + 1
     db.session.commit()
     return jsonify({"success": True, "new_like_count": comment.likes})
 
 @app.route('/delete_artist_comment/<int:comment_id>', methods=['POST'])
 def delete_artist_comment(comment_id):
-    comment = ArtistComment.query.get_or_404(comment_id)
+    comment = db.get_or_404(ArtistComment, comment_id)
     try:
         db.session.delete(comment)
         db.session.commit()
@@ -1063,7 +1063,7 @@ def delete_artist_comment(comment_id):
 
 @app.route('/artist/<int:artist_id>/bio', methods=['POST'])
 def update_artist_bio(artist_id):
-    artist = Artist.query.get_or_404(artist_id)
+    artist = db.get_or_404(Artist, artist_id)
     bio = request.form.get('bio', '').strip()
     
     try:
@@ -1087,7 +1087,7 @@ def update_artist_bio(artist_id):
 def generate_track_comment(track_id):
     """Generate an AI comment for a track"""
     try:
-        track = Track.query.get_or_404(track_id)
+        track = db.get_or_404(Track, track_id)
         payload = request.get_json(silent=True) if request.is_json else request.form
         payload = payload or {}
         prompt = payload.get('prompt', '')
@@ -1140,7 +1140,7 @@ def generate_track_comment(track_id):
 def generate_artist_comment(artist_id):
     """Generate an AI comment for an artist"""
     try:
-        artist = Artist.query.get_or_404(artist_id)
+        artist = db.get_or_404(Artist, artist_id)
         payload = request.get_json(silent=True) if request.is_json else request.form
         payload = payload or {}
         prompt = payload.get('prompt', '')
@@ -1288,7 +1288,7 @@ def index():
 
 @app.route('/stream/<int:video_id>')
 def stream_video(video_id):
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     
     # Determine mime type based on file extension
     file_extension = os.path.splitext(video.stored_filepath)[1].lower()
@@ -1414,7 +1414,7 @@ def filter_videos():
 
 @app.route('/delete/<int:video_id>', methods=['POST'])
 def delete_video(video_id):
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     try:
         # Delete the file
         if os.path.exists(video.stored_filepath):
@@ -1430,7 +1430,7 @@ def delete_video(video_id):
 
 @app.route('/delete_track/<int:track_id>', methods=['POST'])
 def delete_track(track_id):
-    track = Track.query.get_or_404(track_id)
+    track = db.get_or_404(Track, track_id)
     try:
         # Delete the file
         if os.path.exists(track.stored_filepath):
@@ -1446,7 +1446,7 @@ def delete_track(track_id):
 
 @app.route('/edit_tags/<int:video_id>', methods=['POST'])
 def edit_tags(video_id):
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     new_tags = request.form.get('tags')
     
     try:
@@ -1485,7 +1485,7 @@ def get_related_videos(current_video, limit=8):
 
 @app.route('/edit_description/<int:video_id>', methods=['POST'])
 def edit_description(video_id):
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     new_description = request.form.get('description')
     
     try:
@@ -1519,13 +1519,13 @@ def get_tag_suggestions():
 
 @app.route('/thumbnail/<int:video_id>')
 def serve_thumbnail(video_id):
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     thumbnail_path = os.path.join(app.static_folder, video.thumbnail_path)
     return send_file(thumbnail_path, mimetype='image/jpeg')
 
 @app.route('/increment_view/<int:video_id>', methods=['POST'])
 def increment_view(video_id):
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     if video.view_count is None:
         video.view_count = 1
     else:
@@ -1657,7 +1657,7 @@ def cleanup_stealth():
 
 @app.route('/like/<int:video_id>', methods=['POST'])
 def like_video(video_id):
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     if video.likes is None:
         video.likes = 1
     else:
@@ -1667,7 +1667,7 @@ def like_video(video_id):
 
 @app.route('/add_comment/<int:video_id>', methods=['POST'])
 def add_comment(video_id):
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     author = request.form.get('author', '').strip()
     content = request.form.get('content', '').strip()
     
@@ -1706,7 +1706,7 @@ def add_comment(video_id):
 
 @app.route('/like_comment/<int:comment_id>', methods=['POST'])
 def like_comment(comment_id):
-    comment = Comment.query.get_or_404(comment_id)
+    comment = db.get_or_404(Comment, comment_id)
     if comment.likes is None:
         comment.likes = 1
     else:
@@ -1716,7 +1716,7 @@ def like_comment(comment_id):
 
 @app.route('/edit_title/<int:video_id>', methods=['POST'])
 def edit_title(video_id):
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     new_title = request.json.get('title', '').strip()
 
     if not new_title:
@@ -1732,7 +1732,7 @@ def edit_title(video_id):
 
 @app.route('/move_to_regular/<int:video_id>', methods=['POST'])
 def move_to_regular(video_id):
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     
     # Check if video is in stealth folder
     if not video.stored_filepath.startswith(app.config['STEALTH_UPLOAD_FOLDER']):
@@ -1820,7 +1820,7 @@ def add_to_playlist(playlist_id, video_id):
 
 @app.route('/get_playlist/<int:playlist_id>')
 def get_playlist(playlist_id):
-    playlist = Playlist.query.get_or_404(playlist_id)
+    playlist = db.get_or_404(Playlist, playlist_id)
     videos = db.session.query(Video, PlaylistVideo)\
         .join(PlaylistVideo)\
         .filter(PlaylistVideo.playlist_id == playlist_id)\
@@ -1881,7 +1881,7 @@ def playlists():
 
 @app.route('/playlist/<int:playlist_id>')
 def playlist_detail(playlist_id):
-    playlist = Playlist.query.get_or_404(playlist_id)
+    playlist = db.get_or_404(Playlist, playlist_id)
     playlist_videos = db.session.query(Video)\
         .join(PlaylistVideo)\
         .filter(PlaylistVideo.playlist_id == playlist_id)\
@@ -1941,7 +1941,7 @@ def remove_from_playlist(playlist_id, video_id):
 
 @app.route('/edit_playlist/<int:playlist_id>', methods=['POST'])
 def edit_playlist(playlist_id):
-    playlist = Playlist.query.get_or_404(playlist_id)
+    playlist = db.get_or_404(Playlist, playlist_id)
     data = request.json
     
     try:
@@ -1958,7 +1958,7 @@ def edit_playlist(playlist_id):
 
 @app.route('/add_playlist_comment/<int:playlist_id>', methods=['POST'])
 def add_playlist_comment(playlist_id):
-    playlist = Playlist.query.get_or_404(playlist_id)
+    playlist = db.get_or_404(Playlist, playlist_id)
     author = request.form.get('author', '').strip()
     content = request.form.get('content', '').strip()
     
@@ -1997,7 +1997,7 @@ def add_playlist_comment(playlist_id):
 
 @app.route('/like_playlist_comment/<int:comment_id>', methods=['POST'])
 def like_playlist_comment(comment_id):
-    comment = PlaylistComment.query.get_or_404(comment_id)
+    comment = db.get_or_404(PlaylistComment, comment_id)
     if comment.likes is None:
         comment.likes = 1
     else:
@@ -2019,7 +2019,7 @@ def get_playlists_json():
 
 @app.route('/delete_playlist_comment/<int:comment_id>', methods=['POST'])
 def delete_playlist_comment(comment_id):
-    comment = PlaylistComment.query.get_or_404(comment_id)
+    comment = db.get_or_404(PlaylistComment, comment_id)
     try:
         db.session.delete(comment)
         db.session.commit()
@@ -2221,7 +2221,7 @@ def trim_video_view(video_id):
     Render a page that lets the user select start and end times (in seconds)
     and optionally a new title. On POST, create a trimmed version using ffmpeg.
     """
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     preview = False
     trimmed_video_available = False
     error = None
@@ -2270,7 +2270,7 @@ def accept_trim_video(video_id):
     Replace the original video with the previously trimmed version.
     Optionally update the video title and regenerate the thumbnail.
     """
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     new_title = request.form.get('new_title', video.nickname).strip() or video.nickname
     file_ext = os.path.splitext(video.stored_filepath)[1]
     trimmed_video_path = os.path.splitext(video.stored_filepath)[0] + "_trimmed" + file_ext
@@ -2326,7 +2326,7 @@ def preview_trim_video(video_id):
     """
     Serve the trimmed video file so that it can be previewed.
     """
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     file_ext = os.path.splitext(video.stored_filepath)[1]
     trimmed_video_path = os.path.splitext(video.stored_filepath)[0] + "_trimmed" + file_ext
     if os.path.exists(trimmed_video_path):
@@ -2518,7 +2518,7 @@ def add_tag_comment(tag):
 
 @app.route('/like_tag_comment/<int:comment_id>', methods=['POST'])
 def like_tag_comment(comment_id):
-    comment = TagComment.query.get_or_404(comment_id)
+    comment = db.get_or_404(TagComment, comment_id)
     if comment.likes is None:
         comment.likes = 1
     else:
@@ -2528,7 +2528,7 @@ def like_tag_comment(comment_id):
 
 @app.route('/delete_tag_comment/<int:comment_id>', methods=['POST'])
 def delete_tag_comment(comment_id):
-    comment = TagComment.query.get_or_404(comment_id)
+    comment = db.get_or_404(TagComment, comment_id)
     try:
         db.session.delete(comment)
         db.session.commit()
@@ -2539,7 +2539,7 @@ def delete_tag_comment(comment_id):
 
 @app.route('/delete_playlist/<int:playlist_id>', methods=['POST'])
 def delete_playlist(playlist_id):
-    playlist = Playlist.query.get_or_404(playlist_id)
+    playlist = db.get_or_404(Playlist, playlist_id)
     try:
         # Delete all playlist comments
         PlaylistComment.query.filter_by(playlist_id=playlist_id).delete()

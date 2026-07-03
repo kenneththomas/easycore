@@ -8,7 +8,7 @@ playlist_bp = Blueprint('playlist', __name__)
 @playlist_bp.route('/delete_comment/<int:comment_id>', methods=['POST'])
 def delete_comment(comment_id):
     try:
-        comment = Comment.query.get_or_404(comment_id)
+        comment = db.get_or_404(Comment, comment_id)
         db.session.delete(comment)
         db.session.commit()
         return jsonify({'success': True})
@@ -19,7 +19,7 @@ def delete_comment(comment_id):
 @playlist_bp.route('/like_comment/<int:comment_id>', methods=['POST'])
 def like_comment(comment_id):
     try:
-        comment = Comment.query.get_or_404(comment_id)
+        comment = db.get_or_404(Comment, comment_id)
         comment.likes = (comment.likes or 0) + 1
         db.session.commit()
         return jsonify({'success': True, 'new_like_count': comment.likes})

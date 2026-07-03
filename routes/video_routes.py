@@ -241,7 +241,7 @@ def add_video():
 
 @video_bp.route('/<int:video_id>')
 def video_detail(video_id):
-    video = Video.query.get_or_404(video_id)
+    video = db.get_or_404(Video, video_id)
     if video.view_count is None:
         video.view_count = 1
     else:

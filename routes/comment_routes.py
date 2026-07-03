@@ -4,7 +4,7 @@ from models import db, Comment, PlaylistComment, TagComment, TrackComment
 
 @comment_bp.route('/like_comment/<int:comment_id>', methods=['POST'])
 def like_comment(comment_id):
-    comment = Comment.query.get_or_404(comment_id)
+    comment = db.get_or_404(Comment, comment_id)
     if comment.likes is None:
         comment.likes = 1
     else:
@@ -14,7 +14,7 @@ def like_comment(comment_id):
 
 @comment_bp.route('/like_playlist_comment/<int:comment_id>', methods=['POST'])
 def like_playlist_comment(comment_id):
-    comment = PlaylistComment.query.get_or_404(comment_id)
+    comment = db.get_or_404(PlaylistComment, comment_id)
     if comment.likes is None:
         comment.likes = 1
     else:
@@ -24,7 +24,7 @@ def like_playlist_comment(comment_id):
 
 @comment_bp.route('/like_tag_comment/<int:comment_id>', methods=['POST'])
 def like_tag_comment(comment_id):
-    comment = TagComment.query.get_or_404(comment_id)
+    comment = db.get_or_404(TagComment, comment_id)
     if comment.likes is None:
         comment.likes = 1
     else:
@@ -34,7 +34,7 @@ def like_tag_comment(comment_id):
 
 @comment_bp.route('/like_track_comment/<int:comment_id>', methods=['POST'])
 def like_track_comment(comment_id):
-    comment = TrackComment.query.get_or_404(comment_id)
+    comment = db.get_or_404(TrackComment, comment_id)
     if comment.likes is None:
         comment.likes = 1
     else:
