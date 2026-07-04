@@ -18,6 +18,12 @@
             <a href="{{ url_for('playlists') }}" class="nav-link">Playlists</a>
             <a href="{{ url_for('artists_index') }}" class="nav-link">Artists</a>
 
+            <form class="nav-search" action="{{ url_for('search') }}" method="get" role="search">
+                <label class="sr-only" for="global-search">Search library</label>
+                <input id="global-search" name="q" type="search" placeholder="Search" value="{{ query if query is defined else '' }}" autocomplete="off">
+                <button type="submit" aria-label="Search library" title="Search">&#128269;</button>
+            </form>
+
             <details class="nav-menu">
                 <summary class="nav-menu-trigger">Tools</summary>
                 <div class="nav-menu-panel">

@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, Response, make_response
 import os
-from sqlalchemy import desc, func, inspect, text
+from sqlalchemy import desc, func, inspect, or_, text
 import re
 from werkzeug.utils import secure_filename
 import ffmpeg
@@ -116,6 +116,11 @@ def format_track_date(track_date):
     if not track_date:
         return ''
     return track_date.strftime('%B %d, %Y')
+
+def split_tags(tag_text):
+    if not tag_text:
+        return []
+    return [tag.strip() for tag in tag_text.split(',') if tag.strip()]
 
 # Expose slugify to templates
 app.jinja_env.filters['slugify'] = slugify_author
@@ -1326,6 +1331,154 @@ def index():
                          tag=None,
                          sort_by=sort_by,
                          track_artists=track_artists)
+
+@app.route('/search')
+def search():
+    query = request.args.get('q', '').strip()
+    per_section = 10
+    results = {
+        'videos': [],
+        'tracks': [],
+        'artists': [],
+        'playlists': [],
+        'profiles': [],
+        'authors': [],
+        'tags': [],
+    }
+    track_artists = {}
+    video_artists = {}
+    total_results = 0
+
+    if query:
+        pattern = f"%{query}%"
+
+        results['videos'] = (
+            Video.query
+            .outerjoin(VideoArtist, VideoArtist.video_id == Video.id)
+            .outerjoin(Artist, Artist.id == VideoArtist.artist_id)
+            .filter(or_(
+                Video.nickname.ilike(pattern),
+                Video.original_filepath.ilike(pattern),
+                Video.description.ilike(pattern),
+                Video.tags.ilike(pattern),
+                Artist.name.ilike(pattern),
+            ))
+            .distinct()
+            .order_by(desc(Video.id))
+            .limit(per_section)
+            .all()
+        )
+
+        results['tracks'] = (
+            Track.query
+            .outerjoin(TrackArtist, TrackArtist.track_id == Track.id)
+            .outerjoin(Artist, Artist.id == TrackArtist.artist_id)
+            .filter(or_(
+                Track.nickname.ilike(pattern),
+                Track.original_filepath.ilike(pattern),
+                Track.description.ilike(pattern),
+                Track.tags.ilike(pattern),
+                Artist.name.ilike(pattern),
+            ))
+            .distinct()
+            .order_by(desc(Track.id))
+            .limit(per_section)
+            .all()
+        )
+
+        results['artists'] = (
+            Artist.query
+            .filter(or_(
+                Artist.name.ilike(pattern),
+                Artist.bio.ilike(pattern),
+            ))
+            .order_by(Artist.name.asc())
+            .limit(per_section)
+            .all()
+        )
+
+        results['playlists'] = (
+            Playlist.query
+            .filter(or_(
+                Playlist.name.ilike(pattern),
+                Playlist.description.ilike(pattern),
+            ))
+            .order_by(desc(Playlist.created_at))
+            .limit(per_section)
+            .all()
+        )
+
+        results['profiles'] = (
+            AuthorProfile.query
+            .filter(or_(
+                AuthorProfile.display_name.ilike(pattern),
+                AuthorProfile.slug.ilike(pattern),
+                AuthorProfile.bio.ilike(pattern),
+                AuthorProfile.personality.ilike(pattern),
+                AuthorProfile.taste_profile.ilike(pattern),
+            ))
+            .order_by(AuthorProfile.display_name.asc())
+            .limit(per_section)
+            .all()
+        )
+
+        author_names = set()
+        for comment_model in (Comment, TrackComment, PlaylistComment, TagComment, ArtistComment):
+            matching_authors = (
+                db.session.query(comment_model.author)
+                .filter(comment_model.author.ilike(pattern))
+                .limit(per_section)
+                .all()
+            )
+            for author, in matching_authors:
+                if author:
+                    author_names.add(author)
+        profile_names = {profile.display_name for profile in results['profiles'] if profile.display_name}
+        artist_names = {artist.name for artist in results['artists']}
+        results['authors'] = sorted(
+            author_names - profile_names - artist_names,
+            key=lambda author: author.lower()
+        )[:per_section]
+
+        tag_names = set()
+        for tag_row in Video.query.with_entities(Video.tags).filter(Video.tags.ilike(pattern)).all():
+            tag_names.update(tag for tag in split_tags(tag_row.tags) if query.lower() in tag.lower())
+        for tag_row in Track.query.with_entities(Track.tags).filter(Track.tags.ilike(pattern)).all():
+            tag_names.update(tag for tag in split_tags(tag_row.tags) if query.lower() in tag.lower())
+        tag_descriptions = TagDescription.query.filter(or_(
+            TagDescription.tag_name.ilike(pattern),
+            TagDescription.description.ilike(pattern),
+        )).all()
+        tag_names.update(description.tag_name for description in tag_descriptions if description.tag_name)
+        results['tags'] = sorted(tag_names, key=lambda tag: tag.lower())[:per_section]
+
+        for track in results['tracks']:
+            track_artists[track.id] = (
+                db.session.query(Artist)
+                .join(TrackArtist, TrackArtist.artist_id == Artist.id)
+                .filter(TrackArtist.track_id == track.id)
+                .order_by(Artist.name.asc())
+                .all()
+            )
+        for video in results['videos']:
+            video_artists[video.id] = (
+                db.session.query(Artist)
+                .join(VideoArtist, VideoArtist.artist_id == Artist.id)
+                .filter(VideoArtist.video_id == video.id)
+                .order_by(Artist.name.asc())
+                .all()
+            )
+
+        total_results = sum(len(items) for items in results.values())
+
+    return render_template(
+        'search.html',
+        query=query,
+        results=results,
+        total_results=total_results,
+        track_artists=track_artists,
+        video_artists=video_artists,
+    )
 
 # Route moved to video_routes.py blueprint
 

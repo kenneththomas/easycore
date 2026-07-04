@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if query %}Search "{{ query }}"{% else %}Search{% endif %} - easycore</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+</head>
+<body>
+    {% from 'navbar.html' import render_navbar %}
+    {{ render_navbar() }}
+
+    <main class="search-page">
+        <div class="search-shell">
+            <header class="search-header">
+                <p class="eyebrow">Global search</p>
+                <h1>{% if query %}Results for "{{ query }}"{% else %}Search easycore{% endif %}</h1>
+                <p>{% if query %}{{ total_results }} match{{ 'es' if total_results != 1 else '' }} across media, artists, playlists, profiles, users, and tags.{% else %}Use the search box in the navbar to find titles, profiles, users, artists, playlists, and tags.{% endif %}</p>
+            </header>
+
+            {% if query and total_results %}
+                {% if results.tracks %}
+                <section class="search-section" aria-labelledby="tracks-heading">
+                    <div class="section-heading">
+                        <h2 id="tracks-heading">Tracks</h2>
+                        <span class="section-kicker">{{ results.tracks|length }}</span>
+                    </div>
+                    <ul class="video-list">
+                        {% for track in results.tracks %}
+                        {% set item_artists = track_artists.get(track.id, []) %}
+                        {% set item_artwork = track_artwork_path(track, item_artists) %}
+                        <li class="video-item search-media-item">
+                            <a class="video-thumbnail" href="{{ url_for('track_detail', track_id=track.id) }}">
+                                {% if item_artwork %}
+                                <img src="{{ url_for('static', filename=item_artwork) }}" alt="">
+                                {% else %}
+                                <div class="track-placeholder" aria-hidden="true">&#9834;</div>
+                                {% endif %}
+                            </a>
+                            <div class="video-details">
+                                <span class="content-type">Track</span>
+                                <div class="video-title"><a href="{{ url_for('track_detail', track_id=track.id) }}">{{ track.nickname or track.original_filepath }}</a></div>
+                                {% if item_artists %}
+                                <div class="track-artists">
+                                    {% for artist in item_artists %}
+                                    <a href="{{ url_for('artist_detail', artist_id=artist.id) }}" class="artist-link">{{ artist.name }}</a>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                {% if track.description %}<p class="content-description">{{ track.description }}</p>{% endif %}
+                                {% if track.tags %}<p class="search-tags">{{ track.tags }}</p>{% endif %}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+                {% endif %}
+
+                {% if results.videos %}
+                <section class="search-section" aria-labelledby="videos-heading">
+                    <div class="section-heading">
+                        <h2 id="videos-heading">Videos</h2>
+                        <span class="section-kicker">{{ results.videos|length }}</span>
+                    </div>
+                    <ul class="video-list">
+                        {% for video in results.videos %}
+                        <li class="video-item search-media-item">
+                            <a class="video-thumbnail" href="{{ url_for('video.video_detail', video_id=video.id) }}">
+                                {% if video.thumbnail_path %}
+                                <img src="{{ url_for('static', filename=video.thumbnail_path) }}" alt="">
+                                {% else %}
+                                <div class="track-placeholder" aria-hidden="true">&#9654;</div>
+                                {% endif %}
+                            </a>
+                            <div class="video-details">
+                                <span class="content-type">Video</span>
+                                <div class="video-title"><a href="{{ url_for('video.video_detail', video_id=video.id) }}">{{ video.nickname or video.original_filepath }}</a></div>
+                                {% if video_artists.get(video.id) %}
+                                <div class="track-artists">
+                                    {% for artist in video_artists[video.id] %}
+                                    <a href="{{ url_for('artist_detail', artist_id=artist.id) }}" class="artist-link">{{ artist.name }}</a>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                {% if video.description %}<p class="content-description">{{ video.description }}</p>{% endif %}
+                                {% if video.tags %}<p class="search-tags">{{ video.tags }}</p>{% endif %}
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+                {% endif %}
+
+                {% set compact_sections = [
+                    ('Artists', results.artists),
+                    ('Playlists', results.playlists),
+                    ('Profiles', results.profiles),
+                    ('Users', results.authors),
+                    ('Tags', results.tags)
+                ] %}
+                {% for section_name, items in compact_sections if items %}
+                <section class="search-section" aria-labelledby="{{ section_name|lower }}-heading">
+                    <div class="section-heading">
+                        <h2 id="{{ section_name|lower }}-heading">{{ section_name }}</h2>
+                        <span class="section-kicker">{{ items|length }}</span>
+                    </div>
+                    <div class="search-grid">
+                        {% for item in items %}
+                            {% if section_name == 'Artists' %}
+                            <a class="search-result-card" href="{{ url_for('artist_detail', artist_id=item.id) }}">
+                                <span class="content-type">Artist</span>
+                                <strong>{{ item.name }}</strong>
+                                {% if item.bio %}<span>{{ item.bio }}</span>{% endif %}
+                            </a>
+                            {% elif section_name == 'Playlists' %}
+                            <a class="search-result-card" href="{{ url_for('playlist_detail', playlist_id=item.id) }}">
+                                <span class="content-type">Playlist</span>
+                                <strong>{{ item.name }}</strong>
+                                {% if item.description %}<span>{{ item.description }}</span>{% endif %}
+                            </a>
+                            {% elif section_name == 'Profiles' %}
+                            <a class="search-result-card" href="{{ url_for('artist_by_name', artist_name=item.display_name or item.slug) }}">
+                                <span class="content-type">Profile</span>
+                                <strong>{{ item.display_name or item.slug }}</strong>
+                                {% if item.bio %}<span>{{ item.bio }}</span>{% endif %}
+                            </a>
+                            {% elif section_name == 'Users' %}
+                            <a class="search-result-card" href="{{ url_for('artist_by_name', artist_name=item) }}">
+                                <span class="content-type">User</span>
+                                <strong>{{ item }}</strong>
+                            </a>
+                            {% else %}
+                            <a class="search-result-card" href="{{ url_for('tag_detail', tag=item) }}">
+                                <span class="content-type">Tag</span>
+                                <strong>#{{ item }}</strong>
+                            </a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endfor %}
+            {% elif query %}
+                <section class="empty-state" aria-labelledby="empty-search-heading">
+                    <div class="empty-state-icon" aria-hidden="true">&#128269;</div>
+                    <h2 id="empty-search-heading">No matches found</h2>
+                    <p>Try a title, artist, user name, playlist, or tag.</p>
+                </section>
+            {% endif %}
+        </div>
+    </main>
+</body>
+</html>

@@ -7,10 +7,12 @@ from models import (
     Playlist,
     PlaylistComment,
     PlaylistVideo,
+    TagDescription,
     Track,
     TrackArtist,
     TrackComment,
     Video,
+    VideoArtist,
     db,
 )
 
@@ -311,6 +313,71 @@ def test_get_tag_suggestions_returns_matching_first_tags(client):
 
     assert response.status_code == 200
     assert response.get_json() == ["pop rock", "dream pop"]
+
+
+def test_navbar_includes_global_search(client):
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert b'action="/search"' in response.data
+    assert b'name="q"' in response.data
+
+
+def test_global_search_finds_media_artists_and_playlists(client):
+    artist = Artist(name="Nova Vale", bio="Soft electronic demos")
+    track = Track(
+        original_filepath="midnight-demo.mp3",
+        stored_filepath="midnight-demo.mp3",
+        nickname="Midnight Signal",
+        tags="late night, synth",
+    )
+    video = Video(
+        original_filepath="session.mov",
+        stored_filepath="session.mov",
+        nickname="Studio Signal",
+        tags="behind the scenes",
+    )
+    playlist = Playlist(name="Signal Favorites", description="Best late night set")
+    db.session.add_all([artist, track, video, playlist])
+    db.session.flush()
+    db.session.add(TrackArtist(track_id=track.id, artist_id=artist.id))
+    db.session.add(VideoArtist(video_id=video.id, artist_id=artist.id))
+    db.session.commit()
+
+    response = client.get("/search?q=signal")
+
+    assert response.status_code == 200
+    assert b"Midnight Signal" in response.data
+    assert b"Studio Signal" in response.data
+    assert b"Signal Favorites" in response.data
+    assert b"Nova Vale" in response.data
+
+
+def test_global_search_finds_profiles_users_and_tags(client):
+    profile = AuthorProfile(
+        slug="jordan-quill",
+        display_name="Jordan Quill",
+        bio="Texture listener",
+    )
+    track = Track(
+        original_filepath="texture.mp3",
+        stored_filepath="texture.mp3",
+        nickname="Texture Study",
+        tags="ambient texture, field recording",
+    )
+    tag_description = TagDescription(tag_name="texture", description="Layered sound studies")
+    db.session.add_all([profile, track, tag_description])
+    db.session.flush()
+    db.session.add(TrackComment(track_id=track.id, author="Jordan Quill", content="Love this texture."))
+    db.session.commit()
+
+    response = client.get("/search?q=texture")
+
+    assert response.status_code == 200
+    assert b"Texture Study" in response.data
+    assert b"#ambient texture" in response.data
+    assert b"#texture" in response.data
+    assert b"Jordan Quill" in response.data
 
 
 def test_seed_default_ai_personas_is_idempotent(app):
