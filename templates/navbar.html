@@ -77,8 +77,9 @@
     <div id="global-player-queue-list" class="global-queue-list"></div>
 </section>
 <script src="{{ url_for('static', filename='js/global_player.js') }}"></script>
+<script src="{{ url_for('static', filename='js/persistent_navigation.js') }}"></script>
 
-<script>
+<script id="navbar-script">
     (() => {
         const nav = document.querySelector('.navbar');
         if (!nav) return;
