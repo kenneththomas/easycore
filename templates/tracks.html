@@ -214,6 +214,9 @@
                     by {% for artist in track_artists[track.id] %}{{ artist.name }}{% if not loop.last %}, {% endif %}{% endfor %}
                   </div>
                 {% endif %}
+                {% if track.album %}
+                  <div class="track-artists">{{ track.album }}</div>
+                {% endif %}
                 <div class="track-meta">
                   <div class="track-stats">
                     <span class="track-stat">👁️ {{ track.view_count or 0 }}</span>

@@ -7,6 +7,9 @@
     <style>.container{max-width:700px;margin:20px auto;padding:0 12px}.form-group{margin:12px 0}</style>
   </head>
   <body>
+    {% from 'navbar.html' import render_navbar %}
+    {{ render_navbar() }}
+
     <div class="container">
       <h2>Add Artist</h2>
       <form id="artistForm" enctype="multipart/form-data" method="post">

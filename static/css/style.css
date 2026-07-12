@@ -336,6 +336,7 @@ textarea {
 }
 
 .navbar {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     background: rgba(250, 250, 252, 0.9);
     border-bottom: 1px solid rgba(220, 222, 230, 0.85);
     position: sticky;

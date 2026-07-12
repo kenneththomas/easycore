@@ -156,6 +156,13 @@
 
 .track-artists-line a:hover { text-decoration: underline; }
 
+.track-album-line {
+    margin-top: 8px;
+    color: rgba(255,255,255,.7);
+    font-size: .9rem;
+    font-weight: 650;
+}
+
 .track-date-line {
     display: block;
     margin-top: 8px;

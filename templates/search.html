@@ -27,7 +27,7 @@
                 <section class="search-section" aria-labelledby="tracks-heading">
                     <div class="section-heading">
                         <h2 id="tracks-heading">Tracks</h2>
-                        <span class="section-kicker">{{ results.tracks|length }}</span>
+                        <span class="section-kicker">{{ media_pagination.tracks.total }}</span>
                     </div>
                     <ul class="video-list">
                         {% for track in results.tracks %}
@@ -57,6 +57,17 @@
                         </li>
                         {% endfor %}
                     </ul>
+                    {% if media_pagination.tracks.pages > 1 %}
+                    <nav class="pagination" aria-label="Track search result pages">
+                        {% if media_pagination.tracks.has_prev %}
+                        <a href="{{ url_for('search', q=query, track_page=media_pagination.tracks.prev_num, video_page=media_pagination.videos.page) }}">Previous</a>
+                        {% endif %}
+                        <span class="page-status">Page {{ media_pagination.tracks.page }} of {{ media_pagination.tracks.pages }}</span>
+                        {% if media_pagination.tracks.has_next %}
+                        <a href="{{ url_for('search', q=query, track_page=media_pagination.tracks.next_num, video_page=media_pagination.videos.page) }}">Next</a>
+                        {% endif %}
+                    </nav>
+                    {% endif %}
                 </section>
                 {% endif %}
 
@@ -64,7 +75,7 @@
                 <section class="search-section" aria-labelledby="videos-heading">
                     <div class="section-heading">
                         <h2 id="videos-heading">Videos</h2>
-                        <span class="section-kicker">{{ results.videos|length }}</span>
+                        <span class="section-kicker">{{ media_pagination.videos.total }}</span>
                     </div>
                     <ul class="video-list">
                         {% for video in results.videos %}
@@ -92,6 +103,17 @@
                         </li>
                         {% endfor %}
                     </ul>
+                    {% if media_pagination.videos.pages > 1 %}
+                    <nav class="pagination" aria-label="Video search result pages">
+                        {% if media_pagination.videos.has_prev %}
+                        <a href="{{ url_for('search', q=query, video_page=media_pagination.videos.prev_num, track_page=media_pagination.tracks.page) }}">Previous</a>
+                        {% endif %}
+                        <span class="page-status">Page {{ media_pagination.videos.page }} of {{ media_pagination.videos.pages }}</span>
+                        {% if media_pagination.videos.has_next %}
+                        <a href="{{ url_for('search', q=query, video_page=media_pagination.videos.next_num, track_page=media_pagination.tracks.page) }}">Next</a>
+                        {% endif %}
+                    </nav>
+                    {% endif %}
                 </section>
                 {% endif %}
 

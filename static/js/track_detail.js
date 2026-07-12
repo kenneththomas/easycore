@@ -413,6 +413,13 @@
         }
         document.getElementById('track-description').textContent =
             data.track.description || 'No description has been added yet.';
+        const trackAlbum = document.getElementById('track-album');
+        if (trackAlbum) {
+            trackAlbum.textContent = data.track.album || '';
+            trackAlbum.hidden = !data.track.album;
+        }
+        const fileAlbum = document.getElementById('track-file-album');
+        if (fileAlbum) fileAlbum.textContent = data.track.album || 'No album set';
 
         renderArtists(data.track.artists);
         quickArtistsInput.value = data.track.artists.map(artist => artist.name).join(', ');

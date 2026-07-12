@@ -69,6 +69,7 @@ class Track(db.Model):
     original_filepath = db.Column(db.String(255), nullable=False)
     stored_filepath = db.Column(db.String(255), nullable=False)
     nickname = db.Column(db.String(100))
+    album = db.Column(db.String(150))
     track_date = db.Column(db.Date, default=lambda: date.today())
     description = db.Column(db.Text)
     tags = db.Column(db.String(255))

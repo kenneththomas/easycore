@@ -65,6 +65,9 @@
                                         <span>Unknown artist</span>
                                     {% endif %}
                                 </div>
+                                <div class="track-album-line" id="track-album" {% if not track.album %}hidden{% endif %}>
+                                    {{ track.album or '' }}
+                                </div>
                                 <time class="track-date-line" id="track-date" datetime="{{ track.track_date.isoformat() if track.track_date else '' }}">
                                     {{ format_track_date(track.track_date) if track.track_date else 'No date set' }}
                                 </time>
@@ -144,6 +147,10 @@
                                 <div class="edit-field">
                                     <label for="edit-artists">Artists</label>
                                     <input id="edit-artists" name="artist_names" value="{{ artists|map(attribute='name')|join(', ') }}" placeholder="Separate multiple artists with commas">
+                                </div>
+                                <div class="edit-field">
+                                    <label for="edit-album">Album</label>
+                                    <input id="edit-album" name="album" value="{{ track.album or '' }}" placeholder="Album title">
                                 </div>
                                 <div class="edit-field">
                                     <label for="edit-track-date">Date</label>
@@ -362,6 +369,7 @@
                         <h2>File details</h2>
                         <dl>
                             <div><dt>Original</dt><dd>{{ track.original_filepath }}</dd></div>
+                            <div><dt>Album</dt><dd id="track-file-album">{{ track.album or 'No album set' }}</dd></div>
                             <div><dt>Date</dt><dd>{{ format_track_date(track.track_date) if track.track_date else 'No date set' }}</dd></div>
                             <div><dt>Track ID</dt><dd>{{ track.id }}</dd></div>
                         </dl>

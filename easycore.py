@@ -247,6 +247,7 @@ def ensure_track_preview_columns():
         row[1] for row in db.session.execute(text("PRAGMA table_info(track)")).fetchall()
     }
     columns = {
+        'album': 'VARCHAR(150)',
         'track_date': 'DATE',
         'preview_start': 'FLOAT',
         'preview_end': 'FLOAT',
@@ -682,6 +683,7 @@ def add_track():
         background = request.files.get('background')
         nickname = request.form.get('nickname')
         artist_name = request.form.get('artist_name', '').strip()
+        album = request.form.get('album', '').strip()
         track_date_raw = request.form.get('track_date', '').strip()
         description = request.form.get('description')
         tags = request.form.get('tags')
@@ -723,6 +725,7 @@ def add_track():
                 original_filepath=original_filepath,
                 stored_filepath=stored_filepath,
                 nickname=nickname,
+                album=album or None,
                 track_date=track_date,
                 description=description,
                 tags=tags,
@@ -852,6 +855,7 @@ def update_track_photo(track_id):
 def update_track(track_id):
     track = db.get_or_404(Track, track_id)
     title = request.form.get('nickname', '').strip()
+    album = request.form.get('album', '').strip()
     description = request.form.get('description', '').strip()
     tags = request.form.get('tags', '').strip()
     preview_start_raw = request.form.get('preview_start', '').strip()
@@ -890,6 +894,7 @@ def update_track(track_id):
             return jsonify({"error": "Preview end must be after preview start."}), 400
 
         track.nickname = title
+        track.album = album or None
         track.track_date = parse_track_date(track_date_raw)
         track.description = description
         track.tags = tags
@@ -914,6 +919,7 @@ def update_track(track_id):
             "success": True,
             "track": {
                 "title": track.nickname,
+                "album": track.album or '',
                 "date": track.track_date.isoformat() if track.track_date else '',
                 "dateDisplay": format_track_date(track.track_date),
                 "description": track.description,
@@ -1335,7 +1341,10 @@ def index():
 @app.route('/search')
 def search():
     query = request.args.get('q', '').strip()
-    per_section = 10
+    compact_section_limit = 10
+    media_per_page = 25
+    video_page = max(request.args.get('video_page', 1, type=int), 1)
+    track_page = max(request.args.get('track_page', 1, type=int), 1)
     results = {
         'videos': [],
         'tracks': [],
@@ -1347,12 +1356,13 @@ def search():
     }
     track_artists = {}
     video_artists = {}
+    media_pagination = {'videos': None, 'tracks': None}
     total_results = 0
 
     if query:
         pattern = f"%{query}%"
 
-        results['videos'] = (
+        video_query = (
             Video.query
             .outerjoin(VideoArtist, VideoArtist.video_id == Video.id)
             .outerjoin(Artist, Artist.id == VideoArtist.artist_id)
@@ -1365,26 +1375,33 @@ def search():
             ))
             .distinct()
             .order_by(desc(Video.id))
-            .limit(per_section)
-            .all()
         )
+        video_pagination = video_query.paginate(
+            page=video_page, per_page=media_per_page, error_out=False
+        )
+        results['videos'] = video_pagination.items
+        media_pagination['videos'] = video_pagination
 
-        results['tracks'] = (
+        track_query = (
             Track.query
             .outerjoin(TrackArtist, TrackArtist.track_id == Track.id)
             .outerjoin(Artist, Artist.id == TrackArtist.artist_id)
             .filter(or_(
                 Track.nickname.ilike(pattern),
                 Track.original_filepath.ilike(pattern),
+                Track.album.ilike(pattern),
                 Track.description.ilike(pattern),
                 Track.tags.ilike(pattern),
                 Artist.name.ilike(pattern),
             ))
             .distinct()
             .order_by(desc(Track.id))
-            .limit(per_section)
-            .all()
         )
+        track_pagination = track_query.paginate(
+            page=track_page, per_page=media_per_page, error_out=False
+        )
+        results['tracks'] = track_pagination.items
+        media_pagination['tracks'] = track_pagination
 
         results['artists'] = (
             Artist.query
@@ -1393,7 +1410,7 @@ def search():
                 Artist.bio.ilike(pattern),
             ))
             .order_by(Artist.name.asc())
-            .limit(per_section)
+            .limit(compact_section_limit)
             .all()
         )
 
@@ -1404,7 +1421,7 @@ def search():
                 Playlist.description.ilike(pattern),
             ))
             .order_by(desc(Playlist.created_at))
-            .limit(per_section)
+            .limit(compact_section_limit)
             .all()
         )
 
@@ -1418,7 +1435,7 @@ def search():
                 AuthorProfile.taste_profile.ilike(pattern),
             ))
             .order_by(AuthorProfile.display_name.asc())
-            .limit(per_section)
+            .limit(compact_section_limit)
             .all()
         )
 
@@ -1427,7 +1444,7 @@ def search():
             matching_authors = (
                 db.session.query(comment_model.author)
                 .filter(comment_model.author.ilike(pattern))
-                .limit(per_section)
+                .limit(compact_section_limit)
                 .all()
             )
             for author, in matching_authors:
@@ -1438,7 +1455,7 @@ def search():
         results['authors'] = sorted(
             author_names - profile_names - artist_names,
             key=lambda author: author.lower()
-        )[:per_section]
+        )[:compact_section_limit]
 
         tag_names = set()
         for tag_row in Video.query.with_entities(Video.tags).filter(Video.tags.ilike(pattern)).all():
@@ -1450,7 +1467,7 @@ def search():
             TagDescription.description.ilike(pattern),
         )).all()
         tag_names.update(description.tag_name for description in tag_descriptions if description.tag_name)
-        results['tags'] = sorted(tag_names, key=lambda tag: tag.lower())[:per_section]
+        results['tags'] = sorted(tag_names, key=lambda tag: tag.lower())[:compact_section_limit]
 
         for track in results['tracks']:
             track_artists[track.id] = (
@@ -1469,13 +1486,18 @@ def search():
                 .all()
             )
 
-        total_results = sum(len(items) for items in results.values())
+        total_results = (
+            video_pagination.total
+            + track_pagination.total
+            + sum(len(results[key]) for key in ('artists', 'playlists', 'profiles', 'authors', 'tags'))
+        )
 
     return render_template(
         'search.html',
         query=query,
         results=results,
         total_results=total_results,
+        media_pagination=media_pagination,
         track_artists=track_artists,
         video_artists=video_artists,
     )
